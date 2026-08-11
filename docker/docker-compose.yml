@@ -1,2 +1,17 @@
 services:
-  
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/docker/mosquitto.conf
+
+  subscriber:
+    build:
+      context: ..                      # Apunta a la raíz del proyecto
+      dockerfile: docker/Dockerfile    # Tu Dockerfile que compila/ejecuta Java
+    container_name: java-subscriber
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
