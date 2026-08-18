@@ -1,3 +1,9 @@
 #!/bin/bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+./scripts/build.sh
+
 echo "Levantando servicios con Docker Compose..."
-docker compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml up -d
