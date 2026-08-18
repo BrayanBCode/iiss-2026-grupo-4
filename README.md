@@ -5,6 +5,7 @@ un broker MQTT (Mosquitto) y un suscriptor Java mínimo que se conecta al broker
 se suscribe a un tópico e imprime en consola los mensajes recibidos.
 
 Documento de Visión del producto: [`docs/vision.md`](docs/vision.md).
+Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3?filter=&groupBy=none&atlOrigin=eyJpIjoiNjkxZmM3YjIyNjU2NGUyZmEwN2RiZjExMzc5MjEyMGYiLCJwIjoiaiJ9)
 
 ---
 
