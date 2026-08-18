@@ -125,5 +125,4 @@ Deberías ver en la Terminal 1 algo como:
 ---
 
 ## Proyecto Jira
-
-https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3
+https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3?filter=&groupBy=none&atlOrigin=eyJpIjoiNjkxZmM3YjIyNjU2NGUyZmEwN2RiZjExMzc5MjEyMGYiLCJwIjoiaiJ9
