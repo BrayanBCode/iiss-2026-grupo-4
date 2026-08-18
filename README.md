@@ -17,10 +17,7 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   └── vision.md              # Visión del producto v1 (plantilla Moore + análisis de dispositivos)
 ├── docker/
 │   ├── docker-compose.yml     # Orquesta el broker Mosquitto y el subscriber Java
-│   ├── Dockerfile             # Build multi-stage del subscriber (compila   git add -A
-   git commit -m "Iteración 1: vision.md, README, build reproducible"
-   git tag version1
-   git push origin master --tags con javac dentro de Docker)
+│   ├── Dockerfile             # Build multi-stage del subscriber (compila con javac dentro de Docker)
 │   └── mosquitto.conf         # Configuración del broker (listener 1883, anónimo habilitado)
 ├── scripts/
 │   ├── build.sh                # Compila todo el sistema vía Docker (sin JDK/Maven/IntelliJ local)
