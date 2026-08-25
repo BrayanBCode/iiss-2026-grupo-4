@@ -1,26 +1,26 @@
-# Build reproducible: compila el suscriptor Java DENTRO de Docker, sin depender
-# de IntelliJ ni de tener Java/Maven instalados en el host.
+# Build reproducible: compila el subscriber con Maven DENTRO de Docker.
+# No depende de tener Java/Maven instalados en el host, ni de IntelliJ.
 # Contexto de build: raíz del repo (ver docker-compose.yml -> context: ..)
 
-# --- Etapa 1: compilación ---
-FROM eclipse-temurin:25-jdk-alpine AS build
+# --- Etapa 1: build con Maven ---
+FROM maven:3.9-eclipse-temurin-25-alpine AS build
 WORKDIR /build
 
-# Dependencias (jar de Eclipse Paho) y código fuente
-COPY lib ./lib
-COPY src ./src
+# Primero solo el pom.xml, para cachear la descarga de dependencias en una
+# capa de Docker separada: si después solo cambia el código Java, esta capa
+# no se vuelve a descargar.
+COPY pom.xml .
+RUN mvn -q -B dependency:go-offline
 
-# Compila todos los .java del proyecto contra las libs de /lib.
-# find soporta rutas con espacios/etc de forma segura vía -print0/xargs -0.
-RUN mkdir -p out/classes && \
-    find src -name "*.java" -print0 | xargs -0 javac -cp "lib/*" -d out/classes
+COPY src ./src
+RUN mvn -q -B clean package
 
 # --- Etapa 2: imagen de ejecución (liviana, solo JRE) ---
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
-COPY --from=build /build/out/classes ./classes
-COPY lib ./lib
+# El fat jar generado por maven-shade-plugin ya incluye las dependencias
+# (Paho), así que no hace falta copiar ninguna carpeta lib/.
+COPY --from=build /build/target/subscriber.jar /app/subscriber.jar
 
-# Punto de entrada del suscriptor MQTT (package subscriber; class AppSubscriber)
-ENTRYPOINT ["java", "-cp", "classes:lib/*", "subscriber.AppSubscriber"]
+ENTRYPOINT ["java", "-jar", "/app/subscriber.jar"]
