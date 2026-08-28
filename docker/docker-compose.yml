@@ -11,8 +11,19 @@ services:
   subscriber:
     build:
       context: ..                       # Apunta a la raíz del proyecto (donde está el pom.xml y src)
-      dockerfile: docker/Dockerfile     # Ruta al Dockerfile relativa al contexto
+      dockerfile: src/subscriber/Dockerfile     # Ruta al Dockerfile relativa al contexto
     container_name: java-subscriber
     depends_on:
       - mosquitto
     restart: unless-stopped
+
+  eventgenerator:
+    build:
+      context: ..
+      dockerfile: src/eventGenerator/Dockerfile
+    container_name: event-generator
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+
