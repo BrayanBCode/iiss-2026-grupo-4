@@ -7,7 +7,7 @@ public class AppSubscriber {
         // En Docker Compose, "mosquitto" es el nombre del servicio broker
         String broker = "tcp://mosquitto:1883";
         String clientId = "JavaSubscriberModule";
-        String topic = "ingSoft/informa"; // Ajusta al tópico que uses en tus scripts
+        String topic = "casa/habitacion1/temperatura"; // Ajusta al tópico que uses en tus scripts
 
         try {
             // 1. Crear el cliente MQTT con la librería Eclipse Paho
