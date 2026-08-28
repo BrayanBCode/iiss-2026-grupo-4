@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent> <!--Esto indica el padre (herencia)-->
+        <groupId>uy.edu.utec.iiss</groupId>
+        <artifactId>ecowarm-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../../pom.xml</relativePath> <!-- con el ../../ logramos salir hacia la carpeta main-->
+    </parent>
+    <artifactId>subscriber</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>${paho.version}</version>
+        </dependency>
+    </dependencies>
+    <!-- fija el nombre del jar para luego usarlo en el copy del dockerfile-->
+    <build>
+        <finalName>subscriber</finalName>
+    </build>
+</project>

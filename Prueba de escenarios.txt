@@ -4,7 +4,6 @@ Escenarios:
 	El producto de software logre comunicarse con un sistema climatico del cual se base para recompilar informacion del clima del 
 	dia siguiente, para que pueda prender el sistema de calefacción en una temperatura estandar y que a su vez, pueda 
 	preguntarle al cliente si desea aumentar o disminuir dicha temperatura para que se adapte a su sensación termica.
-	Debido a cambios de temperatura y clima variante nuestro software se comunica con aplicaciones
 
 
 
