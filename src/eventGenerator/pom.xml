@@ -11,13 +11,13 @@
     </parent>
     <artifactId>eventGenerator</artifactId>
     <dependencies>
-
         <dependency>
             <groupId>org.eclipse.paho</groupId>
             <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
             <version>${paho.version}</version> <!--Variable de la version de paho que se la seteamos en el pom main-->
         </dependency>
     </dependencies>
+
     <!-- fija el nombre del jar para luego usarlo en el copy del dockerfile-->
     <build>
         <finalName>eventGenerator</finalName>

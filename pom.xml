@@ -7,20 +7,13 @@
     <artifactId>ecowarm-parent</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <modules> <!--Referencia que es el padre y los <module> son los hijos-->
-        <module>
-            src/subscriber
-        </module>
-        <module>
-            src/eventGenerator
-        </module>
+        <module>src/subscriber</module>
+        <module>src/eventGenerator</module>
     </modules>
+
     <properties>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.3</version>
-        </dependency>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <paho.version>1.2.5</paho.version>
