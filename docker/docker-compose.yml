@@ -19,6 +19,7 @@ services:
       - DB_PASSWORD=root
     depends_on:
       - mosquitto
+      - postgres
     restart: unless-stopped
 
   eventgenerator:
@@ -28,23 +29,22 @@ services:
     container_name: event-generator
     depends_on:
       - mosquitto
-      - postgres
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     container_name: postgres-db
     environment:
-      - POSTGRES_DB=ecowarm
-      - POSTGRES_USER=ecowarm
-      - POSTGRES_PASSWORD=ecowarm
+      - POSTGRES_DB=iiss2026
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data     # ← esto va DENTRO del service postgres
+      - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
-volumes: # ← esto va al final, MISMA indentación que "services:"
+volumes:
   pgdata:
 
 

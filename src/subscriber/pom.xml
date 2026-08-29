@@ -16,7 +16,7 @@
             <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
             <version>${paho.version}</version>
         </dependency>
-        <dependency>
+        <dependency> <!-- Cambiar a una version sin vulnerabilidades -->
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.4</version>
