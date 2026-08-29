@@ -16,8 +16,14 @@
         </module>
     </modules>
     <properties>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <paho.version>1.2.5</paho.version>
     </properties>
+
 </project>
