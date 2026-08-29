@@ -15,7 +15,7 @@ services:
     container_name: java-subscriber
     environment:
       - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
-      - DB_USER=postgres
+      - DB_USER=root
       - DB_PASSWORD=root
     depends_on:
       - mosquitto
