@@ -13,6 +13,10 @@ services:
       context: ..                       # Apunta a la raíz del proyecto (donde está el pom.xml y src)
       dockerfile: src/subscriber/Dockerfile     # Ruta al Dockerfile relativa al contexto
     container_name: java-subscriber
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
+      - DB_USER=postgres
+      - DB_PASSWORD=root
     depends_on:
       - mosquitto
     restart: unless-stopped
@@ -24,6 +28,23 @@ services:
     container_name: event-generator
     depends_on:
       - mosquitto
+      - postgres
     restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      - POSTGRES_DB=ecowarm
+      - POSTGRES_USER=ecowarm
+      - POSTGRES_PASSWORD=ecowarm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data     # ← esto va DENTRO del service postgres
+    restart: unless-stopped
+
+volumes: # ← esto va al final, MISMA indentación que "services:"
+  pgdata:
 
 
