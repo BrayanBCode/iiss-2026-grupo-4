@@ -16,10 +16,10 @@ jobs:
         uses: actions/checkout@v4
 
       #  Configura el entorno de Java (JDK) y la caché de Maven
-      - name: Configurar JDK 17
+      - name: Configurar JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'temurin'
           cache: 'maven' # Optimiza la descarga de dependencias de Maven
 
