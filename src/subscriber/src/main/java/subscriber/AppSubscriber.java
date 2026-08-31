@@ -11,7 +11,7 @@ public class AppSubscriber {
         // En Docker Compose, "mosquitto" es el nombre del servicio broker
         String broker = "tcp://mosquitto:1883";
         String clientId = "JavaSubscriberModule";
-        String topic = "casa/+/temperatura"; // el + sirve como "comodin" por nivel
+        String topic = "#"; // el + sirve como "comodin" por nivel
 
         LecturaDAO dao = new LecturaDAO();
 
