@@ -16,6 +16,6 @@ public class Habitacion {
         temperatura += (Math.random() - 0.5);
         String payload = """
             {"id":"%s","temperatura":%.1f,"timestamp":"%s"}""".formatted(id, temperatura, java.time.Instant.now());
-        client.publish("casa/" + id + "/temperatura", new MqttMessage(payload.getBytes()));
+        client.publish(id + "/status/temperature", new MqttMessage(payload.getBytes()));
     }
 }
