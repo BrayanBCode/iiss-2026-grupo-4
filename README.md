@@ -126,3 +126,18 @@ Deberías ver en la Terminal 1 algo como:
 
 ## Proyecto Jira
 https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3?filter=&groupBy=none&atlOrigin=eyJpIjoiNjkxZmM3YjIyNjU2NGUyZmEwN2RiZjExMzc5MjEyMGYiLCJwIjoiaiJ9
+
+
+## Licencias de Terceros
+
+Nuestro proyecto hace uso de software, herramientas de infraestructura y librerías de código abierto desarrolladas por terceros, sujetas a sus respectivas licencias:
+
+Docker (Docker Engine): Licenciado bajo la Apache License 2.0. Se utiliza para la contenedorización y despliegue del entorno de ejecución.
+
+Eclipse Paho: Licenciado bajo la Eclipse Public License 2.0 (EPL-2.0). Se utiliza como cliente MQTT para la gestión de mensajería.
+
+Apache Maven: Licenciado bajo la Apache License 2.0. Se utiliza como herramienta de gestión y construcción del proyecto.
+
+Eclipse Mosquitto: Licenciado bajo la Eclipse Public License 2.0 (EPL-2.0) y Eclipse Distribution License 1.0 (EDL-1.0). Se utiliza como broker MQTT para el transporte de mensajes.
+
+Todas estas licencias son permisivas y compatibles con la licencia MIT seleccionada para nuestro proyecto.
