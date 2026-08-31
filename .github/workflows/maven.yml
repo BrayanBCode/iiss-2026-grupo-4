@@ -1,4 +1,4 @@
-name: CI con Java y Maven
+name: IISS2026
 
 on:
   push:
