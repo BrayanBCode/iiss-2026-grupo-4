@@ -1,0 +1,32 @@
+name: CI con Java y Maven
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Descarga el código fuente del repositorio
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      #  Configura el entorno de Java (JDK) y la caché de Maven
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven' # Optimiza la descarga de dependencias de Maven
+
+      #  Compila y ejecuta las pruebas unitarias
+      - name: Compilar y Probar con Maven
+        run: mvn -B clean test
+
+      # Genera el paquete (.jar o .war) sin volver a ejecutar tests
+      - name: Empaquetar proyecto
+        run: mvn -B package -DskipTests
