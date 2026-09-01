@@ -10,9 +10,7 @@ import java.time.Instant;
 public class LecturaDAO {
 
     // Crea la tabla la primera vez que arranca el subscriber (si no existe).
-    // "habitacion_id" referencia a habitaciones(id) -- ya no guardamos el
-    // nombre de la habitación suelto, sino el vínculo real con la
-    // asignación que hizo el cliente.
+    // "habitacion_id" referencia a habitaciones(id)
     public void crearTablaSiNoExiste() throws SQLException {
         String sql = """
             CREATE TABLE IF NOT EXISTS lecturas (

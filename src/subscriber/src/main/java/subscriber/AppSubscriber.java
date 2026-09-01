@@ -19,20 +19,21 @@ public class AppSubscriber {
         HabitacionDAO habitacionDAO = new HabitacionDAO();
 
         try {
-            // 0. Preparar la base: tabla de habitaciones (+ asignación inicial
-            //    del cliente) y tabla de lecturas, antes de arrancar a escuchar
+            // crea y puebla las tablas de estar vacias (Se supone el cliente ya ingreso los shelly al sistema)
             habitacionDAO.crearTablaSiNoExiste();
             habitacionDAO.seedearSiVacia();
             lecturaDAO.crearTablaSiNoExiste();
             System.out.println("🗄️ Tablas 'habitaciones' y 'lecturas' listas.");
 
-            // 1. Crear el cliente MQTT con la librería Eclipse Paho
+            // Crear el cliente MQTT
             MqttClient client = new MqttClient(broker, clientId);
 
+            // Utilizamos la configuracion default + "CleanSession" (Crea la conexión como si fuera nueva y no
+            // intente recuperar una session anterior)
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
 
-            // 2. Definir qué hacer cuando lleguen mensajes
+            // Creamos un eventListener con una clase anónima que implementa la interface mqttCallBack
             client.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
@@ -45,26 +46,24 @@ public class AppSubscriber {
                     System.out.println("[MENSAJE RECIBIDO] Tópico: " + topic + " -> " + contenido);
 
                     try {
-                        // El deviceId es el primer segmento del topic:
-                        // "shellyhtg3-a1b2c3d4e5f6/status/temperature:0" -> "shellyhtg3-a1b2c3d4e5f6"
+                        // Obtenemos el ID del shelly desde el topico
                         String deviceId = topic.substring(0, topic.indexOf('/'));
 
+                        // Convertimos el String a Json para obtener los datos por clave
                         JSONObject json = new JSONObject(contenido);
                         double temperaturaC = json.getDouble("tC");
                         double temperaturaF = json.getDouble("tF");
                         double epochSegundos = json.getDouble("ts");
                         Instant timestamp = Instant.ofEpochMilli((long) (epochSegundos * 1000));
 
-                        // Resolver a qué habitación corresponde este termostato,
-                        // según la asignación que ya hizo el cliente. Si el
-                        // dispositivo no está asignado a ninguna habitación,
-                        // NO inventamos una: se descarta el mensaje.
+                        // Preguntamos si el Shelly remitente fue ingresado por el cliente (Osea esta en la BD)
                         Optional<Habitacion> habitacion = habitacionDAO.buscarPorTermostatoId(deviceId);
                         if (habitacion.isEmpty()) {
                             System.out.println("Termostato '" + deviceId + "' no está asignado a ninguna habitación — se descarta el mensaje.");
                             return;
                         }
 
+                        // Persistimos los datos en la tabla lecturas
                         lecturaDAO.guardar(habitacion.get().id(), temperaturaC, temperaturaF, timestamp);
                         System.out.println("Guardado en BD: " + habitacion.get().nombre() + " -> " + temperaturaC + "°C");
                     } catch (Exception e) {
@@ -79,7 +78,6 @@ public class AppSubscriber {
                 }
             });
 
-            // 3. Conectar al broker y suscribirse
             System.out.println("Conectando al broker MQTT en: " + broker);
             client.connect(options);
             System.out.println("✅ Conectado con éxito.");
