@@ -1,7 +1,4 @@
 package subscriber;
 
-/**
- * Representa una habitación ya dada de alta por el cliente, con el
- * termostato y el switch que tiene asignados. Ver HabitacionDAO.
- */
+/** Equivalente a un DataType, "record" permite crear una clase que solo transporta datos inmutables **/
 public record Habitacion(int id, String nombre, double temperaturaObjetivo) { }

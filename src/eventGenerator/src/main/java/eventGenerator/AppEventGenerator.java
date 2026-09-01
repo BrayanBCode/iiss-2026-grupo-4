@@ -12,6 +12,7 @@ public class AppEventGenerator {
         MqttClient client = new MqttClient("tcp://mosquitto:1883", MqttClient.generateClientId());
         client.connect();
 
+        // Creamos
         List<Habitacion> habitaciones = List.of(
                 new Habitacion("shellyhtg3-a1b2c3d4e5f6", client), // living
                 new Habitacion("shellyhtg3-b2c3d4e5f6a1", client), // dormitorio

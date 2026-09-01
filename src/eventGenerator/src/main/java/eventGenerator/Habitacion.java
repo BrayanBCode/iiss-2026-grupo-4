@@ -3,7 +3,6 @@ import org.eclipse.paho.client.mqttv3.*;
 
 /**
  * Simula un termostato (sensor Shelly H&T Gen3) publicando su temperatura
- * por MQTT, con el formato de mensaje definido en la letra de la Iteración 2:
  *
  *   Topic:   <deviceId>/status/temperature:0
  *   Payload: {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}
@@ -11,14 +10,8 @@ import org.eclipse.paho.client.mqttv3.*;
  * El "id" del payload es el índice del componente sensor dentro DEL PROPIO
  * dispositivo (los Shelly reales pueden tener más de un sensor del mismo tipo
  * en un solo device) — NO es el identificador de la habitación. El H&T Gen3
- * tiene un solo sensor de temperatura, así que ese id siempre es 0 acá.
- *
- * A propósito, esta clase no sabe en qué "habitación" está instalada —
- * eso es exactamente lo que un Shelly real tampoco sabe: el dispositivo
- * solo conoce su propio deviceId de fábrica. Qué habitación corresponde a
- * qué deviceId es una asignación que hace el cliente y que vive en la base
- * de datos del subscriber, no acá.
- */
+ * tiene un solo sensor de temperatura, así que ese id siempre es 0 acá (temperature:0 <- id).
+ **/
 public class Habitacion {
     private static final int SENSOR_COMPONENT_ID = 0;
 
@@ -42,6 +35,7 @@ public class Habitacion {
                 SENSOR_COMPONENT_ID, temperaturaC, temperaturaF, ts);
 
         String topic = deviceId + "/status/temperature:" + SENSOR_COMPONENT_ID;
+        // Pasamos a Bytes el payload (mensaje) para poder publicarlo
         client.publish(topic, new MqttMessage(payload.getBytes()));
     }
 }
