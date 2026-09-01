@@ -1,0 +1,28 @@
+<configuration>
+
+    <!-- Configuración para guardar en archivo TXT -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <!-- Nombre y ruta del archivo de texto -->
+        <file>logs/subscriber.log</file>
+        <!-- Si es true, añade los logs al final del archivo sin borrar lo anterior -->
+        <append>true</append>
+        <encoder>
+            <!-- Formato: Fecha [Hilo] Nivel Clase - Mensaje -->
+            <pattern>%d{dd-MM-yyyy HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Configuración para mostrar también en la consola (Opcional) -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{dd-MM-yyyy HH:mm:ss} %-5level-> %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Nivel mínimo de log a registrar (INFO, DEBUG, ERROR, WARN) -->
+    <root level="INFO">
+        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>

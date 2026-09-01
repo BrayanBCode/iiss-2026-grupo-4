@@ -26,6 +26,11 @@
             <artifactId>json</artifactId>
             <version>20240303</version>
         </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.6.2</version>
+        </dependency>
     </dependencies>
     <!-- fija el nombre del jar para luego usarlo en el copy del dockerfile-->
     <build>
@@ -44,7 +49,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>subscriber.AppSubscriber</mainClass>
+                                    <mainClass>subscriber.AppController</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

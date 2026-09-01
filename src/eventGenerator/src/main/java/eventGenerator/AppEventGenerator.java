@@ -8,6 +8,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class AppEventGenerator {
+
     public static void main(String[] args) throws Exception{
         MqttClient client = new MqttClient("tcp://mosquitto:1883", MqttClient.generateClientId());
         client.connect();
