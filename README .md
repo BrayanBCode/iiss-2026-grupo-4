@@ -9,9 +9,9 @@ Proyecto del curso **Taller IISS 2026** (Utec) — grupo 4.
 
 Documento de Visión del producto: [`docs/vision.md`](docs/vision.md).
 
-Historias de usuario, personas y escenarios: [`Historias.pdf`](Historias.pdf),
-[`Personas.pdf`](Personas.pdf), [`Caracteristicas.pdf`](Caracteristicas.pdf),
-[`Escenario.pdf`](Escenario.pdf), [`Prueba de escenarios.txt`](Prueba%20de%20escenarios.txt).
+Historias de usuario, personas y escenarios: [`Historias.md`](Historias.md),
+[`Personas.md`](Personas.md), [`Caracteristicas.md`](Caracteristicas.md),
+[`Escenario.md`](Escenario.md).
 
 Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3)
 
