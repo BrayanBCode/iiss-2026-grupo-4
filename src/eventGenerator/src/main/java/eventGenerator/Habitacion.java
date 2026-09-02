@@ -12,6 +12,7 @@ import org.eclipse.paho.client.mqttv3.*;
  * en un solo device) — NO es el identificador de la habitación. El H&T Gen3
  * tiene un solo sensor de temperatura, así que ese id siempre es 0 acá (temperature:0 <- id).
  **/
+
 public class Habitacion {
     private static final int SENSOR_COMPONENT_ID = 0;
 

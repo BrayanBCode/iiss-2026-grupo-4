@@ -10,5 +10,8 @@
         <module name="subscriber" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="ecowarm-subscriber" target="25" />
+    </bytecodeTargetLevel>
   </component>
 </project>
