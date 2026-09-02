@@ -1,4 +1,4 @@
-# Documento de Visión del Producto — v1
+# Documento de Visión del Producto — v2
 
 ## 1. Declaración de Visión (Plantilla de Moore)
 
