@@ -17,6 +17,8 @@ services:
       - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
       - DB_USER=root
       - DB_PASSWORD=root
+    volumes:
+      - ../logs:/app/logs
     depends_on:
       - mosquitto
       - postgres

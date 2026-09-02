@@ -1,18 +1,20 @@
 package subscriber;
 
 import org.eclipse.paho.client.mqttv3.*;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Optional;
 
-// Cambiar nombre a Controller o similar
-public class AppSubscriber {
+public class AppController {
+
+    private static final Logger log = LoggerFactory.getLogger(AppController.class);
 
     public static void main(String[] args) {
         String broker = "tcp://mosquitto:1883";
-        String clientId = "JavaSubscriberModule";
+        String clientId = "ControllerApp";
         String topic = "+/status/temperature:0";
 
         LecturaDAO lecturaDAO = new LecturaDAO();
@@ -23,7 +25,7 @@ public class AppSubscriber {
             habitacionDAO.crearTablaSiNoExiste();
             habitacionDAO.seedearSiVacia();
             lecturaDAO.crearTablaSiNoExiste();
-            System.out.println("🗄️ Tablas 'habitaciones' y 'lecturas' listas.");
+            log.info("Tablas 'habitaciones' y 'lecturas' listas.");
 
             // Crear el cliente MQTT
             MqttClient client = new MqttClient(broker, clientId);
@@ -37,13 +39,13 @@ public class AppSubscriber {
             client.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
-                    System.out.println("Conexión perdida con el broker: " + cause.getMessage());
+                    log.error("Conexión perdida con el broker: " + cause.getMessage());
                 }
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     String contenido = new String(message.getPayload());
-                    System.out.println("[MENSAJE RECIBIDO] Tópico: " + topic + " -> " + contenido);
+                    log.info("[MENSAJE RECIBIDO] Tópico: " + topic + " -> " + contenido);
 
                     try {
                         // Obtenemos el ID del shelly desde el topico
@@ -59,15 +61,14 @@ public class AppSubscriber {
                         // Preguntamos si el Shelly remitente fue ingresado por el cliente (Osea esta en la BD)
                         Optional<Habitacion> habitacion = habitacionDAO.buscarPorTermostatoId(deviceId);
                         if (habitacion.isEmpty()) {
-                            System.out.println("Termostato '" + deviceId + "' no está asignado a ninguna habitación — se descarta el mensaje.");
+                            log.warn("Dispositivo '" + deviceId + "' no está asignado a ninguna habitación — se descarta el mensaje.");
                             return;
                         }
 
                         // Persistimos los datos en la tabla lecturas
                         lecturaDAO.guardar(habitacion.get().id(), temperaturaC, temperaturaF, timestamp);
-                        System.out.println("Guardado en BD: " + habitacion.get().nombre() + " -> " + temperaturaC + "°C");
                     } catch (Exception e) {
-                        System.err.println("Error al persistir el mensaje: " + e.getMessage());
+                        log.error("Error al persistir el mensaje: " + e.getMessage());
                         e.printStackTrace();
                     }
                 }
@@ -78,15 +79,15 @@ public class AppSubscriber {
                 }
             });
 
-            System.out.println("Conectando al broker MQTT en: " + broker);
             client.connect(options);
-            System.out.println("✅ Conectado con éxito.");
+            log.info("Conectando al broker MQTT en: " + broker);
+            log.info("✅ Conectado con éxito.");
 
             client.subscribe(topic);
-            System.out.println("🎧 Suscrito al tópico: " + topic + ". Esperando mensajes...");
+            log.info("🎧 Suscrito al tópico: " + topic + ". Esperando mensajes...");
 
         } catch (MqttException | java.sql.SQLException e) {
-            System.err.println("Error al iniciar el subscriber: " + e.getMessage());
+            log.error("Error al iniciar el subscriber: " + e.getMessage());
             e.printStackTrace();
         }
     }
