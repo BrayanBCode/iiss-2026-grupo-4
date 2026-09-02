@@ -13,7 +13,7 @@ Historias de usuario, personas y escenarios: [`Historias.pdf`](Historias.pdf),
 [`Personas.pdf`](Personas.pdf), [`Caracteristicas.pdf`](Caracteristicas.pdf),
 [`Escenario.pdf`](Escenario.pdf), [`Prueba de escenarios.txt`](Prueba%20de%20escenarios.txt).
 
-Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3) *(verificar: el link apunta a "grupo8")*
+Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3)
 
 CI: cada push/PR a `master` corre `mvn clean test` y `mvn package` vía GitHub Actions
 ([`.github/workflows/maven.yml`](.github/workflows/maven.yml)).

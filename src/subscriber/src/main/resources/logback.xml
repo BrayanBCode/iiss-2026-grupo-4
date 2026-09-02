@@ -19,7 +19,7 @@
         </encoder>
     </appender>
 
-    <!-- Nivel mínimo de log a registrar (INFO, DEBUG, ERROR, WARN) -->
+    <!-- Nivel mínimo de log a registrar (DEBUG, WARN, INFO, ERROR) -->
     <root level="INFO">
         <appender-ref ref="FILE" />
         <appender-ref ref="STDOUT" />
