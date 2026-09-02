@@ -53,6 +53,7 @@ class HabitacionTest {
         ArgumentCaptor<MqttMessage> mensajeCaptor = ArgumentCaptor.forClass(MqttMessage.class);
         verify(mqttClientMock).publish(anyString(), mensajeCaptor.capture());
 
+
         JSONObject payload = new JSONObject(new String(mensajeCaptor.getValue().getPayload()));
 
         // El id del componente sensor siempre es 0 para el H&T Gen3
