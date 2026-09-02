@@ -186,15 +186,6 @@ pasan.
 
 ---
 
-## Pendientes de documentación
-
-- `docs/vision.md` todavía describe la versión anterior del producto ("AgriFlow", monitoreo
-  agrícola); falta reescribirla para reflejar EcoWarm (domótica hogareña / calefacción por losa
-  radiante).
-- El link a Jira apunta a un proyecto de "grupo8"; confirmar si es el correcto para grupo 4.
-
----
-
 ## Licencias de terceros
 
 Este proyecto usa software, herramientas de infraestructura y librerías de código abierto de
