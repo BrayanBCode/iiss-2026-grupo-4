@@ -6,12 +6,11 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="eventGenerator" />
+        <module name="api" />
         <module name="subscriber" />
+        <module name="eventGenerator" />
+        <module name="switch-stub" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="ecowarm-subscriber" target="25" />
-    </bytecodeTargetLevel>
   </component>
 </project>

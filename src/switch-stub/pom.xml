@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent> <!--Esto indica el padre (herencia)-->
+        <groupId>uy.edu.utec.iiss</groupId>
+        <artifactId>ecowarm-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../../pom.xml</relativePath> <!-- con el ../../ logramos salir hacia la carpeta main-->
+    </parent>
+    <artifactId>switch-stub</artifactId>
+
+    <!--
+        No podemos heredar directamente del spring-boot-starter-parent porque
+        Maven solo permite UN <parent> (y el nuestro ya es ecowarm-parent).
+        Por eso importamos el "BOM" (Bill Of Materials) de Spring Boot acá:
+        es una lista de versiones ya probadas entre sí para todas las
+        dependencias de Spring, así no las fijamos una por una a mano.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Trae embebido un servidor Tomcat + todo lo necesario para exponer un API REST -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Dependencias SOLO de test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>switch-stub</finalName>
+        <plugins>
+            <!--
+                Este plugin (en vez del maven-shade-plugin que usan subscriber
+                y eventGenerator) es el que arma el "fat jar" ejecutable para
+                apps Spring Boot, con el servidor Tomcat embebido adentro.
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
