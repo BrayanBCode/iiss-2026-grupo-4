@@ -33,6 +33,30 @@ services:
       - mosquitto
     restart: unless-stopped
 
+  api:
+    build:
+      context: ..
+      dockerfile: src/api/Dockerfile
+    container_name: java-api
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
+      - DB_USER=root
+      - DB_PASSWORD=root
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  switch-stub:
+    build:
+      context: ..
+      dockerfile: src/switch-stub/Dockerfile
+    container_name: switch-stub
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: postgres-db
