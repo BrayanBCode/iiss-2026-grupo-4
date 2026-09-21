@@ -37,6 +37,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Validaciones del body que recibe el endpoint (@NotBlank, @Pattern) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Dependencias SOLO de test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
