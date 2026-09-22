@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import api.dto.HabitacionPatchRequest;
 import api.dto.HabitacionRequest;
 import api.dto.HabitacionResponse;
+import api.dto.ReporteConsistencia;
 import api.service.HabitacionService;
 
 /**
@@ -46,8 +47,17 @@ public class HabitacionController {
         return ResponseEntity.ok(service.listar());
     }
 
+    // Comando "validar consistencia" de la letra: no es CRUD sobre un id
+    // puntual, por eso no es /{id}. Spring resuelve este path literal antes
+    // que GET /{id} sin importar el orden de declaración, así que no hay
+    // conflicto de rutas aunque "validar" no sea un Long.
+    @GetMapping("/validar")
+    public ResponseEntity<ReporteConsistencia> validar() {
+        return ResponseEntity.ok(service.validarConsistencia());
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<HabitacionResponse> consultar(@PathVariable Long id) {
+    public ResponseEntity<HabitacionResponse> consultar(@PathVariable("id") Long id) {
         return ResponseEntity.ok(service.obtener(id));
     }
 
@@ -60,18 +70,18 @@ public class HabitacionController {
 
     @PutMapping("/{id}")
     public ResponseEntity<HabitacionResponse> actualizar(
-            @PathVariable Long id, @Valid @RequestBody HabitacionRequest request) {
+            @PathVariable("id") Long id, @Valid @RequestBody HabitacionRequest request) {
         return ResponseEntity.ok(service.actualizar(id, request));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<HabitacionResponse> actualizarParcial(
-            @PathVariable Long id, @Valid @RequestBody HabitacionPatchRequest request) {
+            @PathVariable("id") Long id, @Valid @RequestBody HabitacionPatchRequest request) {
         return ResponseEntity.ok(service.actualizarParcial(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminar(@PathVariable("id") Long id) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }
