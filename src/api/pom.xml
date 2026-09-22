@@ -44,6 +44,14 @@
             <version>42.7.4</version>
         </dependency>
 
+        <!-- Cliente MQTT del Controlador: se suscribe a las mismas lecturas
+             de temperatura que ya consume el subscriber en la Iteración 2. -->
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>${paho.version}</version>
+        </dependency>
+
         <!-- Validaciones de los DTOs de entrada (@NotBlank, @Positive, etc.) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
