@@ -43,4 +43,26 @@ public class ApiExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(), "Datos inválidos", errores);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
+
+    // --- Comandos del Controlador (iniciar/parar) ---
+
+    @ExceptionHandler(ControladorYaIniciadoException.class)
+    public ResponseEntity<ErrorResponse> handleControladorYaIniciado(ControladorYaIniciadoException ex) {
+        ErrorResponse body = new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(ControladorNoIniciadoException.class)
+    public ResponseEntity<ErrorResponse> handleControladorNoIniciado(ControladorNoIniciadoException ex) {
+        ErrorResponse body = new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    // --- Dependencias externas caídas: broker MQTT o stub del switch ---
+
+    @ExceptionHandler({ControladorException.class, SwitchStubNoDisponibleException.class})
+    public ResponseEntity<ErrorResponse> handleDependenciaExterna(RuntimeException ex) {
+        ErrorResponse body = new ErrorResponse(HttpStatus.BAD_GATEWAY.value(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
+    }
 }
