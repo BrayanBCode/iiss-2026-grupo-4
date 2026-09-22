@@ -1,0 +1,397 @@
+openapi: 3.0.3
+info:
+  title: EcoWarm API
+  description: >
+    API REST del proyecto EcoWarm (Taller IISS 2026 — grupo 4).
+    Expone el CRUD de habitaciones y los comandos (tasks) para operar
+    el Controlador (termostato simple) y validar la consistencia del
+    conjunto de habitaciones. El accionamiento efectivo de los switches
+    se realiza contra el servicio switch-stub (ver docker-compose.yml),
+    invocado automáticamente por el Controlador.
+  version: "1.0.0"
+  contact:
+    name: Grupo 4 — Taller IISS 2026 (Utec)
+
+servers:
+  - url: http://localhost:8080
+    description: Entorno local (docker compose)
+
+tags:
+  - name: Habitaciones
+    description: CRUD del recurso habitación (Nivel 2 de Richardson)
+  - name: Controlador
+    description: Comandos para iniciar/parar/consultar la lógica de termostato simple
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /habitaciones:
+    get:
+      tags: [Habitaciones]
+      summary: Listar habitaciones
+      operationId: listarHabitaciones
+      responses:
+        "200":
+          description: Listado de habitaciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HabitacionResponse"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+    post:
+      tags: [Habitaciones]
+      summary: Crear una habitación
+      operationId: crearHabitacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitacionRequest"
+            examples:
+              dormitorio:
+                value:
+                  nombre: "Dormitorio principal"
+                  temperaturaEsperada: 21.5
+                  idTermostato: "shellyht-A4CF12"
+                  idSwitch: "switch-dormitorio-01"
+      responses:
+        "201":
+          description: Habitación creada
+          headers:
+            Location:
+              description: URL del recurso creado (/habitaciones/{id})
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitacionResponse"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "409":
+          $ref: "#/components/responses/Conflicto"
+
+  /habitaciones/validar:
+    get:
+      tags: [Habitaciones]
+      summary: Validar consistencia del conjunto de habitaciones
+      description: >
+        Comando (task): reporta si existen idTermostato o idSwitch duplicados
+        entre las habitaciones registradas. No es una operación CRUD sobre un
+        id puntual.
+      operationId: validarConsistencia
+      responses:
+        "200":
+          description: Reporte de consistencia
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReporteConsistencia"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+
+  /habitaciones/{id}:
+    parameters:
+      - $ref: "#/components/parameters/HabitacionId"
+    get:
+      tags: [Habitaciones]
+      summary: Consultar una habitación por id
+      operationId: obtenerHabitacion
+      responses:
+        "200":
+          description: Habitación encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitacionResponse"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+    put:
+      tags: [Habitaciones]
+      summary: Modificar una habitación (reemplazo completo)
+      description: Todos los campos son obligatorios; lo que no se envía se pierde.
+      operationId: actualizarHabitacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitacionRequest"
+      responses:
+        "200":
+          description: Habitación actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitacionResponse"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflicto"
+    patch:
+      tags: [Habitaciones]
+      summary: Modificar una habitación (parcial)
+      description: Solo se actualizan los campos enviados (no nulos).
+      operationId: actualizarHabitacionParcial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitacionPatchRequest"
+            examples:
+              cambiarTemperatura:
+                value:
+                  temperaturaEsperada: 23
+      responses:
+        "200":
+          description: Habitación actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitacionResponse"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflicto"
+    delete:
+      tags: [Habitaciones]
+      summary: Eliminar una habitación
+      operationId: eliminarHabitacion
+      responses:
+        "204":
+          description: Habitación eliminada
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+
+  /controlador/iniciar:
+    post:
+      tags: [Controlador]
+      summary: Iniciar el Controlador
+      description: >
+        Comando (task): abre la suscripción MQTT y arranca la lógica de
+        termostato simple. No es una operación CRUD.
+      operationId: iniciarControlador
+      responses:
+        "200":
+          description: Controlador iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControladorEstadoResponse"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "409":
+          description: El Controlador ya estaba iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: No se pudo conectar al broker MQTT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /controlador/parar:
+    post:
+      tags: [Controlador]
+      summary: Detener el Controlador
+      operationId: pararControlador
+      responses:
+        "200":
+          description: Controlador detenido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControladorEstadoResponse"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "409":
+          description: El Controlador no estaba iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /controlador/estado:
+    get:
+      tags: [Controlador]
+      summary: Consultar el estado del Controlador
+      operationId: estadoControlador
+      responses:
+        "200":
+          description: Estado actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControladorEstadoResponse"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key requerida en todas las operaciones del API.
+
+  parameters:
+    HabitacionId:
+      name: id
+      in: path
+      required: true
+      description: Identificador de la habitación
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    NoAutorizado:
+      description: Falta el header X-API-KEY o el valor enviado es incorrecto
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NoEncontrado:
+      description: No existe una habitación con el id indicado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflicto:
+      description: Ya existe una habitación con ese nombre, idTermostato o idSwitch
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    DatosInvalidos:
+      description: El body no pasó las validaciones (campos obligatorios, longitud, etc.)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HabitacionRequest:
+      type: object
+      required:
+        - nombre
+        - temperaturaEsperada
+        - idTermostato
+        - idSwitch
+      properties:
+        nombre:
+          type: string
+          maxLength: 50
+          example: "Dormitorio principal"
+        temperaturaEsperada:
+          type: number
+          format: double
+          example: 21.5
+        idTermostato:
+          type: string
+          maxLength: 50
+          description: Identificador del termostato Shelly (tópico MQTT), no su URL/config concreta.
+          example: "shellyht-A4CF12"
+        idSwitch:
+          type: string
+          maxLength: 50
+          description: Identificador del switch de la habitación, no su URL/config concreta.
+          example: "switch-dormitorio-01"
+
+    HabitacionPatchRequest:
+      type: object
+      description: Todos los campos son opcionales; solo se actualizan los enviados.
+      properties:
+        nombre:
+          type: string
+          maxLength: 50
+        temperaturaEsperada:
+          type: number
+          format: double
+        idTermostato:
+          type: string
+          maxLength: 50
+        idSwitch:
+          type: string
+          maxLength: 50
+
+    HabitacionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: "Dormitorio principal"
+        temperaturaEsperada:
+          type: number
+          format: double
+          example: 21.5
+        idTermostato:
+          type: string
+          example: "shellyht-A4CF12"
+        idSwitch:
+          type: string
+          example: "switch-dormitorio-01"
+
+    ReporteConsistencia:
+      type: object
+      properties:
+        consistente:
+          type: boolean
+          example: true
+        idsTermostatoDuplicados:
+          type: array
+          items:
+            type: string
+        idsSwitchDuplicados:
+          type: array
+          items:
+            type: string
+
+    ControladorEstadoResponse:
+      type: object
+      properties:
+        corriendo:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: "No existe una habitación con id 1"
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Presente solo en errores de validación (400) — campo → mensaje.
