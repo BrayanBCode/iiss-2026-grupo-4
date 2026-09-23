@@ -5,7 +5,6 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.util.Optional;
 
 public class AppController {
@@ -56,7 +55,7 @@ public class AppController {
                         double temperaturaC = json.getDouble("tC");
                         double temperaturaF = json.getDouble("tF");
                         double epochSegundos = json.getDouble("ts");
-                        Instant timestamp = Instant.ofEpochMilli((long) (epochSegundos * 1000));
+                        long epochMili = (long) (epochSegundos * 1000);
 
                         // Preguntamos si el Shelly remitente fue ingresado por el cliente (Osea esta en la BD)
                         Optional<Habitacion> habitacion = habitacionDAO.buscarPorTermostatoId(deviceId);
@@ -66,7 +65,7 @@ public class AppController {
                         }
 
                         // Persistimos los datos en la tabla lecturas
-                        lecturaDAO.guardar(habitacion.get().id(), temperaturaC, temperaturaF, timestamp);
+                        lecturaDAO.guardar(habitacion.get().id(), temperaturaC, temperaturaF, epochMili);
                     } catch (Exception e) {
                         log.error("Error al persistir el mensaje: " + e.getMessage());
                         e.printStackTrace();
