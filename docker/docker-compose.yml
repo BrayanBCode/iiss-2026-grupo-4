@@ -46,6 +46,7 @@ services:
       - DB_PASSWORD=root
       - MQTT_BROKER=tcp://mosquitto:1883
       - SWITCH_STUB_URL=http://switch-stub:8081
+      - API_KEY=ecowarm-grupo4-2026
     depends_on:
       - postgres
       - mosquitto

@@ -9,11 +9,14 @@ import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import api.client.SwitchStubClient;
 import api.dto.HabitacionPatchRequest;
 import api.dto.HabitacionRequest;
 import api.dto.HabitacionResponse;
 import api.dto.ReporteConsistencia;
+import api.dto.SwitchAccionResponse;
 import api.exception.HabitacionNoEncontradaException;
+import api.model.AccionSwitch;
 import api.model.Habitacion;
 import api.repository.HabitacionRepository;
 
@@ -21,9 +24,11 @@ import api.repository.HabitacionRepository;
 public class HabitacionService {
 
     private final HabitacionRepository repository;
+    private final SwitchStubClient switchStubClient;
 
-    public HabitacionService(HabitacionRepository repository) {
+    public HabitacionService(HabitacionRepository repository, SwitchStubClient switchStubClient) {
         this.repository = repository;
+        this.switchStubClient = switchStubClient;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +85,21 @@ public class HabitacionService {
     public void eliminar(Long id) {
         Habitacion habitacion = buscarOFallar(id);
         repository.delete(habitacion);
+    }
+
+    /**
+     * Comando manual "accionar switch" (letra de la Iteración 3): busca la
+     * habitación, toma su idSwitch (identificador, no la URL concreta del
+     * dispositivo -- eso lo resuelve SwitchStubClient contra la config del
+     * sitio) y lo acciona contra el stub. Es de solo lectura para la base
+     * (@Transactional readOnly): no modifica la habitación, solo consulta
+     * cuál es su switch.
+     */
+    @Transactional(readOnly = true)
+    public SwitchAccionResponse accionarSwitch(Long id, AccionSwitch accion) {
+        Habitacion habitacion = buscarOFallar(id);
+        switchStubClient.accionar(habitacion.getIdSwitch(), accion);
+        return new SwitchAccionResponse(habitacion.getIdSwitch(), accion);
     }
 
     private Habitacion buscarOFallar(Long id) {
