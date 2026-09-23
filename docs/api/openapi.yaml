@@ -3,11 +3,11 @@ info:
   title: EcoWarm API
   description: >
     API REST del proyecto EcoWarm (Taller IISS 2026 — grupo 4).
-    Expone el CRUD de habitaciones y los comandos (tasks) para operar
-    el Controlador (termostato simple) y validar la consistencia del
-    conjunto de habitaciones. El accionamiento efectivo de los switches
-    se realiza contra el servicio switch-stub (ver docker-compose.yml),
-    invocado automáticamente por el Controlador.
+    Expone el CRUD de habitaciones y los comandos (tasks) para accionar
+    switches a mano, operar el Controlador (termostato simple) y validar
+    la consistencia del conjunto de habitaciones. El accionamiento efectivo
+    de los switches se realiza contra el servicio switch-stub (ver
+    docker-compose.yml).
   version: "1.0.0"
   contact:
     name: Grupo 4 — Taller IISS 2026 (Utec)
@@ -18,7 +18,7 @@ servers:
 
 tags:
   - name: Habitaciones
-    description: CRUD del recurso habitación (Nivel 2 de Richardson)
+    description: CRUD del recurso habitación (Nivel 2 de Richardson) y comandos asociados
   - name: Controlador
     description: Comandos para iniciar/parar/consultar la lógica de termostato simple
 
@@ -183,6 +183,47 @@ paths:
         "404":
           $ref: "#/components/responses/NoEncontrado"
 
+  /habitaciones/{id}/switch:
+    parameters:
+      - $ref: "#/components/parameters/HabitacionId"
+    post:
+      tags: [Habitaciones]
+      summary: Accionar el switch de una habitación a mano
+      description: >
+        Comando (task): manda ON u OFF directo al switch de la habitación,
+        contra el servicio switch-stub, sin pasar por la lógica automática
+        del Controlador. No es una operación CRUD.
+      operationId: accionarSwitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwitchAccionRequest"
+            examples:
+              encender:
+                value:
+                  accion: "ON"
+      responses:
+        "200":
+          description: Switch accionado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwitchAccionResponse"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "401":
+          $ref: "#/components/responses/NoAutorizado"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "502":
+          description: El switch-stub no respondió
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /controlador/iniciar:
     post:
       tags: [Controlador]
@@ -229,6 +270,12 @@ paths:
           $ref: "#/components/responses/NoAutorizado"
         "409":
           description: El Controlador no estaba iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: No se pudo desconectar del broker MQTT
           content:
             application/json:
               schema:
@@ -359,6 +406,27 @@ components:
           type: string
           example: "switch-dormitorio-01"
 
+    AccionSwitch:
+      type: string
+      enum: [ON, OFF]
+
+    SwitchAccionRequest:
+      type: object
+      required:
+        - accion
+      properties:
+        accion:
+          $ref: "#/components/schemas/AccionSwitch"
+
+    SwitchAccionResponse:
+      type: object
+      properties:
+        idSwitch:
+          type: string
+          example: "switch-dormitorio-01"
+        accion:
+          $ref: "#/components/schemas/AccionSwitch"
+
     ReporteConsistencia:
       type: object
       properties:
@@ -384,14 +452,19 @@ components:
     ErrorResponse:
       type: object
       properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-23T01:14:44.496Z"
         status:
           type: integer
           example: 404
-        message:
+        mensaje:
           type: string
           example: "No existe una habitación con id 1"
-        errors:
+        errores:
           type: object
+          nullable: true
           additionalProperties:
             type: string
-          description: Presente solo en errores de validación (400) — campo → mensaje.
+          description: Presente solo en errores de validación (400) — campo → mensaje. null en el resto de los errores.
