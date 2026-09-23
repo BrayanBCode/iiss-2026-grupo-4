@@ -12,11 +12,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Timestamp;
-import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
 /**
@@ -55,14 +54,14 @@ class LecturaDAOTest {
             conexionMock.when(ConexionDB::get).thenReturn(connection);
             when(connection.prepareStatement(anyString())).thenReturn(preparedStatement);
 
-            Instant timestamp = Instant.parse("2026-09-01T10:00:00Z");
+            long epochMili = 1798797600000L; // 2026-09-01T10:00:00Z en epoch milisegundos
 
-            lecturaDAO.guardar(7, 21.5, 70.7, timestamp);
+            lecturaDAO.guardar(7, 21.5, 70.7, epochMili);
 
             verify(preparedStatement).setInt(1, 7);
             verify(preparedStatement).setBigDecimal(2, BigDecimal.valueOf(21.5));
             verify(preparedStatement).setBigDecimal(3, BigDecimal.valueOf(70.7));
-            verify(preparedStatement).setTimestamp(4, Timestamp.from(timestamp));
+            verify(preparedStatement).setLong(4, epochMili);
             verify(preparedStatement).executeUpdate();
         }
     }
@@ -75,7 +74,7 @@ class LecturaDAOTest {
             doThrow(new SQLException("fallo simulado")).when(preparedStatement).executeUpdate();
 
             assertThrows(SQLException.class, () ->
-                    lecturaDAO.guardar(1, 20.0, 68.0, Instant.now()));
+                    lecturaDAO.guardar(1, 20.0, 68.0, System.currentTimeMillis()));
         }
     }
 }
