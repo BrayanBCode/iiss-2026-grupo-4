@@ -9,10 +9,10 @@
     <packaging>pom</packaging>
 
     <modules> <!--Referencia que es el padre y los <module> son los hijos-->
-        <module>src/subscriber</module>
-        <module>src/eventGenerator</module>
-        <module>src/api</module>
-        <module>src/switch-stub</module>
+        <module>modules/subscriber</module>
+        <module>modules/eventGenerator</module>
+        <module>modules/api</module>
+        <module>modules/switch-stub</module>
     </modules>
 
     <properties>

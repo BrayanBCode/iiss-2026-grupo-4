@@ -4,22 +4,22 @@ WORKDIR /build
 #POM del padre
 COPY pom.xml .
 #POM del hijo eventGenerator
-COPY src/eventGenerator/pom.xml src/eventGenerator/pom.xml
+COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
 #POM del hijo subscrite
-COPY src/subscriber/pom.xml src/subscriber/pom.xml
+COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
 #POM de los hijos api y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
-COPY src/api/pom.xml src/api/pom.xml
-COPY src/switch-stub/pom.xml src/switch-stub/pom.xml
+COPY modules/api/pom.xml modules/api/pom.xml
+COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
 #corremos con maven  (-q = reduce la salida de consola al minimo
  # -B = Ejecución por lotes (ideal para scripts) (saca las animaciones de la consola) hace un log plano
- #-pl = proyect list (lista los proyectos relacionados con el pom del eventGenerator))
+ #-pl = proyect list (lista los proyectos relacionados con el pom del subscriber))
  # -am = alse make (compila tambien las dependencias internas del modulo (si las tuviera))
- # dependency:go-offline = bajate(descarga) de Maven Central todas las dependencias que hacen falta para compilar eventGenerator (y lo que -am traiga)
-RUN mvn -q -B -pl src/eventGenerator -am dependency:go-offline
-# copia todo lo que esta dentro de src/eventGenerator/src del codigo, a la misma ruta en docker
-COPY src/eventGenerator/src src/eventGenerator/src
+ # dependency:go-offline = bajate(descarga) de Maven Central todas las dependencias que hacen falta para compilar subscriber (y lo que -am traiga)
+RUN mvn -q -B -pl modules/subscriber -am dependency:go-offline
+# copia todo lo que esta dentro de modules/subscriber/src del codigo, a la misma ruta en docker
+COPY modules/subscriber/src modules/subscriber/src
 # package = compila y empaqueta el codigo en un .jar
-RUN mvn -q -B -pl src/eventGenerator -am package
+RUN mvn -q -B -pl modules/subscriber -am package
 
 #ETAPA 2 (ejecucion)
 #Traemos el jre de JAVA en la version 25
@@ -27,6 +27,6 @@ FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 # Aca copiamos la compilacion guardada en "build" hacia "app"
 # En la ruta especificamos donde esta el archivo y donde queremos que se guarde en docker
-COPY --from=build /build/src/eventGenerator/target/eventGenerator.jar /app/eventGenerator.jar
+COPY --from=build /build/modules/subscriber/target/subscriber.jar /app/subscriber.jar
 # ENTRYPOINT = lo que va a ejecutar docker para iniciar la ejecucion
-ENTRYPOINT ["java","-jar","/app/eventGenerator.jar"]
+ENTRYPOINT ["java","-jar","/app/subscriber.jar"]

@@ -11,7 +11,7 @@ services:
   subscriber:
     build:
       context: ..                       # Apunta a la raíz del proyecto (donde está el pom.xml y src)
-      dockerfile: src/subscriber/Dockerfile     # Ruta al Dockerfile relativa al contexto
+      dockerfile: modules/subscriber/Dockerfile     # Ruta al Dockerfile relativa al contexto
     container_name: java-subscriber
     environment:
       - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
@@ -27,7 +27,7 @@ services:
   eventgenerator:
     build:
       context: ..
-      dockerfile: src/eventGenerator/Dockerfile
+      dockerfile: modules/eventGenerator/Dockerfile
     container_name: event-generator
     depends_on:
       - mosquitto
@@ -36,7 +36,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: src/api/Dockerfile
+      dockerfile: modules/api/Dockerfile
     container_name: java-api
     ports:
       - "8080:8080"
@@ -56,7 +56,7 @@ services:
   switch-stub:
     build:
       context: ..
-      dockerfile: src/switch-stub/Dockerfile
+      dockerfile: modules/switch-stub/Dockerfile
     container_name: switch-stub
     ports:
       - "8081:8081"

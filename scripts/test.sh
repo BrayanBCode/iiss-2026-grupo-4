@@ -15,7 +15,7 @@ cd "$SCRIPT_DIR/.."
 MODULO="${1:-}"
 
 if [ -n "$MODULO" ]; then
-    MVN_GOAL="-pl src/$MODULO -am test"
+    MVN_GOAL="-pl modules/$MODULO -am test"
 else
     MVN_GOAL="test"
 fi
