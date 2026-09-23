@@ -20,17 +20,21 @@ import api.dto.HabitacionPatchRequest;
 import api.dto.HabitacionRequest;
 import api.dto.HabitacionResponse;
 import api.dto.ReporteConsistencia;
+import api.dto.SwitchAccionRequest;
+import api.dto.SwitchAccionResponse;
 import api.service.HabitacionService;
 
 /**
  * CRUD de habitaciones (Nivel 2 de Richardson): el recurso es /habitaciones,
  * identificado por id, y cada verbo HTTP tiene la semántica estándar:
- *   GET     /habitaciones      -> listar               (200)
- *   GET     /habitaciones/{id} -> consultar por id      (200 / 404)
- *   POST    /habitaciones      -> crear                 (201 + Location)
- *   PUT     /habitaciones/{id} -> modificar completo     (200 / 404)
- *   PATCH   /habitaciones/{id} -> modificar parcial       (200 / 404)
- *   DELETE  /habitaciones/{id} -> eliminar                (204 / 404)
+ *   GET     /habitaciones          -> listar               (200)
+ *   GET     /habitaciones/validar  -> comando: validar consistencia (200)
+ *   GET     /habitaciones/{id}     -> consultar por id      (200 / 404)
+ *   POST    /habitaciones          -> crear                 (201 + Location)
+ *   PUT     /habitaciones/{id}     -> modificar completo     (200 / 404)
+ *   PATCH   /habitaciones/{id}     -> modificar parcial       (200 / 404)
+ *   DELETE  /habitaciones/{id}     -> eliminar                (204 / 404)
+ *   POST    /habitaciones/{id}/switch -> comando: accionar switch (200 / 404 / 502)
  */
 @RestController
 @RequestMapping("/habitaciones")
@@ -84,5 +88,15 @@ public class HabitacionController {
     public ResponseEntity<Void> eliminar(@PathVariable("id") Long id) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Comando "accionar switch" de la letra: no es CRUD (no crea, reemplaza
+    // ni borra la habitación), es una acción que dispara comportamiento
+    // contra el stub -- mismo criterio que /controlador/iniciar|parar en
+    // ControladorController, por eso POST y no PUT/PATCH.
+    @PostMapping("/{id}/switch")
+    public ResponseEntity<SwitchAccionResponse> accionarSwitch(
+            @PathVariable("id") Long id, @Valid @RequestBody SwitchAccionRequest request) {
+        return ResponseEntity.ok(service.accionarSwitch(id, request.getAccion()));
     }
 }
