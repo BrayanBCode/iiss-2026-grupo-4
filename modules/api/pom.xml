@@ -11,7 +11,7 @@
     </parent>
     <artifactId>api</artifactId>
 
-    <!-- Ver el comentario equivalente en src/switch-stub/pom.xml: importamos
+    <!-- Ver el comentario equivalente en modules/switch-stub/pom.xml: importamos
          el BOM de Spring Boot porque no podemos heredar de su starter-parent. -->
     <dependencyManagement>
         <dependencies>

@@ -39,7 +39,7 @@ CI: cada push/PR a `master` corre `mvn clean test` y `mvn package` vía GitHub A
 │   ├── test.sh                   # Corre los tests unitarios (mvn test) vía Docker, de todos los módulos o uno solo
 │   ├── send-temp.sh              # Publica una lectura de prueba en el tópico MQTT real (curl)
 │   └── receive-temp.sh           # Sigue en vivo el archivo de log del subscriber (logs/subscriber.log)
-├── src/
+├── modules/
 │   ├── subscriber/                # Módulo Maven: consume MQTT y persiste en Postgres
 │   │   ├── Dockerfile
 │   │   ├── pom.xml

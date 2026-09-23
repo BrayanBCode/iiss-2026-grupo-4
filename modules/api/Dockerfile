@@ -5,17 +5,17 @@ WORKDIR /build
 COPY pom.xml .
 # POM de todos los módulos hijos (hace falta que estén todos para que Maven
 # pueda resolver el <modules> del padre, aunque acá solo compilemos api)
-COPY src/eventGenerator/pom.xml src/eventGenerator/pom.xml
-COPY src/subscriber/pom.xml src/subscriber/pom.xml
-COPY src/api/pom.xml src/api/pom.xml
-COPY src/switch-stub/pom.xml src/switch-stub/pom.xml
-RUN mvn -q -B -pl src/api -am dependency:go-offline
-COPY src/api/src src/api/src
-RUN mvn -q -B -pl src/api -am package
+COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
+COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
+COPY modules/api/pom.xml modules/api/pom.xml
+COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
+RUN mvn -q -B -pl modules/api -am dependency:go-offline
+COPY modules/api/src modules/api/src
+RUN mvn -q -B -pl modules/api -am package
 
 # ETAPA 2 (ejecucion)
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-COPY --from=build /build/src/api/target/api.jar /app/api.jar
+COPY --from=build /build/modules/api/target/api.jar /app/api.jar
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app/api.jar"]
