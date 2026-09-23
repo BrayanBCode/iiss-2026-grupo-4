@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Punto de entrada del stub del switch (G1234-94, G1234-95, G1234-97).
+ * Punto de entrada del stub del switch.
  * El endpoint que recibe la acción (ON/OFF) y loguea en consola está en
  * {@link SwitchController}.
  */
