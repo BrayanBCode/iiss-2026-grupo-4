@@ -9,9 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Stub del switch (G1234-94, G1234-95, G1234-97). No prende ni apaga nada
- * de verdad: alcanza con que informe en consola la acción que recibe, tal
- * como pide la consigna de la Iteración 3.
+ * Stub del switch. Se supone que la logica de prender y apagar va aca
  */
 @RestController
 public class SwitchController {

@@ -93,9 +93,7 @@ public class ControladorService {
                 }
 
                 @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
-                    // El controlador solo se suscribe, no publica.
-                }
+                public void deliveryComplete(IMqttDeliveryToken token) { }
             });
 
             client.connect(options);
@@ -130,7 +128,7 @@ public class ControladorService {
         return corriendo.get();
     }
 
-    /** Por las dudas: si el contenedor se apaga, no dejar el cliente MQTT colgado. */
+    /** Por las dudas: si el contenedor se apaga, cerrar la conexion MQTT. */
     @PreDestroy
     void alDestruir() {
         if (corriendo.get()) {
@@ -173,7 +171,6 @@ public class ControladorService {
 
             switchStubClient.accionar(habitacion.getIdSwitch(), accion);
         } catch (Exception e) {
-            // Una lectura mal formada o un switch caído no puede tumbar la suscripción MQTT.
             log.error("Controlador: error al procesar lectura del tópico '{}': {}", topic, e.getMessage());
         }
     }
