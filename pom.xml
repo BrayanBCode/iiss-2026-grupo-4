@@ -13,6 +13,7 @@
         <module>modules/eventGenerator</module>
         <module>modules/api</module>
         <module>modules/switch-stub</module>
+        <module>modules/core</module>
     </modules>
 
     <properties>
