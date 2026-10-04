@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent> <!--Esto indica el padre (herencia)-->
+        <groupId>uy.edu.utec.iiss</groupId>
+        <artifactId>ecowarm-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../../../../Downloads/core-modulo (1)/pom.xml</relativePath>
+    </parent>
+    <artifactId>core</artifactId>
+
+    <!--
+        Módulo "core" de la Iteración 4: lógica pura de decisión del controlador,
+        sin comunicarse con switches ni termostatos (letra, "Objetivo"). Por eso
+        NO tiene dependencias de MQTT, REST ni Spring — solo Java + JUnit para
+        los tests TDD. Esa comunicación es responsabilidad de "engine", que
+        depende de este módulo (no al revés).
+    -->
+
+    <dependencies>
+        <!-- Dependencia SOLO de test -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
