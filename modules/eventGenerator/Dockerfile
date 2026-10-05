@@ -10,6 +10,7 @@ COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
 #POM de los hijos api y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
 COPY modules/api/pom.xml modules/api/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
+COPY modules/core/pom.xml modules/core/pom.xml
 #corremos con maven  (-q = reduce la salida de consola al minimo
  # -B = Ejecución por lotes (ideal para scripts) (saca las animaciones de la consola) hace un log plano
  #-pl = proyect list (lista los proyectos relacionados con el pom del eventGenerator))
