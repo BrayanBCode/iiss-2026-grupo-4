@@ -9,6 +9,7 @@ COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
 COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
 COPY modules/api/pom.xml modules/api/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
+COPY modules/core/pom.xml modules/core/pom.xml
 # -pl = project list (compila solo switch-stub) / -am = also make (sus dependencias internas, si tuviera)
 RUN mvn -q -B -pl modules/switch-stub -am dependency:go-offline
 # copia el código fuente del módulo
