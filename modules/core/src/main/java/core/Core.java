@@ -1,44 +1,100 @@
 package core;
 
+import core.model.Accion;
 import core.model.Decision;
 import core.model.EstadoHabitacion;
 import core.model.Estimulo;
+import core.model.Habitacion;
+import core.model.Sitio;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/**
- * Lógica de decisión del controlador: qué habitación recibe energía y cuál
- * no, sin comunicarse con switches ni termostatos (letra, "Objetivo") — eso
- * es responsabilidad del engine, que traduce MQTT/REST hacia y desde los
- * {@link Estimulo} y {@link Decision} de esta clase.
- *
- * TODO(iteración 4): implementar. Se deja sin implementar a propósito:
- * CoreTest.java se escribió primero (TDD) y hoy está en rojo. La idea es
- * discutir esos tests en clase (criterio de prioridad, casos límite) antes
- * de escribir la implementación — ver docs/tests/criterio-tests.md para el
- * criterio de adecuación del conjunto.
- */
 public class Core {
 
+    private static final double EPS = 1e-9;
+
     private final CriterioPrioridad criterioPrioridad;
+
+    private Sitio sitio;
+    private final Map<String, Habitacion> habitaciones = new LinkedHashMap<>();
+    private final Map<String, Double> temperaturas = new HashMap<>();
+    private final Set<String> encendidas = new HashSet<>();
+    private Instant ahora; // último instante visto (null = aún ninguno)
 
     public Core(CriterioPrioridad criterioPrioridad) {
         this.criterioPrioridad = criterioPrioridad;
     }
 
-    /**
-     * Procesa un estímulo y devuelve las decisiones resultantes (puede ser
-     * una lista vacía, por ejemplo ante un {@code ConfiguracionActualizada}
-     * que no dispara ningún cambio de switch).
-     */
     public List<Decision> procesar(Estimulo estimulo) {
-        throw new UnsupportedOperationException(
-                "Core.procesar: pendiente de implementar (TDD, iteración 4)");
+        switch (estimulo) {
+            case Estimulo.NuevaLectura l -> {
+                temperaturas.put(l.idHabitacion(), l.temperaturaC());
+                ahora = l.ts();
+            }
+            case Estimulo.Tick t -> ahora = t.ts();
+            case Estimulo.ConfiguracionActualizada c -> {
+                sitio = c.sitio();
+                habitaciones.clear();
+                for (Habitacion h : c.habitaciones()) habitaciones.put(h.id(), h);
+                temperaturas.keySet().retainAll(habitaciones.keySet());
+            }
+            default -> { }
+        }
+        return decidir();
     }
 
-    /** Estado interno actual de una habitación — null si el core no la conoce. */
+    private List<Decision> decidir() {
+        encendidas.clear();
+        if (sitio != null && !enPunta()) {
+            double contratada = sitio.potenciaContratadaKW();
+
+            List<Habitacion> candidatas = new ArrayList<>();
+            for (Habitacion h : habitaciones.values()) {
+                Double t = temperaturas.get(h.id());
+                if (t != null && t < h.temperaturaEsperada()
+                        && h.potenciaKW() <= contratada + EPS) {
+                    candidatas.add(h);
+                }
+            }
+
+            Map<String, EstadoHabitacion> estado = new HashMap<>();
+            for (String id : habitaciones.keySet()) estado.put(id, estadoDe(id));
+
+            double usada = 0;
+            for (String id : criterioPrioridad.ordenarCandidatas(candidatas, estado)) {
+                Habitacion h = habitaciones.get(id);
+                if (usada + h.potenciaKW() <= contratada + EPS) {
+                    encendidas.add(id);
+                    usada += h.potenciaKW();
+                }
+            }
+        }
+
+        List<Decision> out = new ArrayList<>();
+        for (Habitacion h : habitaciones.values()) {
+            out.add(new Decision(h.id(), encendidas.contains(h.id()) ? Accion.ON : Accion.OFF));
+        }
+        return out;
+    }
+
+    private boolean enPunta() {
+        if (ahora == null) return false;
+        var local = ahora.atZone(ZoneId.systemDefault());
+        return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());
+    }
+
     public EstadoHabitacion estadoDe(String idHabitacion) {
-        throw new UnsupportedOperationException(
-                "Core.estadoDe: pendiente de implementar (TDD, iteración 4)");
+        Habitacion h = habitaciones.get(idHabitacion);
+        if (h == null) return null;
+        return new EstadoHabitacion(idHabitacion, temperaturas.get(idHabitacion),
+                encendidas.contains(idHabitacion));
     }
 }

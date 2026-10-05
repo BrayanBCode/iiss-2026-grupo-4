@@ -3,44 +3,49 @@ package core;
 import core.model.Accion;
 import core.model.Decision;
 import core.model.DiasTarifa;
-import core.model.EstadoHabitacion;
 import core.model.Estimulo;
 import core.model.FranjaHoraria;
 import core.model.Habitacion;
 import core.model.Sitio;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests propuestos del core del controlador (TDD, Iteración 4).
+ * Tests unitarios (TDD) del core del controlador, Iteración 4.
  *
- * IMPORTANTE: hoy {@link Core#procesar} y {@link Core#estadoDe} lanzan
- * {@code UnsupportedOperationException} — estos tests están en rojo a
- * propósito. Se escriben primero para discutir en clase (miércoles) el
- * criterio de prioridad y los casos límite, antes de implementar. Ver
- * docs/tests/criterio-tests.md para el criterio de adecuación de este
- * conjunto.
+ * Cada grupo (@Nested) corresponde a una característica que pide la letra:
+ *   1. Decidir qué habitación recibe energía y cuál no.
+ *   2. Cortar el consumo al entrar en tarifa punta y restituirlo al salir.
+ *   3. Nunca superar el consumo máximo contratado.
+ *   4. Criterio no azaroso cuando la carga no alcanza para todas.
+ *   5. Actualización de la configuración del sitio.
  *
- * Los datos de ejemplo son los del estándar de interoperabilidad v2 (§1):
- * Living (room1, esperada 21.5°C, 1.2kW) y Dormitorio principal (room2,
- * esperada 20.0°C, 0.8kW), sitio "casa-rodriguez" con potenciaContratadaKW
- * 3.7 y tarifa punta 17:00-23:00 en días hábiles.
+ * Contrato asumido: cada llamada a {@link Core#procesar} devuelve una
+ * {@link Decision} (ON u OFF) por cada habitación configurada.
+ *
+ * Los tests no usan reloj del sistema: el "ahora" es siempre el instante
+ * del estímulo. Lunes 5/10/2026 y sábado 10/10/2026, hora local.
  */
 class CoreTest {
 
-    private static final String ROOM1 = "room1"; // Living
-    private static final String ROOM2 = "room2"; // Dormitorio principal
+    private static final String ROOM1 = "room1";
+    private static final String ROOM2 = "room2";
+    private static final String ROOM3 = "room3";
+
+    /** Punta 17:00-23:00, solo días hábiles (estándar v2, §1). */
+    private static final FranjaHoraria PUNTA =
+            new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
 
     private Core core;
     private Sitio sitio;
@@ -48,219 +53,471 @@ class CoreTest {
 
     @BeforeEach
     void setUp() {
-        FranjaHoraria puntaTarifa = new FranjaHoraria(
-                LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
-        sitio = new Sitio("casa-rodriguez", 3.7, puntaTarifa);
-
+        // Datos del estándar v2 (§1): potencia contratada 3.7 kW
+        sitio = new Sitio("casa-rodriguez", 3.7, PUNTA);
         habitaciones = List.of(
                 new Habitacion(ROOM1, "Living", 21.5, 1.2),
-                new Habitacion(ROOM2, "Dormitorio principal", 20.0, 0.8)
-        );
-
-        core = new Core(new MayorDeficitPrimero());
-        core.procesar(new Estimulo.ConfiguracionActualizada(sitio, habitaciones));
+                new Habitacion(ROOM2, "Dormitorio principal", 20.0, 0.8));
+        core = nuevoCore(sitio, habitaciones);
     }
 
-    // -----------------------------------------------------------------
-    // Decidir qué habitación recibe energía, según déficit térmico
-    // -----------------------------------------------------------------
-
+    // =================================================================
+    // 1. Decidir qué habitación recibe energía y cuál no
+    // =================================================================
     @Nested
+    @DisplayName("1. Decidir qué habitación recibe energía")
     class DecisionBasica {
 
         @Test
-        void habitacionPorDebajoDeLaEsperada_seEnciende() {
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM1, 19.0, unInstanteFueraDePunta()));
+        @DisplayName("Habitación por debajo de su temperatura esperada -> ON")
+        void bajoLaEsperada_enciende() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 19.0, lunes(10, 0)));
 
-            assertEquals(Accion.ON, decisionDe(decisiones, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
         }
 
         @Test
-        void habitacionEnLaTemperaturaEsperada_noEnciende() {
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM1, 21.5, unInstanteFueraDePunta()));
+        @DisplayName("Habitación justo en su temperatura esperada -> OFF")
+        void enLaEsperada_noEnciende() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 21.5, lunes(10, 0)));
 
-            assertEquals(Accion.OFF, decisionDe(decisiones, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
 
         @Test
-        void habitacionPorEncimaDeLaEsperadaYEncendida_seApaga() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 19.0, unInstanteFueraDePunta())); // la prende
+        @DisplayName("Habitación por encima de la esperada -> OFF")
+        void porEncimaDeLaEsperada_noEnciende() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 24.0, lunes(10, 0)));
 
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM1, 22.0, unInstanteFueraDePunta()));
-
-            assertEquals(Accion.OFF, decisionDe(decisiones, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
 
         @Test
-        void dosHabitacionesConDeficit_potenciaAlcanzaParaAmbas_ambasEncienden() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 19.0, unInstanteFueraDePunta()));
+        @DisplayName("Estaba encendida y alcanza la esperada -> se apaga")
+        void encendidaQueAlcanzaLaEsperada_seApaga() {
+            core.procesar(lectura(ROOM1, 19.0, lunes(10, 0)));            // se enciende
 
-            // room1 (1.2kW) + room2 (0.8kW) = 2.0kW, por debajo de los 3.7kW contratados
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM2, 18.0, unInstanteFueraDePunta()));
+            List<Decision> d = core.procesar(lectura(ROOM1, 21.5, lunes(10, 5)));
 
-            assertEquals(Accion.ON, decisionDe(decisiones, ROOM1));
-            assertEquals(Accion.ON, decisionDe(decisiones, ROOM2));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
 
         @Test
-        void dosHabitacionesConDeficit_potenciaAlcanzaParaUnaSola_prendeLaDeMayorDeficit() {
-            // sitio más chico, a propósito, para forzar el conflicto de potencia
-            Sitio sitioAjustado = new Sitio("casa-chica", 1.0, sitio.puntaTarifa());
-            core.procesar(new Estimulo.ConfiguracionActualizada(sitioAjustado, habitaciones));
+        @DisplayName("Dos habitaciones con déficit y la potencia alcanza -> ambas ON")
+        void dosConDeficitYAlcanza_ambasEncienden() {
+            core.procesar(lectura(ROOM1, 19.0, lunes(10, 0)));
 
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 20.0, unInstanteFueraDePunta())); // déficit 1.5
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM2, 15.0, unInstanteFueraDePunta())); // déficit 5.0
+            // 1.2 kW + 0.8 kW = 2.0 kW <= 3.7 kW
+            List<Decision> d = core.procesar(lectura(ROOM2, 18.0, lunes(10, 1)));
 
-            // room2 tiene mayor déficit (5.0 > 1.5): se queda con la potencia disponible (1.0kW)
-            assertEquals(Accion.ON, decisionDe(decisiones, ROOM2));
-            assertEquals(Accion.OFF, decisionDe(decisiones, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
         }
 
         @Test
-        void empateExactoDeDeficit_desempateEsDeterministico() {
-            // mismo déficit para ambas (1.5°C); potencia conjunta (1.2+0.8=2.0kW) no entra en 0.9kW
-            Sitio sitioAjustado = new Sitio("casa-chica", 0.9, sitio.puntaTarifa());
+        @DisplayName("Una con déficit y otra satisfecha -> solo la que tiene déficit")
+        void unaConDeficitYOtraSatisfecha_soloEnciendeLaPrimera() {
+            core.procesar(lectura(ROOM1, 21.5, lunes(10, 0)));            // satisfecha
 
-            List<Decision> primeraCorrida = correrEscenarioDeEmpate(sitioAjustado);
-            List<Decision> segundaCorrida = correrEscenarioDeEmpate(sitioAjustado);
+            List<Decision> d = core.procesar(lectura(ROOM2, 17.0, lunes(10, 1)));
 
-            // Dos Core nuevos, mismo estado exacto: el desempate no puede depender de nada
-            // mutable (ej. orden de llegada de mensajes) para que el resultado sea reproducible.
-            assertEquals(decisionDe(primeraCorrida, ROOM1), decisionDe(segundaCorrida, ROOM1));
-            assertEquals(decisionDe(primeraCorrida, ROOM2), decisionDe(segundaCorrida, ROOM2));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
         }
 
-        private List<Decision> correrEscenarioDeEmpate(Sitio sitioAjustado) {
-            Core otroCore = new Core(new MayorDeficitPrimero());
-            otroCore.procesar(new Estimulo.ConfiguracionActualizada(sitioAjustado, habitaciones));
-            otroCore.procesar(new Estimulo.NuevaLectura(ROOM1, 20.0, unInstanteFueraDePunta()));
-            return otroCore.procesar(new Estimulo.NuevaLectura(ROOM2, 18.5, unInstanteFueraDePunta()));
+        @Test
+        @DisplayName("Cada estímulo devuelve una decisión por habitación configurada")
+        void unaDecisionPorHabitacionConfigurada() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 19.0, lunes(10, 0)));
+
+            assertEquals(2, d.size());
+            assertTrue(d.stream().anyMatch(x -> x.idHabitacion().equals(ROOM1)));
+            assertTrue(d.stream().anyMatch(x -> x.idHabitacion().equals(ROOM2)));
         }
     }
 
-    // -----------------------------------------------------------------
-    // Franja de tarifa punta
-    // -----------------------------------------------------------------
-
+    // =================================================================
+    // 2. Franja de tarifa punta: cortar al entrar, restituir al salir
+    // =================================================================
     @Nested
+    @DisplayName("2. Tarifa punta: cortar y restituir")
     class TarifaPunta {
 
         @Test
-        void alEntrarEnPunta_habitacionesEncendidasSeApagan() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 15.0, unInstanteFueraDePunta())); // la prende
+        @DisplayName("Al entrar en punta, la habitación encendida se apaga")
+        void alEntrarEnPunta_seApagaLaEncendida() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(16, 30)));           // fuera de punta: ON
 
-            List<Decision> decisiones = core.procesar(new Estimulo.Tick(unInstanteDentroDePunta()));
+            List<Decision> d = core.procesar(new Estimulo.Tick(lunes(17, 0)));
 
-            assertEquals(Accion.OFF, decisionDe(decisiones, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
 
         @Test
-        void unaLecturaDuranteLaFranjaPunta_noEnciendeAunqueHayaDeficitGrande() {
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM1, 10.0, unInstanteDentroDePunta()));
+        @DisplayName("Al entrar en punta, se apagan todas las encendidas")
+        void alEntrarEnPunta_seApaganTodas() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(16, 30)));
+            core.procesar(lectura(ROOM2, 14.0, lunes(16, 31)));           // ambas ON
 
-            assertEquals(Accion.OFF, decisionDe(decisiones, ROOM1));
+            List<Decision> d = core.procesar(new Estimulo.Tick(lunes(17, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM2));
         }
 
         @Test
-        void alSalirDePunta_seRecalculaConElCriterioNormal() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 10.0, unInstanteDentroDePunta())); // no prende: está en punta
+        @DisplayName("Una lectura con gran déficit dentro de la punta no enciende")
+        void lecturaEnPunta_noEnciendeAunqueHayaDeficit() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 5.0, lunes(18, 0)));
 
-            List<Decision> decisiones = core.procesar(new Estimulo.Tick(unInstanteFueraDePunta()));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+        }
 
-            // al salir de punta, con el déficit pendiente, debería recalcular y encender
-            assertEquals(Accion.ON, decisionDe(decisiones, ROOM1));
+        @Test
+        @DisplayName("Durante toda la punta se mantiene todo apagado")
+        void duranteLaPunta_siguenApagadas() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(16, 30)));
+            core.procesar(new Estimulo.Tick(lunes(17, 0)));
+
+            List<Decision> d = core.procesar(lectura(ROOM1, 14.0, lunes(20, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM2));
+        }
+
+        @Test
+        @DisplayName("Al salir de la punta, se restituye la energía a la que tiene déficit")
+        void alSalirDePunta_seRestituye() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(16, 30)));           // ON
+            core.procesar(new Estimulo.Tick(lunes(17, 0)));               // corte por punta
+
+            List<Decision> d = core.procesar(new Estimulo.Tick(lunes(23, 0)));
+
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Al salir de la punta, solo se restituyen las que siguen con déficit")
+        void alSalirDePunta_soloLasQueTienenDeficit() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(18, 0)));            // en punta
+            core.procesar(lectura(ROOM2, 15.0, lunes(18, 1)));
+            core.procesar(lectura(ROOM1, 22.0, lunes(22, 0)));            // room1 llegó a su objetivo
+
+            List<Decision> d = core.procesar(new Estimulo.Tick(lunes(23, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+        }
+
+        @Test
+        @DisplayName("Límite inferior: a las 17:00 exactas ya es punta")
+        void aLas1700_yaEsPunta() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 10.0, lunes(17, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Límite inferior: a las 16:59 todavía no es punta")
+        void aLas1659_todaviaNoEsPunta() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 10.0, lunes(16, 59)));
+
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Límite superior: a las 23:00 exactas ya no es punta")
+        void aLas2300_yaNoEsPunta() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 10.0, lunes(23, 0)));
+
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Tarifa HABILES: el sábado a las 18:00 no hay punta")
+        void sabadoConTarifaHabiles_noHayPunta() {
+            List<Decision> d = core.procesar(lectura(ROOM1, 10.0, sabado(18, 0)));
+
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Tarifa TODOS: el sábado a las 18:00 sí hay punta")
+        void sabadoConTarifaTodos_hayPunta() {
+            FranjaHoraria todosLosDias =
+                    new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.TODOS);
+            Core otro = nuevoCore(new Sitio("casa", 3.7, todosLosDias), habitaciones);
+
+            List<Decision> d = otro.procesar(lectura(ROOM1, 10.0, sabado(18, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
     }
 
-    // -----------------------------------------------------------------
-    // Nunca superar el consumo máximo
-    // -----------------------------------------------------------------
-
+    // =================================================================
+    // 3. Nunca superar el consumo máximo contratado
+    // =================================================================
     @Nested
+    @DisplayName("3. Nunca superar el consumo máximo")
     class ConsumoMaximo {
 
         @Test
-        void laSumaDePotenciaEncendidaNuncaSuperaLaContratada() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 10.0, unInstanteFueraDePunta()));
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM2, 10.0, unInstanteFueraDePunta()));
+        @DisplayName("Tres habitaciones con déficit: la suma encendida no supera la contratada")
+        void sumaEncendidaNoSuperaLaContratada() {
+            // 3 x 1.5 kW = 4.5 kW > 3.7 kW contratados: no pueden estar todas ON
+            configurar(3.7,
+                    new Habitacion(ROOM1, "A", 21.0, 1.5),
+                    new Habitacion(ROOM2, "B", 21.0, 1.5),
+                    new Habitacion(ROOM3, "C", 21.0, 1.5));
 
-            double potenciaEncendida = decisiones.stream()
-                    .filter(d -> d.accion() == Accion.ON)
-                    .mapToDouble(d -> potenciaDe(d.idHabitacion()))
-                    .sum();
+            core.procesar(lectura(ROOM1, 10.0, lunes(10, 0)));
+            core.procesar(lectura(ROOM2, 10.0, lunes(10, 1)));
+            List<Decision> d = core.procesar(lectura(ROOM3, 10.0, lunes(10, 2)));
 
-            assertTrue(potenciaEncendida <= sitio.potenciaContratadaKW(),
-                    "Potencia encendida (" + potenciaEncendida + "kW) supera la contratada ("
-                            + sitio.potenciaContratadaKW() + "kW)");
+            assertTrue(potenciaEncendida(d) <= 3.7, "Potencia encendida: " + potenciaEncendida(d));
+            assertTrue(potenciaEncendida(d) > 0, "Debería encender al menos una habitación");
         }
 
         @Test
-        void habitacionCuyaPotenciaYaSuperaLaContratada_nuncaSeEnciende() {
-            Habitacion habitacionEnorme = new Habitacion("room3", "Quincho", 18.0, 5.0); // 5kW > 3.7kW contratados
-            core.procesar(new Estimulo.ConfiguracionActualizada(
-                    sitio, List.of(habitaciones.get(0), habitaciones.get(1), habitacionEnorme)));
+        @DisplayName("Suma exactamente igual a la contratada está permitida")
+        void sumaIgualALaContratada_esValida() {
+            configurar(2.0,
+                    new Habitacion(ROOM1, "Living", 21.5, 1.2),
+                    new Habitacion(ROOM2, "Dormitorio", 20.0, 0.8));
 
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura("room3", 5.0, unInstanteFueraDePunta()));
+            core.procesar(lectura(ROOM1, 15.0, lunes(10, 0)));
+            List<Decision> d = core.procesar(lectura(ROOM2, 15.0, lunes(10, 1)));
 
-            assertEquals(Accion.OFF, decisionDe(decisiones, "room3"));
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+        }
+
+        @Test
+        @DisplayName("Habitación cuya potencia supera la contratada nunca se enciende")
+        void habitacionMasGrandeQueLaContratada_nuncaEnciende() {
+            configurar(3.7, new Habitacion(ROOM3, "Quincho", 18.0, 5.0));
+
+            List<Decision> d = core.procesar(lectura(ROOM3, 5.0, lunes(10, 0)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM3));
+        }
+
+        @Test
+        @DisplayName("Si baja la potencia contratada, el nuevo tope se respeta")
+        void bajaLaPotenciaContratada_seRespetaElNuevoTope() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(10, 0)));
+            core.procesar(lectura(ROOM2, 15.0, lunes(10, 1)));            // ambas ON (2.0 kW)
+
+            configurar(1.0,
+                    new Habitacion(ROOM1, "Living", 21.5, 1.2),
+                    new Habitacion(ROOM2, "Dormitorio", 20.0, 0.8));
+            core.procesar(lectura(ROOM1, 15.0, lunes(10, 2)));
+            List<Decision> d = core.procesar(lectura(ROOM2, 15.0, lunes(10, 3)));
+
+            assertTrue(potenciaEncendida(d) <= 1.0, "Potencia encendida: " + potenciaEncendida(d));
+        }
+
+        @Test
+        @DisplayName("En una secuencia larga de estímulos, el tope nunca se supera")
+        void secuenciaDeEstimulos_topeNuncaSuperado() {
+            configurar(3.7,
+                    new Habitacion(ROOM1, "A", 21.0, 1.5),
+                    new Habitacion(ROOM2, "B", 20.0, 1.5),
+                    new Habitacion(ROOM3, "C", 19.0, 1.5));
+
+            Estimulo[] secuencia = {
+                    lectura(ROOM1, 12.0, lunes(8, 0)),
+                    lectura(ROOM2, 12.0, lunes(8, 1)),
+                    lectura(ROOM3, 12.0, lunes(8, 2)),
+                    lectura(ROOM1, 20.0, lunes(9, 0)),
+                    lectura(ROOM2, 15.0, lunes(9, 1)),
+                    lectura(ROOM3, 10.0, lunes(9, 2)),
+                    new Estimulo.Tick(lunes(10, 0)),
+                    lectura(ROOM1, 13.0, lunes(11, 0)),
+                    lectura(ROOM2, 25.0, lunes(11, 1)),
+                    new Estimulo.Tick(lunes(12, 0))
+            };
+
+            for (Estimulo e : secuencia) {
+                List<Decision> d = core.procesar(e);
+                assertTrue(potenciaEncendida(d) <= 3.7,
+                        "Tope superado tras " + e + ": " + potenciaEncendida(d) + " kW");
+            }
         }
     }
 
-    // -----------------------------------------------------------------
-    // Estímulos y estado interno
-    // -----------------------------------------------------------------
-
+    // =================================================================
+    // 4. Criterio no azaroso cuando la carga no alcanza para todas
+    // =================================================================
     @Nested
-    class EstimulosYEstado {
+    @DisplayName("4. Criterio justificable y no azaroso")
+    class CriterioDeSeleccion {
 
-        @Test
-        void lecturaDeUnaHabitacionDesconocida_seIgnoraSinRomper() {
-            assertDoesNotThrow(() -> core.procesar(
-                    new Estimulo.NuevaLectura("room-inexistente", 15.0, unInstanteFueraDePunta())));
+        // Escenario de conflicto: dos habitaciones de 1.0 kW y solo 1.0 kW contratado,
+        // así que solo una puede estar encendida (la potencia no sesga la elección).
+        @BeforeEach
+        void escenarioDeConflicto() {
+            configurar(1.0,
+                    new Habitacion(ROOM1, "A", 21.0, 1.0),
+                    new Habitacion(ROOM2, "B", 21.0, 1.0));
         }
 
         @Test
-        void configuracionActualizada_reemplazaElInventarioAnteriorEntero() {
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 15.0, unInstanteFueraDePunta())); // la prende
+        @DisplayName("Si no alcanza para todas, recibe energía la más lejos de su objetivo (room2)")
+        void recibeLaDeMayorDeficit_room2() {
+            core.procesar(lectura(ROOM1, 20.0, lunes(10, 0)));            // déficit 1.0
+            List<Decision> d = core.procesar(lectura(ROOM2, 15.0, lunes(10, 1))); // déficit 6.0
 
-            // nueva config que ya NO incluye room1 (PUT /sitio es reemplazo completo, §5.1)
-            core.procesar(new Estimulo.ConfiguracionActualizada(sitio, List.of(habitaciones.get(1))));
-
-            List<Decision> decisiones = core.procesar(
-                    new Estimulo.NuevaLectura(ROOM2, 15.0, unInstanteFueraDePunta()));
-
-            assertTrue(decisiones.stream().noneMatch(d -> d.idHabitacion().equals(ROOM1)),
-                    "room1 ya no está configurada: no debería aparecer ninguna decisión sobre ella");
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
         }
 
         @Test
-        void lecturaConTimestampMasViejoQueLaUltimaConocida_noPisaElEstado() {
-            Instant tardia = unInstanteFueraDePunta();
-            Instant temprana = tardia.minusSeconds(3600);
+        @DisplayName("Si no alcanza para todas, recibe energía la más lejos de su objetivo (room1)")
+        void recibeLaDeMayorDeficit_room1() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(10, 0)));            // déficit 6.0
+            List<Decision> d = core.procesar(lectura(ROOM2, 20.0, lunes(10, 1))); // déficit 1.0
 
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 19.0, tardia));   // última conocida: 19.0
-            core.procesar(new Estimulo.NuevaLectura(ROOM1, 25.0, temprana)); // mensaje "viejo" fuera de orden
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+            assertEquals(Accion.OFF, accionDe(d, ROOM2));
+        }
 
-            EstadoHabitacion estado = core.estadoDe(ROOM1);
+        @Test
+        @DisplayName("Cuando la favorecida llega a su objetivo, la energía pasa a la otra")
+        void alLlegarAlObjetivo_laEnergiaPasaALaOtra() {
+            core.procesar(lectura(ROOM1, 20.0, lunes(10, 0)));
+            core.procesar(lectura(ROOM2, 15.0, lunes(10, 1)));            // room2 recibe energía
 
-            assertEquals(19.0, estado.temperaturaActual(), 0.01,
-                    "Una lectura más vieja que la última conocida no debería pisar el estado");
+            List<Decision> d = core.procesar(lectura(ROOM2, 21.0, lunes(10, 30))); // room2 llegó
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM2));
+            assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Empate de déficit: nunca se enciende más de una")
+        void empate_soloUnaEnciende() {
+            core.procesar(lectura(ROOM1, 18.0, lunes(10, 0)));
+            List<Decision> d = core.procesar(lectura(ROOM2, 18.0, lunes(10, 1)));
+
+            assertEquals(1.0, potenciaEncendida(d), 0.0001);
+        }
+
+        @Test
+        @DisplayName("Empate de déficit: el resultado no depende del orden de llegada")
+        void empate_noDependeDelOrdenDeLlegada() {
+            List<Decision> room1Primero = correrEmpate(ROOM1, ROOM2);
+            List<Decision> room2Primero = correrEmpate(ROOM2, ROOM1);
+
+            assertEquals(accionDe(room1Primero, ROOM1), accionDe(room2Primero, ROOM1));
+            assertEquals(accionDe(room1Primero, ROOM2), accionDe(room2Primero, ROOM2));
+        }
+
+        @Test
+        @DisplayName("Mismo estado y mismo estímulo repetido -> siempre la misma decisión")
+        void mismoEstimulo_mismaDecisionSiempre() {
+            core.procesar(lectura(ROOM1, 18.0, lunes(10, 0)));
+            List<Decision> referencia = core.procesar(lectura(ROOM2, 18.0, lunes(10, 1)));
+
+            for (int i = 0; i < 20; i++) {
+                List<Decision> d = core.procesar(lectura(ROOM2, 18.0, lunes(10, 1)));
+                assertEquals(accionDe(referencia, ROOM1), accionDe(d, ROOM1), "Iteración " + i);
+                assertEquals(accionDe(referencia, ROOM2), accionDe(d, ROOM2), "Iteración " + i);
+            }
+        }
+
+        private List<Decision> correrEmpate(String primera, String segunda) {
+            Core otro = nuevoCore(sitio, habitaciones);
+            otro.procesar(lectura(primera, 18.0, lunes(10, 0)));
+            return otro.procesar(lectura(segunda, 18.0, lunes(10, 0)));
         }
     }
 
-    // -----------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------
+    // =================================================================
+    // 5. Actualización de la configuración del sitio
+    // =================================================================
+    @Nested
+    @DisplayName("5. Configuración del sitio")
+    class Configuracion {
 
-    private Accion decisionDe(List<Decision> decisiones, String idHabitacion) {
+        @Test
+        @DisplayName("La nueva configuración reemplaza el inventario completo")
+        void habitacionQuitada_noApareceEnLasDecisiones() {
+            core.procesar(lectura(ROOM1, 15.0, lunes(10, 0)));
+
+            configurar(3.7, new Habitacion(ROOM2, "Dormitorio principal", 20.0, 0.8)); // sin room1
+            List<Decision> d = core.procesar(lectura(ROOM2, 15.0, lunes(10, 1)));
+
+            assertTrue(d.stream().noneMatch(x -> x.idHabitacion().equals(ROOM1)),
+                    "room1 ya no está configurada");
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+        }
+
+        @Test
+        @DisplayName("Una habitación agregada por la configuración pasa a ser controlada")
+        void habitacionNueva_pasaASerControlada() {
+            configurar(3.7,
+                    new Habitacion(ROOM1, "Living", 21.5, 1.2),
+                    new Habitacion(ROOM2, "Dormitorio principal", 20.0, 0.8),
+                    new Habitacion(ROOM3, "Cocina", 19.0, 0.5));
+
+            List<Decision> d = core.procesar(lectura(ROOM3, 10.0, lunes(10, 0)));
+
+            assertEquals(Accion.ON, accionDe(d, ROOM3));
+        }
+
+        @Test
+        @DisplayName("Cambiar la temperatura esperada cambia la decisión")
+        void cambiaLaTemperaturaEsperada_cambiaLaDecision() {
+            // 20.0 °C con esperada 21.5 -> ON
+            assertEquals(Accion.ON, accionDe(core.procesar(lectura(ROOM1, 20.0, lunes(10, 0))), ROOM1));
+
+            // Nueva esperada 18.0 °C -> con 20.0 °C ya no hace falta calefaccionar
+            configurar(3.7,
+                    new Habitacion(ROOM1, "Living", 18.0, 1.2),
+                    new Habitacion(ROOM2, "Dormitorio principal", 20.0, 0.8));
+            List<Decision> d = core.procesar(lectura(ROOM1, 20.0, lunes(10, 1)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName("Nueva configuración con la franja punta cambiada se aplica en caliente")
+        void cambiaLaFranjaPunta_seAplica() {
+            FranjaHoraria nueva = new FranjaHoraria(LocalTime.of(10, 0), LocalTime.of(12, 0), DiasTarifa.HABILES);
+            core.procesar(new Estimulo.ConfiguracionActualizada(new Sitio("casa", 3.7, nueva), habitaciones));
+
+            // 10:30 era horario normal con la franja anterior; ahora es punta
+            List<Decision> d = core.procesar(lectura(ROOM1, 10.0, lunes(10, 30)));
+
+            assertEquals(Accion.OFF, accionDe(d, ROOM1));
+        }
+    }
+
+    // =================================================================
+    // Helpers
+    // =================================================================
+
+    /** Crea un Core nuevo y le carga la configuración. */
+    private Core nuevoCore(Sitio s, List<Habitacion> hs) {
+        Core c = new Core(new MayorDeficitPrimero());
+        c.procesar(new Estimulo.ConfiguracionActualizada(s, hs));
+        return c;
+    }
+
+    /** Reemplaza la configuración del core de este test (misma franja punta). */
+    private void configurar(double potenciaContratadaKW, Habitacion... nuevas) {
+        sitio = new Sitio(sitio.id(), potenciaContratadaKW, PUNTA);
+        habitaciones = List.of(nuevas);
+        core.procesar(new Estimulo.ConfiguracionActualizada(sitio, habitaciones));
+    }
+
+    private Estimulo.NuevaLectura lectura(String idHabitacion, double tC, Instant ts) {
+        return new Estimulo.NuevaLectura(idHabitacion, tC, ts);
+    }
+
+    /** Acción decidida para una habitación; falla si no hay decisión sobre ella. */
+    private Accion accionDe(List<Decision> decisiones, String idHabitacion) {
         return decisiones.stream()
                 .filter(d -> d.idHabitacion().equals(idHabitacion))
                 .map(Decision::accion)
@@ -268,21 +525,24 @@ class CoreTest {
                 .orElseThrow(() -> new AssertionError("No hay decisión para " + idHabitacion));
     }
 
-    private double potenciaDe(String idHabitacion) {
-        return habitaciones.stream()
-                .filter(h -> h.id().equals(idHabitacion))
-                .map(Habitacion::potenciaKW)
-                .findFirst()
-                .orElse(0.0);
+    /** Suma de potencia (kW) de las habitaciones que quedan en ON. */
+    private double potenciaEncendida(List<Decision> decisiones) {
+        return decisiones.stream()
+                .filter(d -> d.accion() == Accion.ON)
+                .mapToDouble(d -> habitaciones.stream()
+                        .filter(h -> h.id().equals(d.idHabitacion()))
+                        .mapToDouble(Habitacion::potenciaKW)
+                        .findFirst().orElse(0.0))
+                .sum();
     }
 
-    /** Lunes 10:00 — fuera de la franja punta (17:00-23:00, días hábiles) del sitio de prueba. */
-    private Instant unInstanteFueraDePunta() {
-        return ZonedDateTime.of(2026, 10, 5, 10, 0, 0, 0, ZoneId.systemDefault()).toInstant(); // lunes
+    /** Lunes 5/10/2026, hora local. */
+    private Instant lunes(int hora, int minuto) {
+        return LocalDateTime.of(2026, 10, 5, hora, minuto).atZone(ZoneId.systemDefault()).toInstant();
     }
 
-    /** Lunes 18:00 — dentro de la franja punta (17:00-23:00, días hábiles) del sitio de prueba. */
-    private Instant unInstanteDentroDePunta() {
-        return ZonedDateTime.of(2026, 10, 5, 18, 0, 0, 0, ZoneId.systemDefault()).toInstant(); // lunes
+    /** Sábado 10/10/2026, hora local. */
+    private Instant sabado(int hora, int minuto) {
+        return LocalDateTime.of(2026, 10, 10, hora, minuto).atZone(ZoneId.systemDefault()).toInstant();
     }
 }
