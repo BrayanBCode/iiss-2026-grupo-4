@@ -229,8 +229,10 @@ paths:
       tags: [Controlador]
       summary: Iniciar el Controlador
       description: >
-        Comando (task): abre la suscripción MQTT y arranca la lógica de
-        termostato simple. No es una operación CRUD.
+        Comando (task): arranca la lógica de termostato simple, que a partir
+        de ahí acciona los switches según cada lectura de temperatura que
+        recibe core por MQTT. Las lecturas se guardan siempre, esté o no
+        iniciado el Controlador. No es una operación CRUD.
       operationId: iniciarControlador
       responses:
         "200":
@@ -243,12 +245,6 @@ paths:
           $ref: "#/components/responses/NoAutorizado"
         "409":
           description: El Controlador ya estaba iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "502":
-          description: No se pudo conectar al broker MQTT
           content:
             application/json:
               schema:
@@ -270,12 +266,6 @@ paths:
           $ref: "#/components/responses/NoAutorizado"
         "409":
           description: El Controlador no estaba iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "502":
-          description: No se pudo desconectar del broker MQTT
           content:
             application/json:
               schema:

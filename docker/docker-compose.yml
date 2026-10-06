@@ -8,22 +8,6 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     restart: unless-stopped
 
-  subscriber:
-    build:
-      context: ..                       # Apunta a la raíz del proyecto (donde está el pom.xml y src)
-      dockerfile: modules/subscriber/Dockerfile     # Ruta al Dockerfile relativa al contexto
-    container_name: java-subscriber
-    environment:
-      - DB_URL=jdbc:postgresql://postgres:5432/iiss2026
-      - DB_USER=root
-      - DB_PASSWORD=root
-    volumes:
-      - ../logs:/app/logs
-    depends_on:
-      - mosquitto
-      - postgres
-    restart: unless-stopped
-
   eventgenerator:
     build:
       context: ..
@@ -47,6 +31,10 @@ services:
       - MQTT_BROKER=tcp://mosquitto:1883
       - SWITCH_STUB_URL=http://switch-stub:8081
       - API_KEY=ecowarm-grupo4-2026
+      # Log a archivo (ademas de la consola): lo lee scripts/receive-temp.sh
+      - LOGGING_FILE_NAME=logs/core.log
+    volumes:
+      - ../logs:/app/logs
     depends_on:
       - postgres
       - mosquitto

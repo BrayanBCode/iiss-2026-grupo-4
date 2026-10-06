@@ -2,11 +2,11 @@
 # Corre los tests unitarios (mvn test) usando ÚNICAMENTE Docker, igual que
 # build.sh hace con la compilación. No hace falta tener Maven ni el JDK 25
 # instalados/configurados en el host: todo corre dentro de la imagen oficial
-# de Maven que ya usan los Dockerfile de eventGenerator y subscriber.
+# de Maven que ya usan los Dockerfile de los módulos.
 #
 # Uso:
 #   ./scripts/test.sh              -> corre los tests de TODOS los módulos
-#   ./scripts/test.sh subscriber    -> corre solo los tests de subscriber
+#   ./scripts/test.sh core           -> corre solo los tests de core
 #   ./scripts/test.sh eventGenerator -> corre solo los tests de eventGenerator
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -6,7 +6,6 @@ COPY pom.xml .
 # POM de todos los módulos hijos (hace falta que estén todos para que Maven
 # pueda resolver el <modules> del padre, aunque acá solo compilemos switch-stub)
 COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
-COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
 COPY modules/core/pom.xml modules/core/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
 # -pl = project list (compila solo switch-stub) / -am = also make (sus dependencias internas, si tuviera)
