@@ -38,14 +38,26 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+        <!-- Migraciones del esquema (db/migration). flyway-database-postgresql es
+             obligatorio desde Flyway 10 para hablar con Postgres. Versiones
+             administradas por el BOM de Spring Boot. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
         <dependency> <!-- Misma versión que usa el subscriber -->
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.4</version>
         </dependency>
 
-        <!-- Cliente MQTT del Controlador: se suscribe a las mismas lecturas
-             de temperatura que ya consume el subscriber en la Iteración 2. -->
+        <!-- Cliente MQTT de LecturaMqttListener: recibe las lecturas de
+             temperatura (antes las consumía el módulo subscriber). -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>
             <artifactId>org.eclipse.paho.client.mqttv3</artifactId>

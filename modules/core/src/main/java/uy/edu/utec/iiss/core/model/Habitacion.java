@@ -10,8 +10,8 @@ import jakarta.persistence.Table;
 /**
  * Entidad JPA para el recurso "habitacion".
  *
- * La tabla "habitaciones" ya la crea el subscriber (HabitacionDAO.crearTablaSiNoExiste,
- * con ddl-auto=none del lado del API), con este DDL:
+ * La tabla "habitaciones" la crea Flyway (db/migration/V1__esquema_inicial.sql;
+ * ddl-auto=none), con este DDL:
  *
  *   CREATE TABLE IF NOT EXISTS habitaciones (
  *       id                    SERIAL       PRIMARY KEY,
