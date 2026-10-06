@@ -1,0 +1,25 @@
+<configuration>
+
+    <!-- Guarda los logs en archivo de texto -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>logs/switch-stub.log</file>
+        <append>true</append>
+        <encoder>
+            <!-- Formato: Fecha [Hilo] Nivel Clase - Mensaje -->
+            <pattern>%d{dd-MM-yyyy HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- También muestra en consola -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{dd-MM-yyyy HH:mm:ss} %-5level-> %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>

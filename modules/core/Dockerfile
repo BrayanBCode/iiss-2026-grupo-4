@@ -1,0 +1,21 @@
+# Nos traemos el JDK de java y lo llamamos "build" a la etapa 1 (compilacion)
+FROM maven:3.9-eclipse-temurin-25-alpine AS build
+WORKDIR /build
+# POM del padre
+COPY pom.xml .
+# POM de todos los módulos hijos (hace falta que estén todos para que Maven
+# pueda resolver el <modules> del padre, aunque acá solo compilemos core)
+COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
+COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
+COPY modules/core/pom.xml modules/core/pom.xml
+COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
+RUN mvn -q -B -pl modules/core -am dependency:go-offline
+COPY modules/core/src modules/core/src
+RUN mvn -q -B -pl modules/core -am package
+
+# ETAPA 2 (ejecucion)
+FROM eclipse-temurin:25-jre-alpine
+WORKDIR /app
+COPY --from=build /build/modules/core/target/core.jar /app/core.jar
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","/app/core.jar"]

@@ -7,11 +7,13 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="core" />
-        <module name="api" />
         <module name="subscriber" />
         <module name="eventGenerator" />
         <module name="switch-stub" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="api" target="25" />
+    </bytecodeTargetLevel>
   </component>
 </project>

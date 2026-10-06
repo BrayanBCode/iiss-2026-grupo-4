@@ -31,7 +31,7 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │   └── openapi.yaml          # Especificación OpenAPI 3 del API REST (Iteración 3)
 │   └── Producto/                 # Historias, personas, características y escenario
 ├── docker/
-│   ├── docker-compose.yml        # Orquesta mosquitto, postgres, subscriber, eventgenerator, api y switch-stub
+│   ├── docker-compose.yml        # Orquesta mosquitto, postgres, subscriber, eventgenerator, core y switch-stub
 │   └── mosquitto.conf            # Config del broker (listener 1883, anónimo habilitado)
 ├── scripts/
 │   ├── build.sh                  # Compila todo el sistema vía Docker
@@ -64,21 +64,23 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │       │   ├── AppEventGenerator.java # Main: crea 3 habitaciones simuladas y publica cada 10s
 │   │       │   └── Habitacion.java        # Simula un termostato Shelly H&T (payload JSON con tC/tF/ts)
 │   │       └── test/java/eventGenerator/  # Tests unitarios (JUnit 5 + Mockito) del payload/publicación simulada
-│   ├── api/                       # Módulo Maven (Spring Boot): API REST + Controlador (Iteración 3)
+│   ├── core/                      # Módulo Maven (Spring Boot): API REST + Controlador (Iteración 3)
 │   │   ├── Dockerfile
 │   │   ├── pom.xml
 │   │   └── src/main/
-│   │       ├── java/api/
-│   │       │   ├── ApiApplication.java    # Main de Spring Boot
-│   │       │   ├── controller/            # HabitacionController (CRUD + comandos) y ControladorController (iniciar/parar/estado)
-│   │       │   ├── service/               # HabitacionService: lógica de negocio del CRUD y de los comandos
-│   │       │   ├── controlador/           # ControladorService: termostato simple (suscripción MQTT + accionar switch)
-│   │       │   ├── client/                # SwitchStubClient: cliente REST hacia el switch-stub
-│   │       │   ├── config/                # ApiKeyFilter (autenticación por API key) y RestTemplateConfig
-│   │       │   ├── model/                 # Entidad JPA Habitacion y enum AccionSwitch (ON/OFF)
+│   │       ├── java/uy/edu/utec/iiss/core/
+│   │       │   ├── CoreApplication.java   # Main de Spring Boot
+│   │       │   ├── rest/                  # TODOS los endpoints HTTP (nada fuera de acá importa de rest)
+│   │       │   │   ├── controller/        # HabitacionController (CRUD + comandos) y ControladorController (iniciar/parar/estado)
+│   │       │   │   ├── dto/               # Requests/responses del API (formato JSON)
+│   │       │   │   ├── security/          # ApiKeyFilter (autenticación por API key)
+│   │       │   │   └── error/             # ApiExceptionHandler y ErrorResponse (mapeo de errores a HTTP)
+│   │       │   ├── service/               # HabitacionService (CRUD y comandos), ControladorService (termostato simple: suscripción MQTT + accionar switch) y DatosHabitacion
+│   │       │   ├── model/                 # Entidad JPA Habitacion, enum AccionSwitch (ON/OFF) y ReporteConsistencia
 │   │       │   ├── repository/            # HabitacionRepository (Spring Data JPA)
-│   │       │   ├── dto/                   # Requests/responses del API
-│   │       │   └── exception/             # Excepciones de dominio y ApiExceptionHandler (mapeo a HTTP)
+│   │       │   ├── client/                # SwitchStubClient: cliente REST hacia el switch-stub
+│   │       │   ├── config/                # RestTemplateConfig
+│   │       │   └── exception/             # Excepciones de dominio (sin nada de HTTP)
 │   │       └── resources/
 │   │           └── application.properties # Puerto, datasource, broker MQTT, URL del stub y API key
 │   └── switch-stub/               # Módulo Maven (Spring Boot): stub REST de un switch (solo loguea la acción)
@@ -86,7 +88,7 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │       ├── pom.xml
 │       └── src/main/java/switchstub/  # SwitchController (POST /switch), SwitchAccionRequest y Accion
 ├── logs/                          # Logs del subscriber (montado como volumen; ignorado por git)
-├── pom.xml                        # POM padre (agrupa los módulos subscriber, eventGenerator, api y switch-stub)
+├── pom.xml                        # POM padre (agrupa los módulos subscriber, eventGenerator, core y switch-stub)
 └── README.md
 ```
 
@@ -101,10 +103,10 @@ eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)─
   Shelly (living, dormitorio,     puerto 1883    +/status/temperature:0   habitaciones / lecturas   │
   cocina), publica cada 10s             │                                                            │
                                         │                                                            │
-                                        └──(MQTT subscribe)──▶ api (Controlador) ──(REST)──▶ switch-stub
+                                        └──(MQTT subscribe)──▶ core (Controlador) ──(REST)──▶ switch-stub
                                                                   │  ON/OFF según temperatura esperada
                                                                   └──(JPA)─────────────────────────────┘
-                                          cliente HTTP ──(REST + X-API-KEY)──▶ api :8080
+                                          cliente HTTP ──(REST + X-API-KEY)──▶ core :8080
 ```
 
 1. **`eventGenerator`** simula 3 termostatos Shelly H&T (`shellyhtg3-...`) y publica cada 10
@@ -117,10 +119,10 @@ eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)─
    guarda la lectura en la tabla `lecturas`. Si el dispositivo no está asignado a ninguna
    habitación, descarta el mensaje. Cada paso queda registrado (consola + archivo) vía
    SLF4J/Logback. Además, es quien crea las tablas al arrancar.
-4. **`api`** expone el CRUD de habitaciones y los comandos del sistema por HTTP (puerto `8080`),
+4. **`core`** (antes `api`) expone el CRUD de habitaciones y los comandos del sistema por HTTP (puerto `8080`),
    protegido por API key. Lee y escribe sobre la misma tabla `habitaciones` que usa el
    `subscriber` (no toca el esquema: `ddl-auto=none`).
-5. **Controlador** (dentro del `api`): cuando se lo inicia (`POST /controlador/iniciar`) se
+5. **Controlador** (dentro de `core`): cuando se lo inicia (`POST /controlador/iniciar`) se
    suscribe al mismo tópico MQTT y se comporta como un **termostato simple**: por cada lectura,
    compara la temperatura medida con la `temperaturaEsperada` de la habitación dueña del
    termostato — si la medida es **mayor**, apaga el switch (`OFF`); en otro caso, lo prende
@@ -150,7 +152,7 @@ contenedores Docker (multi-stage: build con Maven, ejecución con JRE).
 ./scripts/up.sh
 ```
 
-Esto compila los cuatro módulos (`subscriber`, `eventGenerator`, `api` y `switch-stub`) y levanta
+Esto compila los cuatro módulos (`subscriber`, `eventGenerator`, `core` y `switch-stub`) y levanta
 los 6 servicios definidos en `docker/docker-compose.yml`:
 
 | Servicio | Rol | Puerto |
@@ -159,7 +161,7 @@ los 6 servicios definidos en `docker/docker-compose.yml`:
 | `postgres` | Base de datos (crea `iiss2026`, usuario/clave `root`/`root`) | `5432` |
 | `eventgenerator` | Simula los 3 termostatos y publica lecturas cada 10s | — |
 | `subscriber` | Se suscribe, persiste en Postgres, loguea en `logs/subscriber.log` (montado como volumen) | — |
-| `api` | API REST (CRUD de habitaciones + comandos + Controlador), protegido con API key | `8080` |
+| `core` | API REST (CRUD de habitaciones + comandos + Controlador), protegido con API key | `8080` |
 | `switch-stub` | Stub REST del switch: recibe `POST /switch` y loguea la acción | `8081` |
 
 Para ver en vivo lo que va recibiendo y persistiendo el subscriber:
@@ -197,7 +199,7 @@ Configuradas en `docker/docker-compose.yml`, no requieren setup manual.
 - `DB_USER=root`
 - `DB_PASSWORD=root`
 
-**`api`**
+**`core`**
 - `DB_URL`, `DB_USER`, `DB_PASSWORD`: los mismos que el `subscriber` (comparten base).
 - `MQTT_BROKER=tcp://mosquitto:1883`: broker al que se suscribe el Controlador.
 - `SWITCH_STUB_URL=http://switch-stub:8081`: dónde se accionan los switches.
@@ -272,7 +274,7 @@ Para ver el Controlador en acción: iniciarlo con `POST /controlador/iniciar` y 
 ## Tests
 
 Los tests unitarios (JUnit 5 + Mockito) cubren `Habitacion`, `HabitacionDAO` y `LecturaDAO` del
-`subscriber`, y `Habitacion` del `eventGenerator`. Los módulos `api` y `switch-stub` todavía no
+`subscriber`, y `Habitacion` del `eventGenerator`. Los módulos `core` y `switch-stub` todavía no
 tienen tests automatizados; se verifican con `scripts/api-demo.sh`. Los tests corren dentro de
 Docker, sin necesitar Maven ni el JDK instalados en el host:
 
@@ -315,10 +317,10 @@ terceros, sujetas a sus respectivas licencias:
 - **org.json** — licencia JSON ("no usar para hacer el mal"). Parseo de payloads MQTT.
 - **Logback (logback-classic)** — Eclipse Public License 1.0 / GNU LGPL 2.1. Logging del
   `subscriber` a consola y archivo.
-- **Spring Boot (web, data-jpa, validation)** — Apache License 2.0. Framework del `api` y del
+- **Spring Boot (web, data-jpa, validation)** — Apache License 2.0. Framework de `core` y del
   `switch-stub`.
 - **Hibernate ORM** — GNU LGPL 2.1. Implementación de JPA usada por `spring-boot-starter-data-jpa`.
-- **Jackson** — Apache License 2.0. Serialización JSON del `api`.
+- **Jackson** — Apache License 2.0. Serialización JSON de `core`.
 - **JUnit 5 (junit-jupiter)** — Eclipse Public License 2.0. Framework de tests unitarios.
 - **Mockito** — MIT License. Mocking en los tests unitarios.
 

@@ -17,13 +17,13 @@ import java.util.Optional;
 public class HabitacionDAO {
     public void crearTablaSiNoExiste() throws SQLException {
         String sql = """
-            CREATE TABLE IF NOT EXISTS habitaciones (
-                id                    SERIAL       PRIMARY KEY,
-                nombre                VARCHAR(50)  NOT NULL UNIQUE,
-                termostato_id         VARCHAR(50)  NOT NULL UNIQUE,
-                switch_id             VARCHAR(50)  NOT NULL UNIQUE,
-                temperatura_objetivo  NUMERIC(4,1)
-            )""";
+                CREATE TABLE IF NOT EXISTS habitaciones (
+                    id                    SERIAL       PRIMARY KEY,
+                    nombre                VARCHAR(50)  NOT NULL UNIQUE,
+                    termostato_id         VARCHAR(50)  NOT NULL UNIQUE,
+                    switch_id             VARCHAR(50)  NOT NULL UNIQUE,
+                    temperatura_objetivo  NUMERIC(4,1)
+                )""";
         try (Statement st = ConexionDB.get().createStatement()) {
             st.execute(sql);
         }
