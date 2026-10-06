@@ -5,7 +5,7 @@
 # Requiere que el sistema este levantado: ./scripts/up.sh
 #
 # La API_KEY tiene que ser la misma que la de docker/docker-compose.yml
-# (variable de entorno API_KEY del servicio "api"). Si se la cambia ahi,
+# (variable de entorno API_KEY del servicio "core"). Si se la cambia ahi,
 # hay que pasarla aca como argumento: ./scripts/api-demo.sh otra-clave
 set -euo pipefail
 
