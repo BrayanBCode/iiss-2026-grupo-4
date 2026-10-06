@@ -55,8 +55,8 @@
         <finalName>switch-stub</finalName>
         <plugins>
             <!--
-                Este plugin (en vez del maven-shade-plugin que usan subscriber
-                y eventGenerator) es el que arma el "fat jar" ejecutable para
+                Este plugin (en vez del maven-shade-plugin que usa
+                eventGenerator) es el que arma el "fat jar" ejecutable para
                 apps Spring Boot, con el servidor Tomcat embebido adentro.
             -->
             <plugin>

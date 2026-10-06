@@ -1,14 +1,15 @@
 #!/bin/bash
-# Muestra en vivo el log del subscriber, leyéndolo directo del host (montado
-# como volumen en docker-compose.yml) -- no depende de "docker compose exec"
-# ni de que el contenedor siga vivo en el momento de leerlo.
+# Muestra en vivo el log de core (lecturas MQTT recibidas y acciones del
+# Controlador), leyendolo directo del host (montado como volumen en
+# docker-compose.yml) -- no depende de "docker compose exec" ni de que el
+# contenedor siga vivo en el momento de leerlo.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="$SCRIPT_DIR/../logs/subscriber.log"
+LOG_FILE="$SCRIPT_DIR/../logs/core.log"
 
 if [ ! -f "$LOG_FILE" ]; then
-    echo "⚠️ Todavía no existe $LOG_FILE — levantá el subscriber primero con ./scripts/up.sh"
+    echo "⚠️ Todavía no existe $LOG_FILE — levantá el sistema primero con ./scripts/up.sh"
     exit 1
 fi
 

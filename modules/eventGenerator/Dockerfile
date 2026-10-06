@@ -5,8 +5,6 @@ WORKDIR /build
 COPY pom.xml .
 #POM del hijo eventGenerator
 COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
-#POM del hijo subscrite
-COPY modules/subscriber/pom.xml modules/subscriber/pom.xml
 #POM de los hijos core y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
 COPY modules/core/pom.xml modules/core/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
