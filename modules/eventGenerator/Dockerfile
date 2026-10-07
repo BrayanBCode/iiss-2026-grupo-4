@@ -3,7 +3,8 @@ FROM maven:3.9-eclipse-temurin-25-alpine AS build
 WORKDIR /build
 #POM del padre
 COPY pom.xml .
-#POM del hijo eventGenerator
+#POM de los hijos core y eventGenerator
+COPY modules/core/pom.xml modules/core/pom.xml
 COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
 #POM de los hijos engine y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
 COPY modules/engine/pom.xml modules/engine/pom.xml

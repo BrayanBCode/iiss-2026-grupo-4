@@ -1,7 +1,7 @@
-package uy.edu.utec.iiss.engine.core;
+package uy.edu.utec.iiss.core;
 
-import uy.edu.utec.iiss.engine.core.model.EstadoHabitacion;
-import uy.edu.utec.iiss.engine.core.model.ConfiguracionHabitacion;
+import uy.edu.utec.iiss.core.model.EstadoHabitacion;
+import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 
 import java.util.Comparator;
 import java.util.List;

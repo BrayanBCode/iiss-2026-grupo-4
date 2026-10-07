@@ -43,6 +43,11 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   ├── receive-temp.sh           # Sigue en vivo el archivo de log del engine (logs/engine.log)
 │   └── api-demo.sh               # Recorre todos los endpoints del API con curl (incluye la API key)
 ├── modules/
+│   ├── core/                      # Módulo Maven (Java puro, SIN Spring): LÓGICA DE DECISIÓN (Iteración 4). Solo depende de JUnit (test)
+│   │   ├── pom.xml
+│   │   └── src/
+│   │       ├── main/java/uy/edu/utec/iiss/core/   # Core, CriterioPrioridad, MayorDeficitPrimero y model/ (Accion, Decision, Estimulo, Sitio, ...)
+│   │       └── test/java/uy/edu/utec/iiss/core/   # CoreTest (JUnit 5, TDD)
 │   ├── eventGenerator/            # Módulo Maven: simula los termostatos Shelly publicando por MQTT
 │   │   ├── Dockerfile
 │   │   ├── pom.xml
@@ -58,7 +63,6 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │       ├── main/
 │   │       │   ├── java/uy/edu/utec/iiss/engine/
 │   │       │   │   ├── EngineApplication.java # Main de Spring Boot
-│   │       │   │   ├── core/              # LÓGICA DE DECISIÓN PURA (Iteración 4): Core, CriterioPrioridad, MayorDeficitPrimero y model/. Sin Spring ni I/O: no importa nada del resto del engine
 │   │       │   │   ├── mqtt/              # LecturaMqttListener: se suscribe al broker, guarda cada lectura y se la pasa al Controlador
 │   │       │   │   ├── rest/              # TODOS los endpoints HTTP (nada fuera de acá importa de rest)
 │   │       │   │   │   ├── controller/    # HabitacionController (CRUD + comandos) y ControladorController (iniciar/parar/estado)
@@ -74,13 +78,12 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │       │   └── resources/
 │   │       │       ├── application.properties # Puerto, datasource, Flyway, broker MQTT, URL del stub y API key
 │   │       │       └── db/migration/      # Migraciones Flyway: V1 esquema (habitaciones, lecturas), V2 habitaciones iniciales
-│   │       └── test/java/uy/edu/utec/iiss/engine/core/  # CoreTest (JUnit 5, TDD) del core de decisión
 │   └── switch-stub/               # Módulo Maven (Spring Boot): stub REST de un switch (solo loguea la acción)
 │       ├── Dockerfile
 │       ├── pom.xml
 │       └── src/main/java/switchstub/  # SwitchController (POST /switch), SwitchAccionRequest y Accion
 ├── logs/                          # Log del engine y del switch-stub (montado como volumen; ignorado por git)
-├── pom.xml                        # POM padre (agrupa los módulos eventGenerator, engine y switch-stub)
+├── pom.xml                        # POM padre (agrupa los módulos core, eventGenerator, engine y switch-stub)
 └── README.md
 ```
 
@@ -128,13 +131,14 @@ Dos palabras que se usan con un sentido preciso (vienen de la letra y del están
 - **engine** (módulo `modules/engine`): todo lo que habla con el mundo exterior. Recibe MQTT, guarda en
   Postgres, expone el REST, dispara los eventos temporales y ejecuta las órdenes contra los switches.
   Traduce el mundo real a "estímulos" para el core, y las decisiones del core a comandos.
-- **core** (paquete `uy.edu.utec.iiss.engine.core`): la lógica de decisión pura. Recibe estímulos
+- **core** (módulo `modules/core`, paquete `uy.edu.utec.iiss.core`): la lógica de decisión pura. Recibe estímulos
   (`NuevaLectura`, `Tick`, `ConfiguracionActualizada`) y devuelve una decisión `ON`/`OFF` por habitación,
   respetando la potencia contratada, la tarifa punta y un criterio de prioridad no azaroso. No lee
-  MQTT, ni REST, ni la base: por eso no importa nada de Spring ni del resto del engine y se prueba con
-  tests unitarios simples.
+  MQTT, ni REST, ni la base: por eso es un módulo Maven aparte, sin dependencias de producción (solo
+  JUnit para los tests), así el compilador impide que importe algo del engine o de Spring.
 
-Estado actual: el core **todavía no está conectado** al engine. Hoy `ControladorService` usa un
+Estado actual: el `engine` ya declara la dependencia al módulo `core`, pero el core **todavía no está
+conectado** a su código. Hoy `ControladorService` usa un
 termostato simple (más alta que la esperada apaga, más baja prende). Conectarlos requiere, entre
 otras cosas, `potenciaKW` por habitación y los datos del sitio (potencia contratada y franja punta).
 
@@ -159,7 +163,7 @@ contenedores Docker (multi-stage: build con Maven, ejecución con JRE).
 ./scripts/up.sh
 ```
 
-Esto compila los tres módulos (`eventGenerator`, `engine` y `switch-stub`) y levanta
+Esto compila los cuatro módulos (`core`, `eventGenerator`, `engine` y `switch-stub`) y levanta
 los 5 servicios definidos en `docker/docker-compose.yml`:
 
 | Servicio | Rol | Puerto |
@@ -275,12 +279,13 @@ Para ver el Controlador en acción: iniciarlo con `POST /controlador/iniciar` y 
 ## Tests
 
 Los tests unitarios (JUnit 5 + Mockito) cubren `Habitacion` del `eventGenerator`, y el core de decisión
-(`engine.core.Core`) tiene sus tests en `CoreTest` (TDD). El resto del `engine` y `switch-stub` todavía no
+(`core.Core`, módulo `core`) tiene sus tests en `CoreTest` (TDD). El resto del `engine` y `switch-stub` todavía no
 tiene tests automatizados; se verifican con `scripts/api-demo.sh`. Los tests corren dentro de
 Docker, sin necesitar Maven ni el JDK instalados en el host:
 
 ```bash
 ./scripts/test.sh                  # corre los tests de todos los módulos
+./scripts/test.sh core             # corre solo los tests del core (CoreTest)
 ./scripts/test.sh engine           # corre solo los tests de engine
 ./scripts/test.sh eventGenerator   # corre solo los tests de eventGenerator
 ```
@@ -295,7 +300,7 @@ Docker, sin necesitar Maven ni el JDK instalados en el host:
 | `up.sh` | Ejecuta `build.sh` y levanta los 5 servicios en segundo plano. | `./scripts/up.sh` |
 | `down.sh` | Baja los servicios y elimina contenedores y red (el volumen `pgdata` se conserva). | `./scripts/down.sh` |
 | `stop.sh` | Detiene los contenedores sin eliminarlos (se retoma con `up.sh`, sin recompilar). | `./scripts/stop.sh` |
-| `test.sh` | Corre los tests unitarios (`mvn test`) vía Docker, de todos los módulos o de uno en particular. | `./scripts/test.sh [engine\|eventGenerator]` |
+| `test.sh` | Corre los tests unitarios (`mvn test`) vía Docker, de todos los módulos o de uno en particular. | `./scripts/test.sh [core\|engine\|eventGenerator]` |
 | `receive-temp.sh` | Sigue en vivo `logs/engine.log` (log real del engine, leído del host). | `./scripts/receive-temp.sh` |
 | `send-temp.sh` | Publica una lectura de prueba con `curl` al tópico real (`shellyhtg3-.../status/temperature:0`). | `./scripts/send-temp.sh [temperatura]` (default `22.5`) |
 | `api-demo.sh` | Ejemplo de uso completo del API con `curl` (CRUD, comandos, Controlador y chequeo de autenticación). | `./scripts/api-demo.sh [api-key]` |

@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.core.model;
+package uy.edu.utec.iiss.core.model;
 
 /**
  * Datos de configuración de una habitación, tal como llegan en el inventario

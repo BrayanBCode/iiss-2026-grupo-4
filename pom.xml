@@ -9,6 +9,7 @@
     <packaging>pom</packaging>
 
     <modules> <!--Referencia que es el padre y los <module> son los hijos-->
+        <module>modules/core</module>
         <module>modules/eventGenerator</module>
         <module>modules/engine</module>
         <module>modules/switch-stub</module>

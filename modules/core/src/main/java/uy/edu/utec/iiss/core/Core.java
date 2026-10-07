@@ -1,11 +1,11 @@
-package uy.edu.utec.iiss.engine.core;
+package uy.edu.utec.iiss.core;
 
-import uy.edu.utec.iiss.engine.core.model.Accion;
-import uy.edu.utec.iiss.engine.core.model.Decision;
-import uy.edu.utec.iiss.engine.core.model.EstadoHabitacion;
-import uy.edu.utec.iiss.engine.core.model.Estimulo;
-import uy.edu.utec.iiss.engine.core.model.ConfiguracionHabitacion;
-import uy.edu.utec.iiss.engine.core.model.Sitio;
+import uy.edu.utec.iiss.core.model.Accion;
+import uy.edu.utec.iiss.core.model.Decision;
+import uy.edu.utec.iiss.core.model.EstadoHabitacion;
+import uy.edu.utec.iiss.core.model.Estimulo;
+import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
+import uy.edu.utec.iiss.core.model.Sitio;
 
 import java.time.Instant;
 import java.time.ZoneId;

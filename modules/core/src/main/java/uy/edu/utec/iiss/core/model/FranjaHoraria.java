@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.core.model;
+package uy.edu.utec.iiss.core.model;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
@@ -10,7 +10,7 @@ import java.time.LocalTime;
  *
  * Es un utilitario del modelo, no "la lógica de decisión" que hay que
  * probar con TDD — por eso está implementada de entrada, a diferencia de
- * {@link uy.edu.utec.iiss.engine.core.Core}.
+ * {@link uy.edu.utec.iiss.core.Core}.
  */
 public record FranjaHoraria(LocalTime desde, LocalTime hasta, DiasTarifa dias) {
 
