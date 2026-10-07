@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.core.model;
+package uy.edu.utec.iiss.core.model;
 
 /**
  * Datos de sitio que le importan al core para decidir (estándar v2, §1

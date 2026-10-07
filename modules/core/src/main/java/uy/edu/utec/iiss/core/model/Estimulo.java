@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.core.model;
+package uy.edu.utec.iiss.core.model;
 
 import java.time.Instant;
 import java.util.List;

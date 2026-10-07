@@ -26,6 +26,14 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- Lógica de decisión (módulo hermano, sin dependencias externas).
+             Todavía no está conectada al engine (ver README), pero ya queda declarada. -->
+        <dependency>
+            <groupId>uy.edu.utec.iiss</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- API REST (Tomcat embebido) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

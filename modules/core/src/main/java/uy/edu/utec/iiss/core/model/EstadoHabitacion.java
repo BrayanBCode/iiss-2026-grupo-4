@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.core.model;
+package uy.edu.utec.iiss.core.model;
 
 /**
  * Estado interno que el core mantiene por habitación: la última temperatura

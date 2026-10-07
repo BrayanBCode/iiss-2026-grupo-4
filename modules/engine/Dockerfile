@@ -5,10 +5,13 @@ WORKDIR /build
 COPY pom.xml .
 # POM de todos los módulos hijos (hace falta que estén todos para que Maven
 # pueda resolver el <modules> del padre, aunque acá solo compilemos engine)
+COPY modules/core/pom.xml modules/core/pom.xml
 COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
 COPY modules/engine/pom.xml modules/engine/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
 RUN mvn -q -B -pl modules/engine -am dependency:go-offline
+# El engine depende del módulo core: hace falta su código fuente para compilar
+COPY modules/core/src modules/core/src
 COPY modules/engine/src modules/engine/src
 RUN mvn -q -B -pl modules/engine -am package
 
