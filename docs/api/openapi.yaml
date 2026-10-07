@@ -231,7 +231,7 @@ paths:
       description: >
         Comando (task): arranca la lógica de termostato simple, que a partir
         de ahí acciona los switches según cada lectura de temperatura que
-        recibe core por MQTT. Las lecturas se guardan siempre, esté o no
+        recibe el engine por MQTT. Las lecturas se guardan siempre, esté o no
         iniciado el Controlador. No es una operación CRUD.
       operationId: iniciarControlador
       responses:

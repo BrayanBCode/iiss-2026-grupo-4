@@ -31,7 +31,7 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │   └── openapi.yaml          # Especificación OpenAPI 3 del API REST (Iteración 3)
 │   └── Producto/                 # Historias, personas, características y escenario
 ├── docker/
-│   ├── docker-compose.yml        # Orquesta mosquitto, postgres, eventgenerator, core y switch-stub
+│   ├── docker-compose.yml        # Orquesta mosquitto, postgres, eventgenerator, engine y switch-stub
 │   └── mosquitto.conf            # Config del broker (listener 1883, anónimo habilitado)
 ├── scripts/
 │   ├── build.sh                  # Compila todo el sistema vía Docker
@@ -40,7 +40,7 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   ├── stop.sh                   # Detiene los contenedores sin eliminarlos
 │   ├── test.sh                   # Corre los tests unitarios (mvn test) vía Docker, de todos los módulos o uno solo
 │   ├── send-temp.sh              # Publica una lectura de prueba en el tópico MQTT real (curl)
-│   ├── receive-temp.sh           # Sigue en vivo el archivo de log de core (logs/core.log)
+│   ├── receive-temp.sh           # Sigue en vivo el archivo de log del engine (logs/engine.log)
 │   └── api-demo.sh               # Recorre todos los endpoints del API con curl (incluye la API key)
 ├── modules/
 │   ├── eventGenerator/            # Módulo Maven: simula los termostatos Shelly publicando por MQTT
@@ -51,34 +51,36 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 │   │       │   ├── AppEventGenerator.java # Main: crea 3 habitaciones simuladas y publica cada 10s
 │   │       │   └── Habitacion.java        # Simula un termostato Shelly H&T (payload JSON con tC/tF/ts)
 │   │       └── test/java/eventGenerator/  # Tests unitarios (JUnit 5 + Mockito) del payload/publicación simulada
-│   ├── core/                      # Módulo Maven (Spring Boot): recibe y persiste lecturas MQTT, API REST y Controlador
+│   ├── engine/                    # Módulo Maven (Spring Boot): recibe y persiste lecturas MQTT, API REST, Controlador y acciona los switches
 │   │   ├── Dockerfile
 │   │   ├── pom.xml
-│   │   └── src/main/
-│   │       ├── java/uy/edu/utec/iiss/core/
-│   │       │   ├── CoreApplication.java   # Main de Spring Boot
-│   │       │   ├── mqtt/                  # LecturaMqttListener: se suscribe al broker, guarda cada lectura y se la pasa al Controlador
-│   │       │   ├── rest/                  # TODOS los endpoints HTTP (nada fuera de acá importa de rest)
-│   │       │   │   ├── controller/        # HabitacionController (CRUD + comandos) y ControladorController (iniciar/parar/estado)
-│   │       │   │   ├── dto/               # Requests/responses del API (formato JSON)
-│   │       │   │   ├── security/          # ApiKeyFilter (autenticación por API key)
-│   │       │   │   └── error/             # ApiExceptionHandler y ErrorResponse (mapeo de errores a HTTP)
-│   │       │   ├── service/               # HabitacionService (CRUD y comandos), LecturaService (guarda lecturas), ControladorService (termostato simple: accionar switch) y DatosHabitacion
-│   │       │   ├── model/                 # Entidades JPA Habitacion y Lectura, enum AccionSwitch (ON/OFF) y ReporteConsistencia
-│   │       │   ├── repository/            # HabitacionRepository y LecturaRepository (Spring Data JPA)
-│   │       │   ├── client/                # SwitchStubClient: cliente REST hacia el switch-stub
-│   │       │   ├── config/                # RestTemplateConfig
-│   │       │   └── exception/             # Excepciones de dominio (sin nada de HTTP)
-│   │       ├── java/core/                 # Motor puro del Controlador (Iteración 4): sin I/O, sin Spring
-│   │       └── resources/
-│   │           ├── application.properties # Puerto, datasource, Flyway, broker MQTT, URL del stub y API key
-│   │           └── db/migration/          # Migraciones Flyway: V1 esquema (habitaciones, lecturas), V2 habitaciones iniciales
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── java/uy/edu/utec/iiss/engine/
+│   │       │   │   ├── EngineApplication.java # Main de Spring Boot
+│   │       │   │   ├── core/              # LÓGICA DE DECISIÓN PURA (Iteración 4): Core, CriterioPrioridad, MayorDeficitPrimero y model/. Sin Spring ni I/O: no importa nada del resto del engine
+│   │       │   │   ├── mqtt/              # LecturaMqttListener: se suscribe al broker, guarda cada lectura y se la pasa al Controlador
+│   │       │   │   ├── rest/              # TODOS los endpoints HTTP (nada fuera de acá importa de rest)
+│   │       │   │   │   ├── controller/    # HabitacionController (CRUD + comandos) y ControladorController (iniciar/parar/estado)
+│   │       │   │   │   ├── dto/           # Requests/responses del API (formato JSON)
+│   │       │   │   │   ├── security/      # ApiKeyFilter (autenticación por API key)
+│   │       │   │   │   └── error/         # ApiExceptionHandler y ErrorResponse (mapeo de errores a HTTP)
+│   │       │   │   ├── service/           # HabitacionService (CRUD y comandos), LecturaService (guarda lecturas), ControladorService (termostato simple: accionar switch) y DatosHabitacion
+│   │       │   │   ├── model/             # Entidades JPA Habitacion y Lectura, enum AccionSwitch (ON/OFF) y ReporteConsistencia
+│   │       │   │   ├── repository/        # HabitacionRepository y LecturaRepository (Spring Data JPA)
+│   │       │   │   ├── client/            # SwitchStubClient: cliente REST hacia el switch-stub
+│   │       │   │   ├── config/            # RestTemplateConfig
+│   │       │   │   └── exception/         # Excepciones de dominio (sin nada de HTTP)
+│   │       │   └── resources/
+│   │       │       ├── application.properties # Puerto, datasource, Flyway, broker MQTT, URL del stub y API key
+│   │       │       └── db/migration/      # Migraciones Flyway: V1 esquema (habitaciones, lecturas), V2 habitaciones iniciales
+│   │       └── test/java/uy/edu/utec/iiss/engine/core/  # CoreTest (JUnit 5, TDD) del core de decisión
 │   └── switch-stub/               # Módulo Maven (Spring Boot): stub REST de un switch (solo loguea la acción)
 │       ├── Dockerfile
 │       ├── pom.xml
 │       └── src/main/java/switchstub/  # SwitchController (POST /switch), SwitchAccionRequest y Accion
-├── logs/                          # Log de core y del switch-stub (montado como volumen; ignorado por git)
-├── pom.xml                        # POM padre (agrupa los módulos eventGenerator, core y switch-stub)
+├── logs/                          # Log del engine y del switch-stub (montado como volumen; ignorado por git)
+├── pom.xml                        # POM padre (agrupa los módulos eventGenerator, engine y switch-stub)
 └── README.md
 ```
 
@@ -87,13 +89,13 @@ Proyecto en Jira: [`Enlace`](https://estudiantes-grupo8-2026.atlassian.net/jira/
 ## Arquitectura y flujo de datos
 
 ```
-eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)──▶ core ──(JPA)──▶ PostgreSQL
+eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)──▶ engine ──(JPA)──▶ PostgreSQL
   simula 3 termostatos              broker       tópico:           │   guarda lecturas; Flyway
   Shelly (living, dormitorio,     puerto 1883   +/status/          │   gestiona el esquema
   cocina), publica cada 10s                     temperature:0      │
                                                                    └──(REST)──▶ switch-stub
                                                      Controlador: ON/OFF según temperatura esperada
-          cliente HTTP ──(REST + X-API-KEY)──▶ core :8080
+          cliente HTTP ──(REST + X-API-KEY)──▶ engine :8080
 ```
 
 1. **`eventGenerator`** simula 3 termostatos Shelly H&T (`shellyhtg3-...`) y publica cada 10
@@ -101,16 +103,16 @@ eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)─
    `<deviceId>/status/temperature:0`.
 2. **`mosquitto`** distribuye esos mensajes a cualquier suscriptor conectado al tópico
    `+/status/temperature:0`.
-3. **`core`** (clase `LecturaMqttListener`) está suscripto al tópico desde que arranca. Por cada
+3. **`engine`** (clase `LecturaMqttListener`) está suscripto al tópico desde que arranca. Por cada
    mensaje busca a qué habitación pertenece el `deviceId` (tabla `habitaciones`, precargada
    por seed) y, si está asignado, guarda la lectura en la tabla `lecturas`. Si el dispositivo
    no está asignado a ninguna habitación, descarta el mensaje. Cada paso queda registrado
-   (consola + archivo `logs/core.log`). Las lecturas se guardan siempre, esté o no iniciado
+   (consola + archivo `logs/engine.log`). Las lecturas se guardan siempre, esté o no iniciado
    el Controlador.
-4. **`core`** (antes `api`) además expone el CRUD de habitaciones y los comandos del sistema
+4. **`engine`** (antes `api`, luego `core`) además expone el CRUD de habitaciones y los comandos del sistema
    por HTTP (puerto `8080`), protegido por API key. El esquema de la base lo crea y versiona
    **Flyway** al arrancar (`db/migration`); Hibernate no lo toca (`ddl-auto=none`).
-5. **Controlador** (dentro de `core`): cuando se lo inicia (`POST /controlador/iniciar`) empieza
+5. **Controlador** (dentro del `engine`): cuando se lo inicia (`POST /controlador/iniciar`) empieza
    a reaccionar a cada lectura que le entrega el listener y se comporta como un **termostato
    simple**: compara la temperatura medida con la `temperaturaEsperada` de la habitación dueña
    del termostato — si la medida es **mayor**, apaga el switch (`OFF`); en otro caso, lo prende
@@ -118,6 +120,23 @@ eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)─
    accionar, pero las lecturas se siguen guardando.
 6. **`switch-stub`** simula el switch físico: recibe `POST /switch` con `{"switchId": "...",
    "accion": "ON|OFF"}` y solo registra la acción en su log.
+
+### Vocabulario: engine y core
+
+Dos palabras que se usan con un sentido preciso (vienen de la letra y del estándar de la materia):
+
+- **engine** (módulo `modules/engine`): todo lo que habla con el mundo exterior. Recibe MQTT, guarda en
+  Postgres, expone el REST, dispara los eventos temporales y ejecuta las órdenes contra los switches.
+  Traduce el mundo real a "estímulos" para el core, y las decisiones del core a comandos.
+- **core** (paquete `uy.edu.utec.iiss.engine.core`): la lógica de decisión pura. Recibe estímulos
+  (`NuevaLectura`, `Tick`, `ConfiguracionActualizada`) y devuelve una decisión `ON`/`OFF` por habitación,
+  respetando la potencia contratada, la tarifa punta y un criterio de prioridad no azaroso. No lee
+  MQTT, ni REST, ni la base: por eso no importa nada de Spring ni del resto del engine y se prueba con
+  tests unitarios simples.
+
+Estado actual: el core **todavía no está conectado** al engine. Hoy `ControladorService` usa un
+termostato simple (más alta que la esperada apaga, más baja prende). Conectarlos requiere, entre
+otras cosas, `potenciaKW` por habitación y los datos del sitio (potencia contratada y franja punta).
 
 ### Modelo de datos (Postgres)
 
@@ -140,7 +159,7 @@ contenedores Docker (multi-stage: build con Maven, ejecución con JRE).
 ./scripts/up.sh
 ```
 
-Esto compila los tres módulos (`eventGenerator`, `core` y `switch-stub`) y levanta
+Esto compila los tres módulos (`eventGenerator`, `engine` y `switch-stub`) y levanta
 los 5 servicios definidos en `docker/docker-compose.yml`:
 
 | Servicio | Rol | Puerto |
@@ -148,14 +167,14 @@ los 5 servicios definidos en `docker/docker-compose.yml`:
 | `mosquitto` | Broker MQTT | `1883` |
 | `postgres` | Base de datos (crea `iiss2026`, usuario/clave `root`/`root`) | `5432` |
 | `eventgenerator` | Simula los 3 termostatos y publica lecturas cada 10s | — |
-| `core` | Recibe y persiste las lecturas MQTT, API REST (CRUD de habitaciones + comandos + Controlador) protegida con API key; loguea en `logs/core.log` (montado como volumen) | `8080` |
+| `engine` | Recibe y persiste las lecturas MQTT, API REST (CRUD de habitaciones + comandos + Controlador) protegida con API key; loguea en `logs/engine.log` (montado como volumen) | `8080` |
 | `switch-stub` | Stub REST del switch: recibe `POST /switch` y loguea la acción | `8081` |
 
-Para ver en vivo lo que va recibiendo y persistiendo core (y las acciones del Controlador):
+Para ver en vivo lo que va recibiendo y persistiendo el engine (y las acciones del Controlador):
 ```bash
 ./scripts/receive-temp.sh
 ```
-(sigue el archivo `logs/core.log` en el host — no depende de que el contenedor siga vivo
+(sigue el archivo `logs/engine.log` en el host — no depende de que el contenedor siga vivo
 en el momento de leerlo).
 
 Para ver las acciones que el Controlador manda a los switches:
@@ -181,13 +200,13 @@ Para bajar todo (contenedores + red; los datos de Postgres se conservan en el vo
 ### Variables de entorno
 Configuradas en `docker/docker-compose.yml`, no requieren setup manual.
 
-**`core`**
+**`engine`**
 - `DB_URL=jdbc:postgresql://postgres:5432/iiss2026`, `DB_USER=root`, `DB_PASSWORD=root`: conexión a Postgres.
-- `MQTT_BROKER=tcp://mosquitto:1883`: broker al que se suscribe core para recibir las lecturas.
+- `MQTT_BROKER=tcp://mosquitto:1883`: broker al que se suscribe el engine para recibir las lecturas.
 - `SWITCH_STUB_URL=http://switch-stub:8081`: dónde se accionan los switches.
 - `API_KEY=ecowarm-grupo4-2026`: clave que deben enviar los clientes en el header `X-API-KEY`.
   Es una clave de desarrollo: para cualquier entorno real hay que cambiarla.
-- `LOGGING_FILE_NAME=logs/core.log`: archivo de log (dentro del contenedor, montado en `./logs` del host).
+- `LOGGING_FILE_NAME=logs/engine.log`: archivo de log (dentro del contenedor, montado en `./logs` del host).
 
 ### Nota para quienes usan IntelliJ
 Se puede abrir el proyecto en IntelliJ para editar y debuggear localmente. Esto es opcional y
@@ -255,14 +274,14 @@ Para ver el Controlador en acción: iniciarlo con `POST /controlador/iniciar` y 
 
 ## Tests
 
-Los tests unitarios (JUnit 5 + Mockito) cubren `Habitacion` del `eventGenerator`, y el motor puro
-(`core.Core`) tiene sus tests en `CoreTest` (TDD). El resto de `core` y `switch-stub` todavía no
+Los tests unitarios (JUnit 5 + Mockito) cubren `Habitacion` del `eventGenerator`, y el core de decisión
+(`engine.core.Core`) tiene sus tests en `CoreTest` (TDD). El resto del `engine` y `switch-stub` todavía no
 tiene tests automatizados; se verifican con `scripts/api-demo.sh`. Los tests corren dentro de
 Docker, sin necesitar Maven ni el JDK instalados en el host:
 
 ```bash
 ./scripts/test.sh                  # corre los tests de todos los módulos
-./scripts/test.sh core             # corre solo los tests de core
+./scripts/test.sh engine           # corre solo los tests de engine
 ./scripts/test.sh eventGenerator   # corre solo los tests de eventGenerator
 ```
 
@@ -276,8 +295,8 @@ Docker, sin necesitar Maven ni el JDK instalados en el host:
 | `up.sh` | Ejecuta `build.sh` y levanta los 5 servicios en segundo plano. | `./scripts/up.sh` |
 | `down.sh` | Baja los servicios y elimina contenedores y red (el volumen `pgdata` se conserva). | `./scripts/down.sh` |
 | `stop.sh` | Detiene los contenedores sin eliminarlos (se retoma con `up.sh`, sin recompilar). | `./scripts/stop.sh` |
-| `test.sh` | Corre los tests unitarios (`mvn test`) vía Docker, de todos los módulos o de uno en particular. | `./scripts/test.sh [core\|eventGenerator]` |
-| `receive-temp.sh` | Sigue en vivo `logs/core.log` (log real de core, leído del host). | `./scripts/receive-temp.sh` |
+| `test.sh` | Corre los tests unitarios (`mvn test`) vía Docker, de todos los módulos o de uno en particular. | `./scripts/test.sh [engine\|eventGenerator]` |
+| `receive-temp.sh` | Sigue en vivo `logs/engine.log` (log real del engine, leído del host). | `./scripts/receive-temp.sh` |
 | `send-temp.sh` | Publica una lectura de prueba con `curl` al tópico real (`shellyhtg3-.../status/temperature:0`). | `./scripts/send-temp.sh [temperatura]` (default `22.5`) |
 | `api-demo.sh` | Ejemplo de uso completo del API con `curl` (CRUD, comandos, Controlador y chequeo de autenticación). | `./scripts/api-demo.sh [api-key]` |
 
@@ -299,11 +318,11 @@ terceros, sujetas a sus respectivas licencias:
 - **org.json** — licencia JSON ("no usar para hacer el mal"). Armado de payloads MQTT en el `eventGenerator`.
 - **Logback (logback-classic)** — Eclipse Public License 1.0 / GNU LGPL 2.1. Logging del
   `switch-stub` a consola y archivo.
-- **Flyway (flyway-core)** — Apache License 2.0. Migraciones del esquema de `core`.
-- **Spring Boot (web, data-jpa, validation)** — Apache License 2.0. Framework de `core` y del
+- **Flyway (flyway-core)** — Apache License 2.0. Migraciones del esquema del `engine`.
+- **Spring Boot (web, data-jpa, validation)** — Apache License 2.0. Framework del `engine` y del
   `switch-stub`.
 - **Hibernate ORM** — GNU LGPL 2.1. Implementación de JPA usada por `spring-boot-starter-data-jpa`.
-- **Jackson** — Apache License 2.0. Serialización JSON de `core`.
+- **Jackson** — Apache License 2.0. Serialización JSON del `engine`.
 - **JUnit 5 (junit-jupiter)** — Eclipse Public License 2.0. Framework de tests unitarios.
 - **Mockito** — MIT License. Mocking en los tests unitarios.
 
