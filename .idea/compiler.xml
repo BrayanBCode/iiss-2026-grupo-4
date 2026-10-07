@@ -6,13 +6,14 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="core" />
         <module name="eventGenerator" />
         <module name="switch-stub" />
+        <module name="engine" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="api" target="25" />
+      <module name="core" target="25" />
       <module name="subscriber" target="25" />
     </bytecodeTargetLevel>
   </component>

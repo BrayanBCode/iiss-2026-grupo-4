@@ -5,8 +5,8 @@ WORKDIR /build
 COPY pom.xml .
 #POM del hijo eventGenerator
 COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
-#POM de los hijos core y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
-COPY modules/core/pom.xml modules/core/pom.xml
+#POM de los hijos engine y switch-stub (hace falta que Maven los vea, aunque acá no se compilen)
+COPY modules/engine/pom.xml modules/engine/pom.xml
 COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
 #corremos con maven  (-q = reduce la salida de consola al minimo
  # -B = Ejecución por lotes (ideal para scripts) (saca las animaciones de la consola) hace un log plano

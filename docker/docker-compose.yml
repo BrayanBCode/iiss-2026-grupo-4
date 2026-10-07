@@ -17,11 +17,11 @@ services:
       - mosquitto
     restart: unless-stopped
 
-  core:
+  engine:
     build:
       context: ..
-      dockerfile: modules/core/Dockerfile
-    container_name: java-core
+      dockerfile: modules/engine/Dockerfile
+    container_name: java-engine
     ports:
       - "8080:8080"
     environment:
@@ -32,7 +32,7 @@ services:
       - SWITCH_STUB_URL=http://switch-stub:8081
       - API_KEY=ecowarm-grupo4-2026
       # Log a archivo (ademas de la consola): lo lee scripts/receive-temp.sh
-      - LOGGING_FILE_NAME=logs/core.log
+      - LOGGING_FILE_NAME=logs/engine.log
     volumes:
       - ../logs:/app/logs
     depends_on:
