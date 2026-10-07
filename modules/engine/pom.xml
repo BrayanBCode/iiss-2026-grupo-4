@@ -26,14 +26,6 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Lógica de decisión (módulo hermano, sin dependencias externas).
-             Todavía no está conectada al engine (ver README), pero ya queda declarada. -->
-        <dependency>
-            <groupId>uy.edu.utec.iiss</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
         <!-- API REST (Tomcat embebido) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -84,11 +76,28 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- spring-boot-starter-test no siempre trae el launcher de forma transitiva;
+             sin esto, Surefire tira "TestEngine with ID 'junit-jupiter' failed to
+             discover tests" aunque todo compile bien. Versión la maneja el BOM de
+             Spring Boot importado arriba. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <finalName>engine</finalName>
         <plugins>
+            <!-- Fijamos la versión para no depender de qué resuelva Maven por
+                 default (acá venía resolviendo 3.5.4, muy reciente; el resto del
+                 proyecto usa esta misma versión, probada). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
