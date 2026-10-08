@@ -11,13 +11,12 @@ import uy.edu.utec.iiss.core.model.Sitio;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.List;
 
 /**
  * Utilitarios compartidos por los tests del core (no es un test en sí).
  *
- * Calendario usado: octubre de 2026, hora local.
+ * Calendario usado: octubre de 2026, hora de Uruguay (UTC-3).
  *   lunes 5, martes 6, miércoles 7, jueves 8, viernes 9, sábado 10, domingo 11.
  */
 final class CoreTestFixtures {
@@ -63,7 +62,7 @@ final class CoreTestFixtures {
     // ---------- tiempo ----------
 
     static Instant dia(int diaDelMes, int hora, int minuto) {
-        return LocalDateTime.of(2026, 10, diaDelMes, hora, minuto).atZone(ZoneId.systemDefault()).toInstant();
+        return LocalDateTime.of(2026, 10, diaDelMes, hora, minuto).atZone(Sitio.ZONA_URUGUAY).toInstant();
     }
 
     static Instant lunes(int hora, int minuto)   { return dia(5, hora, minuto); }
@@ -96,4 +95,4 @@ final class CoreTestFixtures {
                         .findFirst().orElse(0.0))
                 .sum();
     }
-}
+}

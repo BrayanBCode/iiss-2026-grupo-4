@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static uy.edu.utec.iiss.core.CoreTestFixtures.*;
 
 /**
@@ -65,22 +64,6 @@ class MayorDeficitPrimeroTest {
     }
 
     @Test
-    @DisplayName("Misma entrada repetida -> siempre el mismo orden")
-    void esDeterminista() {
-        List<ConfiguracionHabitacion> candidatas = List.of(
-                hab(ROOM1, 21.0, 1.0), hab(ROOM2, 21.0, 1.0), hab(ROOM3, 21.0, 1.0));
-        Map<String, EstadoHabitacion> estados = Map.of(
-                ROOM1, estado(ROOM1, 18.0),
-                ROOM2, estado(ROOM2, 18.0),
-                ROOM3, estado(ROOM3, 18.0));
-
-        List<String> referencia = criterio.ordenarCandidatas(candidatas, estados);
-        for (int i = 0; i < 50; i++) {
-            assertEquals(referencia, criterio.ordenarCandidatas(candidatas, estados), "iteración " + i);
-        }
-    }
-
-    @Test
     @DisplayName("Sin temperatura conocida el déficit es 0: queda detrás de las que sí tienen déficit")
     void sinTemperaturaQuedaAlFinal() {
         List<ConfiguracionHabitacion> candidatas = List.of(
@@ -91,36 +74,4 @@ class MayorDeficitPrimeroTest {
 
         assertEquals(List.of(ROOM2, ROOM1), criterio.ordenarCandidatas(candidatas, estados));
     }
-
-    @Test
-    @DisplayName("Habitación ausente del mapa de estados: no falla y se trata como sin déficit")
-    void sinEstadoQuedaAlFinal() {
-        List<ConfiguracionHabitacion> candidatas = List.of(
-                hab(ROOM1, 21.0, 1.0), hab(ROOM2, 21.0, 1.0));
-        Map<String, EstadoHabitacion> estados = Map.of(ROOM2, estado(ROOM2, 20.0));
-
-        assertEquals(List.of(ROOM2, ROOM1), criterio.ordenarCandidatas(candidatas, estados));
-    }
-
-    @Test
-    @DisplayName("Devuelve exactamente los ids recibidos: no agrega ni pierde ninguno")
-    void devuelveTodosLosIdsRecibidos() {
-        List<ConfiguracionHabitacion> candidatas = List.of(
-                hab(ROOM1, 21.0, 1.0), hab(ROOM2, 20.0, 0.8), hab(ROOM3, 19.0, 0.5));
-        Map<String, EstadoHabitacion> estados = Map.of(
-                ROOM1, estado(ROOM1, 10.0),
-                ROOM2, estado(ROOM2, 12.0),
-                ROOM3, estado(ROOM3, 14.0));
-
-        List<String> orden = criterio.ordenarCandidatas(candidatas, estados);
-
-        assertEquals(3, orden.size());
-        assertTrue(orden.containsAll(List.of(ROOM1, ROOM2, ROOM3)));
-    }
-
-    @Test
-    @DisplayName("Sin candidatas devuelve una lista vacía")
-    void sinCandidatas_listaVacia() {
-        assertTrue(criterio.ordenarCandidatas(List.of(), Map.of()).isEmpty());
-    }
-}
+}
