@@ -50,6 +50,7 @@ public class Core {
         return decidir();
     }
 
+    //TODO: Incluir predicción de estado de switch/calefactor y actualizarlo internamente
     private List<Decision> decidir() {
         encendidas.clear();
         if (sitio != null && !enPunta()) {
