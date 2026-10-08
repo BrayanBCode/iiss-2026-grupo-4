@@ -12,6 +12,12 @@ import java.time.ZoneId;
  * nunca consulta la zona del sistema. Por defecto es Uruguay (UTC-3 todo el
  * año, sin horario de verano). Los instantes que recibe el core son
  * absolutos; solo al mostrarlos se convierten a hora local.
+ * <ul>
+ *      <li>String id</li>
+ *      <li>double potenciaContratadaKW</li>
+ *      <li>FranjaHoraria puntaTarifa</li>
+ *      <li>ZoneId zona</li>
+ * </ul>
  */
 public record Sitio(
         String id,

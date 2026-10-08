@@ -24,7 +24,7 @@ import uy.edu.utec.iiss.engine.model.AccionSwitch;
  *   - la lógica automática del Controlador (termostato simple).
  */
 @Component
-public class SwitchStubClient {
+public class SwitchStubClient implements AccionadorSwitch {
 
     private static final Logger log = LoggerFactory.getLogger(SwitchStubClient.class);
 
@@ -32,11 +32,12 @@ public class SwitchStubClient {
     private final String switchStubUrl;
 
     public SwitchStubClient(RestTemplate restTemplate,
-                             @Value("${switch.stub.url}") String switchStubUrl) {
+                            @Value("${switch.stub.url}") String switchStubUrl) {
         this.restTemplate = restTemplate;
         this.switchStubUrl = switchStubUrl;
     }
 
+    @Override
     public void accionar(String switchId, AccionSwitch accion) {
         SwitchAccionRequest body = new SwitchAccionRequest(switchId, accion);
         try {
