@@ -8,7 +8,6 @@ import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 import uy.edu.utec.iiss.core.model.Sitio;
 
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -87,7 +86,7 @@ public class Core {
 
     private boolean enPunta() {
         if (ahora == null) return false;
-        var local = ahora.atZone(ZoneId.systemDefault());
+        var local = ahora.atZone(sitio.zona());
         return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());
     }
 
