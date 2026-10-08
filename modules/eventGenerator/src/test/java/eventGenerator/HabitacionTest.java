@@ -64,7 +64,7 @@ class HabitacionTest {
 
         double tC = payload.getDouble("tC");
         double tF = payload.getDouble("tF");
-        double ts = payload.getDouble("ts");
+        long ts = payload.getLong("ts");
 
         // tF debe ser la conversión correcta de tC. OJO: tanto tC como tF vienen
         // redondeados a 1 decimal en el payload (%.1f), y cada uno se redondeó por
@@ -75,9 +75,9 @@ class HabitacionTest {
         double tFEsperada = (tC * 9.0 / 5.0) + 32.0;
         assertEquals(tFEsperada, tF, 0.2);
 
-        // El timestamp debe ser un epoch en segundos razonable (cercano a "ahora")
-        double ahora = System.currentTimeMillis() / 1000.0;
-        assertEquals(ahora, ts, 5.0);
+        // El timestamp debe ser un epoch en milisegundos (long) cercano a "ahora"
+        long ahora = System.currentTimeMillis();
+        assertEquals(ahora, ts, 5000);
     }
 
     @Test

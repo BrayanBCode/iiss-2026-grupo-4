@@ -1,11 +1,15 @@
 package eventGenerator;
 import org.eclipse.paho.client.mqttv3.*;
 
+import java.util.Locale;
+
 /**
  * Simula un termostato (sensor Shelly H&T Gen3) publicando su temperatura
  *
  *   Topic:   <deviceId>/status/temperature:0
- *   Payload: {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}
+ *   Payload: {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680123}
+ *
+ * El "ts" es el epoch en MILISEGUNDOS (long, sin decimales).
  *
  * El "id" del payload es el índice del componente sensor dentro DEL PROPIO
  * dispositivo (los Shelly reales pueden tener más de un sensor del mismo tipo
@@ -29,10 +33,11 @@ public class Habitacion {
         temperaturaC += (Math.random() - 0.5);
 
         double temperaturaF = (temperaturaC * 9.0 / 5.0) + 32.0;
-        double ts = System.currentTimeMillis() / 1000.0; // epoch en segundos, con decimales de milisegundo
+        long ts = System.currentTimeMillis();   // epoch en milisegundos
 
-        String payload = """
-            {"id":%d,"tC":%.1f,"tF":%.1f,"ts":%.3f}""".formatted(
+        // Locale.ROOT: con el idioma del sistema (ej. español) %.1f imprimiría coma decimal y rompería el JSON
+        String payload = String.format(Locale.ROOT, """
+            {"id":%d,"tC":%.1f,"tF":%.1f,"ts":%d}""",
                 SENSOR_COMPONENT_ID, temperaturaC, temperaturaF, ts);
 
         String topic = deviceId + "/status/temperature:" + SENSOR_COMPONENT_ID;

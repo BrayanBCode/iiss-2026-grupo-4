@@ -102,7 +102,7 @@ eventGenerator ──(MQTT publish)──▶ mosquitto ──(MQTT subscribe)─
 ```
 
 1. **`eventGenerator`** simula 3 termostatos Shelly H&T (`shellyhtg3-...`) y publica cada 10
-   segundos un payload `{"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}` al tópico
+   segundos un payload `{"id":0,"tC":21.4,"tF":70.5,"ts":1786840680123}` al tópico
    `<deviceId>/status/temperature:0`.
 2. **`mosquitto`** distribuye esos mensajes a cualquier suscriptor conectado al tópico
    `+/status/temperature:0`.

@@ -185,9 +185,9 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             String idTermostato = topic.substring(0, barra);
 
             JsonNode json = objectMapper.readTree(contenido);
-            double temperaturaC = numero(json, "tC");
-            double temperaturaF = numero(json, "tF");
-            long epochMili = (long) (numero(json, "ts") * 1000);
+            double temperaturaC = json.path("tC").asDouble();
+            double temperaturaF = json.path("tF").asDouble();
+            long epochMili = json.path("ts").asLong();
 
             Optional<Lectura> lectura = lecturaService.registrar(idTermostato, temperaturaC, temperaturaF, epochMili);
             if (lectura.isEmpty()) {
@@ -202,11 +202,4 @@ public class LecturaMqttListener implements MqttCallbackExtended {
         }
     }
 
-    private static double numero(JsonNode json, String campo) {
-        JsonNode nodo = json.path(campo);
-        if (!nodo.isNumber()) {
-            throw new IllegalArgumentException("falta el campo numérico '" + campo + "'");
-        }
-        return nodo.asDouble();
-    }
 }
