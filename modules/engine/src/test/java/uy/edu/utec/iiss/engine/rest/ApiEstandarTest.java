@@ -25,8 +25,10 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BooleanSupplier;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.startsWith;
@@ -105,8 +107,17 @@ class ApiEstandarTest {
         Files.deleteIfExists(archivo);
     }
 
-    private void comando(String url, String id, Accion a) {
+    /** Los switches se comandan en su propio hilo (CoreAdapter): se espera un poco a que salga el comando. */
+    private void comando(String url, String id, Accion a) throws InterruptedException {
+        esperarHasta(() -> switches.comandos.contains(url + "|" + id + "|" + a));
         assertTrue(switches.comandos.contains(url + "|" + id + "|" + a), "no se envió " + a + " a " + id + ": " + switches.comandos);
+    }
+
+    private static void esperarHasta(BooleanSupplier condicion) throws InterruptedException {
+        long limite = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+        while (!condicion.getAsBoolean() && System.nanoTime() < limite) {
+            Thread.sleep(10);
+        }
     }
 
     private static MockHttpServletRequestBuilder conClave(MockHttpServletRequestBuilder b) {
@@ -204,6 +215,7 @@ class ApiEstandarTest {
                 .andExpect(jsonPath("$.fechaHora", startsWith("2026-10-01T09:15:")))
                 .andExpect(jsonPath("$.iniciadoEn").exists());
 
+        esperarHasta(() -> switches.consultas.contains("http://switches:8081|sw-sim-room1"));
         assertTrue(switches.consultas.contains("http://switches:8081|sw-sim-room1"));
         comando("http://switches:8081", "sw-sim-room1", Accion.OFF);   // sin lecturas: OFF conocido
     }

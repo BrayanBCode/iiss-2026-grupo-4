@@ -21,6 +21,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Adaptador entre el engine y el core: la única clase del engine que habla con
@@ -30,6 +34,7 @@ import java.util.Objects;
  *     llamadas al core. Los instantes ya vienen en el reloj del control.
  *  2. Serializa las llamadas ({@code synchronized}): el core no es seguro para
  *     varios hilos y le llegan eventos de MQTT, del temporizador y de REST.
+ *     El core se llama dentro del bloqueo; el I/O con los switches, no.
  *  3. Recuerda la última decisión de cada habitación ("deseado") y el último
  *     estado CONOCIDO de su switch; solo comanda cuando difieren.
  *  4. Reconcilia (§4): consulta el estado real de cada switch y, si no
@@ -42,10 +47,20 @@ import java.util.Objects;
  * Mientras está deshabilitado (control DETENIDO, §5.2) el core sigue
  * recibiendo configuración, pero no se comanda ni se consulta ningún switch.
  *
- * Limitación conocida: se comanda al switch dentro del bloqueo, así que un
- * switch lento demora a los demás eventos hasta que venza el timeout REST.
+ * <b>Hilo de switches.</b> Toda la comunicación con los switches (consultas de
+ * la reconciliación y comandos) corre en un hilo propio ({@code switches}), en
+ * "pasadas": cada estímulo actualiza lo deseado, pide una pasada y vuelve sin
+ * esperar la red. Así ni INICIAR ni un PUT /sitio en caliente esperan a los
+ * switches (el entorno que los sirve puede estar esperando nuestra respuesta),
+ * y un switch lento no demora al core, a MQTT ni al API. Los pedidos que llegan
+ * durante una pasada se juntan en una sola pasada siguiente.
+ *
+ * Limitación conocida: las pasadas son secuenciales, así que un switch lento
+ * todavía demora a los demás switches (no al resto del controlador) hasta que
+ * vence su timeout REST; la espera entre reintentos evita que eso se repita en
+ * cada pasada.
  */
-public class CoreAdapter {
+public class CoreAdapter implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(CoreAdapter.class);
 
@@ -64,18 +79,41 @@ public class CoreAdapter {
     private final ClienteSwitch switches;
     private final Clock relojReal;
     private final Duration esperaReintento;
+    private final Executor hiloSwitches;
 
     private final Map<String, HabitacionControlada> habitaciones = new LinkedHashMap<>();
     private final Map<String, Decision> deseado = new HashMap<>();
     private final Map<String, EstadoSwitch> estadoConocido = new HashMap<>();
     private final Map<String, Instant> noReintentarAntesDe = new HashMap<>();
     private boolean habilitado;
+    private boolean pasadaEncolada;
+    private boolean consultaPendiente;
 
+    /** Con su propio hilo de switches (un {@code ScheduledExecutorService} de un solo hilo). */
     public CoreAdapter(ICoreClient core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento) {
+        this(core, switches, relojReal, esperaReintento, Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "switches");
+            t.setDaemon(true);
+            return t;
+        }));
+    }
+
+    /** Con el executor que corre las pasadas; los tests pasan uno sincrónico ({@code Runnable::run}). */
+    public CoreAdapter(ICoreClient core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento,
+                       Executor hiloSwitches) {
         this.core = Objects.requireNonNull(core);
         this.switches = Objects.requireNonNull(switches);
         this.relojReal = Objects.requireNonNull(relojReal);
         this.esperaReintento = Objects.requireNonNull(esperaReintento);
+        this.hiloSwitches = Objects.requireNonNull(hiloSwitches);
+    }
+
+    /** Detiene el hilo de switches (Spring lo llama al cerrar el contexto). */
+    @Override
+    public void close() {
+        if (hiloSwitches instanceof ExecutorService servicio) {
+            servicio.shutdownNow();
+        }
     }
 
     // ------------------------------------------------------------------
@@ -124,11 +162,14 @@ public class CoreAdapter {
     // Habilitar / reconciliar
     // ------------------------------------------------------------------
 
-    /** Empieza a comandar switches: primero consulta su estado real (§4) y después manda lo que falte. */
+    /**
+     * Empieza a comandar switches: pide una pasada que primero consulta su estado
+     * real (§4) y después manda lo que falte. No espera a los switches.
+     */
     public synchronized void habilitar() {
         habilitado = true;
         noReintentarAntesDe.clear();
-        reconciliar();
+        programarPasada(true);
     }
 
     /** Deja de comandar switches (§5.2: no se exige apagar lo que quedó encendido). */
@@ -141,29 +182,12 @@ public class CoreAdapter {
     }
 
     /**
-     * Consulta el estado real de cada switch y comanda los que no coinciden con
-     * la última decisión. Se llama al habilitar y periódicamente.
+     * Pide consultar el estado real de cada switch y comandar los que no
+     * coinciden con la última decisión. Se llama al habilitar y periódicamente;
+     * no espera a los switches.
      */
     public synchronized void reconciliar() {
-        if (!habilitado) {
-            return;
-        }
-        for (HabitacionControlada h : habitaciones.values()) {
-            if (enEspera(h.id())) {
-                continue;
-            }
-            try {
-                EstadoSwitch real = switches.consultar(h.urlSwitch(), h.idSwitch());
-                if (estadoConocido.get(h.id()) != real && estadoConocido.containsKey(h.id())) {
-                    log.warn("Switch '{}' (habitación '{}') está {} y se creía {}: se corrige.",
-                            h.idSwitch(), h.id(), real, estadoConocido.get(h.id()));
-                }
-                estadoConocido.put(h.id(), real);
-            } catch (RuntimeException e) {
-                registrarFalla(h, "consultar", e);
-            }
-        }
-        enviarPendientes();
+        programarPasada(true);
     }
 
     // ------------------------------------------------------------------
@@ -179,30 +203,119 @@ public class CoreAdapter {
                 }
             }
         }
-        enviarPendientes();
+        programarPasada(false);
     }
 
-    private void enviarPendientes() {
+    /** Encola una pasada en el hilo de switches, salvo que ya haya una esperando. Se llama con el bloqueo tomado. */
+    private void programarPasada(boolean consultarAntes) {
         if (!habilitado) {
             return;
         }
-        for (HabitacionControlada h : habitaciones.values()) {
-            Decision d = deseado.get(h.id());
-            if (d == null || coincide(estadoConocido.get(h.id()), d.accion()) || enEspera(h.id())) {
-                continue;
+        consultaPendiente |= consultarAntes;
+        if (pasadaEncolada) {
+            return;
+        }
+        pasadaEncolada = true;
+        try {
+            hiloSwitches.execute(this::pasada);
+        } catch (RejectedExecutionException e) {
+            pasadaEncolada = false;   // el adaptador se está cerrando
+        }
+    }
+
+    /**
+     * Corre en el hilo de switches: consulta (si se pidió) y manda lo pendiente.
+     * El bloqueo se toma solo para leer o actualizar el estado, nunca durante la red.
+     */
+    private void pasada() {
+        try {
+            List<HabitacionControlada> aConsultar;
+            synchronized (this) {
+                pasadaEncolada = false;   // lo que llegue desde ahora pide otra pasada
+                boolean consultar = consultaPendiente;
+                consultaPendiente = false;
+                if (!habilitado) {
+                    return;
+                }
+                aConsultar = consultar
+                        ? habitaciones.values().stream().filter(h -> !enEspera(h.id())).toList()
+                        : List.of();
+            }
+            aConsultar.forEach(this::consultar);
+            enviarPendientes();
+        } catch (RuntimeException e) {
+            log.error("Error inesperado al comunicarse con los switches: {}", e.getMessage(), e);
+        }
+    }
+
+    private void consultar(HabitacionControlada h) {
+        EstadoSwitch real;
+        try {
+            real = switches.consultar(h.urlSwitch(), h.idSwitch());
+        } catch (RuntimeException e) {
+            synchronized (this) {
+                if (vigente(h)) {
+                    registrarFalla(h, "consultar", e);
+                }
+            }
+            return;
+        }
+        synchronized (this) {
+            if (!vigente(h)) {
+                return;
+            }
+            if (estadoConocido.get(h.id()) != real && estadoConocido.containsKey(h.id())) {
+                log.warn("Switch '{}' (habitación '{}') está {} y se creía {}: se corrige.",
+                        h.idSwitch(), h.id(), real, estadoConocido.get(h.id()));
+            }
+            estadoConocido.put(h.id(), real);
+        }
+    }
+
+    private void enviarPendientes() {
+        List<HabitacionControlada> candidatas;
+        synchronized (this) {
+            candidatas = List.copyOf(habitaciones.values());
+        }
+        for (HabitacionControlada h : candidatas) {
+            Accion accion;
+            synchronized (this) {   // la decisión vigente se lee justo antes de mandarla
+                if (!habilitado) {
+                    return;
+                }
+                Decision d = deseado.get(h.id());
+                if (!vigente(h) || d == null || coincide(estadoConocido.get(h.id()), d.accion()) || enEspera(h.id())) {
+                    continue;
+                }
+                accion = d.accion();
             }
             try {
-                EstadoSwitch resultado = switches.comandar(h.urlSwitch(), h.idSwitch(), d.accion());
-                estadoConocido.put(h.id(), resultado);
-                if (noReintentarAntesDe.remove(h.id()) != null) {
-                    log.info("Switch '{}' (habitación '{}') volvió a responder.", h.idSwitch(), h.id());
+                EstadoSwitch resultado = switches.comandar(h.urlSwitch(), h.idSwitch(), accion);
+                synchronized (this) {
+                    if (!vigente(h)) {
+                        continue;
+                    }
+                    estadoConocido.put(h.id(), resultado);
+                    if (noReintentarAntesDe.remove(h.id()) != null) {
+                        log.info("Switch '{}' (habitación '{}') volvió a responder.", h.idSwitch(), h.id());
+                    }
                 }
-                log.info("Switch '{}' (habitación '{}') -> {}", h.idSwitch(), h.id(), d.accion());
+                log.info("Switch '{}' (habitación '{}') -> {}", h.idSwitch(), h.id(), accion);
             } catch (RuntimeException e) {
-                estadoConocido.remove(h.id());
-                registrarFalla(h, "enviar " + d.accion() + " a", e);
+                synchronized (this) {
+                    if (vigente(h)) {
+                        estadoConocido.remove(h.id());
+                        registrarFalla(h, "enviar " + accion + " a", e);
+                    }
+                }
             }
         }
+    }
+
+    /** La habitación sigue configurada con el mismo switch (si no, lo que respondió el viejo ya no vale). */
+    private boolean vigente(HabitacionControlada h) {
+        HabitacionControlada actual = habitaciones.get(h.id());
+        return actual != null && actual.idSwitch().equals(h.idSwitch()) && actual.urlSwitch().equals(h.urlSwitch());
     }
 
     private void registrarFalla(HabitacionControlada h, String que, RuntimeException e) {
