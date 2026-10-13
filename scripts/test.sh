@@ -15,10 +15,14 @@ cd "$SCRIPT_DIR/.."
 
 MODULO="${1:-}"
 
+# "clean" siempre: si quedaron clases compiladas de una versión anterior en
+# target/ (por ejemplo de antes de borrar un archivo), Maven las seguiría
+# cargando y los tests fallarían por código que ya no existe.
+
 if [ -n "$MODULO" ]; then
-    MVN_GOAL="-pl modules/$MODULO -am test"
+    MVN_GOAL="-pl modules/$MODULO -am clean test"
 else
-    MVN_GOAL="test"
+    MVN_GOAL="clean test"
 fi
 
 echo "Corriendo tests vía Docker (mvn $MVN_GOAL)..."
