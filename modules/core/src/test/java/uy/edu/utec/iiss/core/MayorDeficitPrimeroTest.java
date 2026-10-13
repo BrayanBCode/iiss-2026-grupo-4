@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static uy.edu.utec.iiss.core.CoreTestFixtures.*;
 
 /**
@@ -22,6 +23,10 @@ class MayorDeficitPrimeroTest {
 
     private static EstadoHabitacion estado(String id, Double temperatura) {
         return new EstadoHabitacion(id, temperatura, false);
+    }
+
+    private static EstadoHabitacion encendida(String id, Double temperatura) {
+        return new EstadoHabitacion(id, temperatura, true);
     }
 
     @Test
@@ -73,5 +78,52 @@ class MayorDeficitPrimeroTest {
                 ROOM2, estado(ROOM2, 20.0));
 
         assertEquals(List.of(ROOM2, ROOM1), criterio.ordenarCandidatas(candidatas, estados));
+    }
+
+    @Test
+    @DisplayName("La que ya está encendida conserva el lugar si la otra la supera por menos del margen (0.5 °C)")
+    void laEncendidaConservaElLugarDentroDelMargen() {
+        List<ConfiguracionHabitacion> candidatas = List.of(hab(ROOM1, 21.0, 1.0), hab(ROOM2, 21.0, 1.0));
+        Map<String, EstadoHabitacion> estados = Map.of(
+                ROOM1, encendida(ROOM1, 18.0),   // déficit 3.0 (+0.5 por estar encendida)
+                ROOM2, estado(ROOM2, 17.6));     // déficit 3.4
+
+        assertEquals(List.of(ROOM1, ROOM2), criterio.ordenarCandidatas(candidatas, estados));
+    }
+
+    @Test
+    @DisplayName("La que ya está encendida pierde el lugar si la otra la supera por más del margen")
+    void laEncendidaPierdeElLugarFueraDelMargen() {
+        List<ConfiguracionHabitacion> candidatas = List.of(hab(ROOM1, 21.0, 1.0), hab(ROOM2, 21.0, 1.0));
+        Map<String, EstadoHabitacion> estados = Map.of(
+                ROOM1, encendida(ROOM1, 18.0),   // 3.0 + 0.5
+                ROOM2, estado(ROOM2, 17.0));     // 4.0
+
+        assertEquals(List.of(ROOM2, ROOM1), criterio.ordenarCandidatas(candidatas, estados));
+    }
+
+    @Test
+    @DisplayName("Con margen 0 el criterio es mayor déficit puro (la encendida no tiene ventaja)")
+    void margenCero_esMayorDeficitPuro() {
+        MayorDeficitPrimero puro = new MayorDeficitPrimero(0.0);
+        List<ConfiguracionHabitacion> candidatas = List.of(hab(ROOM1, 21.0, 1.0), hab(ROOM2, 21.0, 1.0));
+        Map<String, EstadoHabitacion> estados = Map.of(
+                ROOM1, encendida(ROOM1, 18.0),
+                ROOM2, estado(ROOM2, 17.9));
+
+        assertEquals(List.of(ROOM2, ROOM1), puro.ordenarCandidatas(candidatas, estados));
+    }
+
+    @Test
+    @DisplayName("Un margen negativo o no numérico se rechaza")
+    void margenInvalido_seRechaza() {
+        assertThrows(IllegalArgumentException.class, () -> new MayorDeficitPrimero(-0.1));
+        assertThrows(IllegalArgumentException.class, () -> new MayorDeficitPrimero(Double.NaN));
+    }
+
+    @Test
+    @DisplayName("Sin candidatas devuelve una lista vacía")
+    void sinCandidatas_listaVacia() {
+        assertEquals(List.of(), criterio.ordenarCandidatas(List.of(), Map.of()));
     }
 }

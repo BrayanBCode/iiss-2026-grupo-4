@@ -86,7 +86,7 @@ class CoreClientTest {
     @DisplayName("tick al entrar en la franja punta apaga lo encendido")
     void tick_alEntrarEnPunta_apaga() {
         cliente.actualizarSitio(SITIO, LIVING, DORMITORIO);
-        cliente.nuevaTemperatura("living", 19.0, lunes(16, 30));
+        cliente.nuevaTemperatura("living", 19.0, lunes(16, 55));
 
         List<Decision> decisiones = cliente.tick(lunes(17, 0));
 
@@ -103,5 +103,16 @@ class CoreClientTest {
 
         assertEquals(19.0, estado.temperaturaActual(), 1e-9);
         assertTrue(estado.encendida());
+    }
+
+    @Test
+    @DisplayName("sincronizar mueve el reloj del control y devuelve las decisiones en el nuevo instante")
+    void sincronizar_devuelveDecisionesEnElNuevoInstante() {
+        cliente.actualizarSitio(SITIO, LIVING, DORMITORIO);
+        cliente.nuevaTemperatura("living", 19.0, lunes(10, 0));           // ON
+
+        List<Decision> decisiones = cliente.sincronizar(lunes(18, 0), 1); // en punta
+
+        assertEquals(Accion.OFF, accionDe(decisiones, "living"));
     }
 }

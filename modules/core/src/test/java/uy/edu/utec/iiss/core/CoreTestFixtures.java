@@ -6,6 +6,7 @@ import uy.edu.utec.iiss.core.model.Decision;
 import uy.edu.utec.iiss.core.model.DiasTarifa;
 import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
+import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.Sitio;
 
 import java.time.Instant;
@@ -45,8 +46,11 @@ final class CoreTestFixtures {
     }
 
     static Estimulo.ConfiguracionActualizada config(double potenciaContratadaKW, ConfiguracionHabitacion... habitaciones) {
-        return new Estimulo.ConfiguracionActualizada(
-                new Sitio("sitio-test", potenciaContratadaKW, PUNTA), List.of(habitaciones));
+        return config(new Sitio("sitio-test", potenciaContratadaKW, PUNTA), habitaciones);
+    }
+
+    static Estimulo.ConfiguracionActualizada config(Sitio sitio, ConfiguracionHabitacion... habitaciones) {
+        return new Estimulo.ConfiguracionActualizada(sitio, List.of(habitaciones));
     }
 
     // ---------- estímulos ----------
@@ -57,6 +61,10 @@ final class CoreTestFixtures {
 
     static Estimulo.Tick tick(Instant ts) {
         return new Estimulo.Tick(ts);
+    }
+
+    static Estimulo.Sincronizacion sincronizar(Instant ahora, double factorTiempo) {
+        return new Estimulo.Sincronizacion(ahora, factorTiempo);
     }
 
     // ---------- tiempo ----------
@@ -72,13 +80,20 @@ final class CoreTestFixtures {
 
     // ---------- lectura de resultados ----------
 
-    /** Acción decidida para una habitación; falla si no hay decisión sobre ella. */
-    static Accion accionDe(List<Decision> decisiones, String idHabitacion) {
+    static Decision decisionDe(List<Decision> decisiones, String idHabitacion) {
         return decisiones.stream()
                 .filter(d -> d.idHabitacion().equals(idHabitacion))
-                .map(Decision::accion)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No hay decisión para " + idHabitacion));
+    }
+
+    /** Acción decidida para una habitación; falla si no hay decisión sobre ella. */
+    static Accion accionDe(List<Decision> decisiones, String idHabitacion) {
+        return decisionDe(decisiones, idHabitacion).accion();
+    }
+
+    static Motivo motivoDe(List<Decision> decisiones, String idHabitacion) {
+        return decisionDe(decisiones, idHabitacion).motivo();
     }
 
     static long cantidadEncendidas(List<Decision> decisiones) {

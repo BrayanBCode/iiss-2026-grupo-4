@@ -2,17 +2,27 @@ package uy.edu.utec.iiss.core.model;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.Objects;
 
 /**
  * Franja de tarifa de energía cara ("punta"), estándar §1: {@code desde} y
- * {@code hasta} en hora local (no cruza la medianoche), más los días a los
- * que aplica.
+ * {@code hasta} en hora local, semiabierta {@code [desde, hasta)} (no cruza la
+ * medianoche), más los días a los que aplica.
  *
  * Es un utilitario del modelo, no "la lógica de decisión" que hay que
  * probar con TDD — por eso está implementada de entrada, a diferencia de
  * {@link uy.edu.utec.iiss.core.Core}.
  */
 public record FranjaHoraria(LocalTime desde, LocalTime hasta, DiasTarifa dias) {
+
+    public FranjaHoraria {
+        Objects.requireNonNull(desde, "desde");
+        Objects.requireNonNull(hasta, "hasta");
+        Objects.requireNonNull(dias, "dias");
+        if (!desde.isBefore(hasta)) {
+            throw new IllegalArgumentException("La franja debe cumplir desde < hasta (es " + desde + " - " + hasta + ")");
+        }
+    }
 
     /** True si el instante (ya convertido a hora/día local) cae dentro de esta franja. */
     public boolean incluye(DayOfWeek dia, LocalTime hora) {

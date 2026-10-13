@@ -8,6 +8,10 @@ package uy.edu.utec.iiss.core.model;
  * detalles de direccionamiento que le importan al engine (MQTT, REST), no al
  * core — el core solo necesita saber "esta habitación quiere esta
  * temperatura y consume esta potencia mientras está encendida".
+ *
+ * La validez (id no vacío, potencia &gt; 0) la controla el core al recibir
+ * la configuración completa, para poder rechazarla entera (ver
+ * {@link uy.edu.utec.iiss.core.Core}).
  */
 public record ConfiguracionHabitacion(
         String id,

@@ -1,20 +1,28 @@
 package uy.edu.utec.iiss.core.cliente;
 
-
 import uy.edu.utec.iiss.core.Core;
 import uy.edu.utec.iiss.core.CriterioPrioridad;
-import uy.edu.utec.iiss.core.model.*;
+import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
+import uy.edu.utec.iiss.core.model.Decision;
+import uy.edu.utec.iiss.core.model.EstadoHabitacion;
+import uy.edu.utec.iiss.core.model.Estimulo;
+import uy.edu.utec.iiss.core.model.ParametrosControl;
+import uy.edu.utec.iiss.core.model.Sitio;
 
 import java.time.Instant;
 import java.util.List;
 
-//TODO: Consultar si esto debe ir en Core o en engine
+/** Implementación de {@link ICoreClient}: arma los estímulos y se los pasa al {@link Core}. */
 public class CoreClient implements ICoreClient {
 
-    private Core core;
+    private final Core core;
 
     public CoreClient(CriterioPrioridad criterioPrioridad) {
-        core = new Core(criterioPrioridad);
+        this(criterioPrioridad, ParametrosControl.PREDETERMINADOS);
+    }
+
+    public CoreClient(CriterioPrioridad criterioPrioridad, ParametrosControl parametros) {
+        core = new Core(criterioPrioridad, parametros);
     }
 
     @Override
@@ -30,6 +38,11 @@ public class CoreClient implements ICoreClient {
     @Override
     public List<Decision> actualizarSitio(Sitio sitio, ConfiguracionHabitacion... habitaciones) {
         return core.procesar(new Estimulo.ConfiguracionActualizada(sitio, List.of(habitaciones)));
+    }
+
+    @Override
+    public List<Decision> sincronizar(Instant ahora, double factorTiempo) {
+        return core.procesar(new Estimulo.Sincronizacion(ahora, factorTiempo));
     }
 
     @Override
