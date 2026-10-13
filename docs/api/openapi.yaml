@@ -1,460 +1,581 @@
 openapi: 3.0.3
+
 info:
-  title: EcoWarm API
-  description: >
-    API REST del proyecto EcoWarm (Taller IISS 2026 — grupo 4).
-    Expone el CRUD de habitaciones y los comandos (tasks) para accionar
-    switches a mano, operar el Controlador (termostato simple) y validar
-    la consistencia del conjunto de habitaciones. El accionamiento efectivo
-    de los switches se realiza contra el servicio switch-stub (ver
-    docker-compose.yml).
-  version: "1.0.0"
+  title: EcoWarm — API del controlador del grupo 4
+  version: "2.0.0-g4"
+  description: |
+    **Implementación del grupo 4.** Es el contrato del estándar (`controlador.openapi-v2.yaml`,
+    §5 de `interop-v2.md`) sin cambios, más dos extensiones fuera del estándar, marcadas con el
+    tag `extension`: el ABM de habitaciones sobre el mismo inventario y un diagnóstico.
+
+    Lo que un controlador tiene que exponer para ser operado desde afuera: el API que define la **§5 de `interop-v2`**: cargar y consultar el sitio, y arrancar y detener
+    el control. Es lo mínimo, y es todo lo que se le exige.
+
+    Todo lo demás que un controlador ofrezca —ABM de habitaciones, diagnósticos, tableros— queda a
+    criterio de cada implementación y **fuera** de este documento.
+
+    > **Este archivo no alcanza para ser conforme.** Un controlador además tiene que:
+    >
+    > - **consumir MQTT** (§2): las temperaturas llegan por ahí, y no hay forma de describir un
+    >   topic MQTT en OpenAPI;
+    > - **comandar switches por REST** (§3, §4): eso lo describe `simulador.openapi-v2.yaml`, desde el
+    >   lado del que ofrece el switch;
+    > - **registrarse ante el entorno** (§6) cuando el entorno ofrece registro.
+    >
+    > El documento normativo es [`interop-v2.md`](interop-v2.md). Esto es su forma ejecutable.
+
   contact:
-    name: Grupo 4 — Taller IISS 2026 (Utec)
+    name: Taller IISS 2026
 
 servers:
   - url: http://localhost:8080
-    description: Entorno local (docker compose)
-
-tags:
-  - name: Habitaciones
-    description: CRUD del recurso habitación (Nivel 2 de Richardson) y comandos asociados
-  - name: Controlador
-    description: Comandos para iniciar/parar/consultar la lógica de termostato simple
+    description: El controlador corriendo local
+  - url: "{baseUrl}"
+    description: La dirección que el controlador declara al registrarse (§6 `baseUrl`)
+    variables:
+      baseUrl:
+        default: http://control-casa:8080
 
 security:
   - ApiKeyAuth: []
 
+tags:
+  - name: sitio
+    description: §5.1 — el inventario que el controlador tiene en uso.
+  - name: control
+    description: §5.2 — arrancar y detener el control.
+  - name: extension
+    description: Fuera del estándar (§5 "queda a criterio de cada implementación").
+
 paths:
-  /habitaciones:
+
+  /sitio:
     get:
-      tags: [Habitaciones]
-      summary: Listar habitaciones
-      operationId: listarHabitaciones
+      tags: [sitio]
+      operationId: obtenerSitio
+      summary: El inventario en uso
+      description: |
+        Devuelve lo que está **efectivamente persistido y en uso**, no el último cuerpo recibido.
+        Es la forma de verificar que la persistencia funcionó: reiniciá el controlador y volvé a
+        pedirlo.
       responses:
         "200":
-          description: Listado de habitaciones
+          description: El inventario completo (§1).
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/HabitacionResponse"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-    post:
-      tags: [Habitaciones]
-      summary: Crear una habitación
-      operationId: crearHabitacion
+              schema: { $ref: "#/components/schemas/Inventario" }
+              examples:
+                casaRodriguez: { $ref: "#/components/examples/inventario" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404":
+          description: |
+            Todavía no se cargó ningún sitio. Un controlador que arranca vacío y espera el
+            `PUT` responde así hasta recibirlo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    put:
+      tags: [sitio]
+      operationId: reemplazarSitio
+      summary: Reemplaza el inventario completo
+      description: |
+        **Persistencia** — el inventario recibido se graba localmente y sobrevive al reinicio.
+
+        **Atómico** — un `PUT` inválido no deja el controlador a medio configurar: se valida y se
+        aplica entero, o se rechaza con `400` y queda la configuración anterior.
+
+        **En caliente** — un `PUT` con el control `EN_EJECUCION` es válido: el controlador adopta la
+        configuración nueva sin reiniciar.
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/HabitacionRequest"
+            schema: { $ref: "#/components/schemas/Inventario" }
             examples:
-              dormitorio:
-                value:
-                  nombre: "Dormitorio principal"
-                  temperaturaEsperada: 21.5
-                  idTermostato: "shellyht-A4CF12"
-                  idSwitch: "switch-dormitorio-01"
-      responses:
-        "201":
-          description: Habitación creada
-          headers:
-            Location:
-              description: URL del recurso creado (/habitaciones/{id})
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HabitacionResponse"
-        "400":
-          $ref: "#/components/responses/DatosInvalidos"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "409":
-          $ref: "#/components/responses/Conflicto"
-
-  /habitaciones/validar:
-    get:
-      tags: [Habitaciones]
-      summary: Validar consistencia del conjunto de habitaciones
-      description: >
-        Comando (task): reporta si existen idTermostato o idSwitch duplicados
-        entre las habitaciones registradas. No es una operación CRUD sobre un
-        id puntual.
-      operationId: validarConsistencia
+              casaRodriguez: { $ref: "#/components/examples/inventario" }
       responses:
         "200":
-          description: Reporte de consistencia
+          description: |
+            El inventario quedó aplicado y en uso. El cuerpo de la respuesta no está normalizado:
+            lo que importa es el código y que un `GET /sitio` posterior devuelva lo cargado.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReporteConsistencia"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
+                type: object
+                additionalProperties: true
+              example: { sitio: casa-rodriguez, habitaciones: 2 }
+        "400":
+          description: |
+            Cuerpo inválido o inconsistente con las reglas del §1. El detalle va en `errores`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                timestamp: "2026-10-01T09:15:03.120Z"
+                status: 400
+                mensaje: inventario inválido
+                errores:
+                  - "idSwitch duplicado: 'sw-sim-room1'"
+                  - "habitación 'room2': potenciaKW debe ser > 0 (es 0.0)"
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /control:
+    get:
+      tags: [control]
+      operationId: obtenerControl
+      summary: Estado del control
+      responses:
+        "200":
+          description: |
+            El estado vigente. Detenido ⇒ `fechaHora`, `factorTiempo` e `iniciadoEn` van en `null`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EstadoControl" }
+              examples:
+                enEjecucion:
+                  summary: Controlando
+                  value:
+                    estado: EN_EJECUCION
+                    fechaHora: "2026-10-01T09:15:03.120Z"
+                    factorTiempo: 1
+                    iniciadoEn: "2026-10-01T09:15:00.000Z"
+                detenido:
+                  summary: Detenido
+                  value:
+                    estado: DETENIDO
+                    fechaHora: null
+                    factorTiempo: null
+                    iniciadoEn: null
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /control/comandos:
+    post:
+      tags: [control]
+      operationId: comandarControl
+      summary: Arrancar o detener el control
+      description: |
+        **Semántica del tiempo.** Tras `INICIAR`, el controlador deja de usar el reloj del sistema
+        para todo lo que dependa de la hora —en particular la franja tarifaria— y usa el reloj
+        sincronizado:
+
+        ```
+        ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)
+        ```
+
+        Un controlador que **no soporte aceleración** debe rechazar con `400` un `factorTiempo`
+        distinto de `1`. Nunca ignorarlo en silencio.
+
+        `INICIAR` sobre un control ya en ejecución **re-sincroniza**, no es error. `DETENER` sobre
+        uno detenido es idempotente. Al detenerse el controlador deja de comandar switches; no se le
+        exige apagar lo que dejó encendido.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoControl" }
+            examples:
+              iniciar:
+                summary: Arrancar en tiempo real
+                value: { accion: INICIAR, fechaHora: "2026-10-01T09:15:03.120Z", factorTiempo: 1 }
+              iniciarAcelerado:
+                summary: Arrancar acelerado ×10
+                value: { accion: INICIAR, fechaHora: "2026-12-24T18:00:00.000Z", factorTiempo: 10 }
+              detener:
+                summary: Detener
+                value: { accion: DETENER }
+      responses:
+        "200":
+          description: |
+            El comando se aplicó. Devolver el estado resultante (§5.2) es lo más útil, aunque el
+            cuerpo no está normalizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EstadoControl" }
+        "400":
+          description: |
+            `accion` desconocida, `INICIAR` sin `fechaHora`, `fechaHora` que no es ISO-8601,
+            `factorTiempo` que no es un número mayor que cero, o —si no se soporta aceleración— un
+            `factorTiempo` distinto de 1.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+
+  /habitaciones:
+    get:
+      tags: [extension]
+      operationId: listarHabitaciones
+      summary: Las habitaciones del inventario en uso
+      responses:
+        "200":
+          description: Las habitaciones, con el formato del §1.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Habitacion" } }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { description: Todavía no se cargó ningún sitio. }
+    post:
+      tags: [extension]
+      operationId: crearHabitacion
+      summary: Agrega una habitación al inventario (se valida, persiste y aplica en caliente)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Habitacion" }
+      responses:
+        "201":
+          description: Creada. `Location` apunta a `/habitaciones/{id}`.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habitacion" }
+        "400": { description: El inventario resultante no cumple el §1 (detalle en `errores`). }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { description: Todavía no se cargó ningún sitio. }
+        "409": { description: Ya existe una habitación con ese id. }
 
   /habitaciones/{id}:
     parameters:
-      - $ref: "#/components/parameters/HabitacionId"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
     get:
-      tags: [Habitaciones]
-      summary: Consultar una habitación por id
-      operationId: obtenerHabitacion
+      tags: [extension]
+      operationId: consultarHabitacion
+      summary: Una habitación
       responses:
         "200":
-          description: Habitación encontrada
+          description: La habitación.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HabitacionResponse"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
+              schema: { $ref: "#/components/schemas/Habitacion" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { description: No existe. }
     put:
-      tags: [Habitaciones]
-      summary: Modificar una habitación (reemplazo completo)
-      description: Todos los campos son obligatorios; lo que no se envía se pierde.
-      operationId: actualizarHabitacion
+      tags: [extension]
+      operationId: modificarHabitacion
+      summary: Reemplaza una habitación (el id es el de la URL)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/HabitacionRequest"
+            schema: { $ref: "#/components/schemas/Habitacion" }
       responses:
         "200":
-          description: Habitación actualizada
+          description: Modificada.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HabitacionResponse"
-        "400":
-          $ref: "#/components/responses/DatosInvalidos"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-        "409":
-          $ref: "#/components/responses/Conflicto"
-    patch:
-      tags: [Habitaciones]
-      summary: Modificar una habitación (parcial)
-      description: Solo se actualizan los campos enviados (no nulos).
-      operationId: actualizarHabitacionParcial
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HabitacionPatchRequest"
-            examples:
-              cambiarTemperatura:
-                value:
-                  temperaturaEsperada: 23
-      responses:
-        "200":
-          description: Habitación actualizada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HabitacionResponse"
-        "400":
-          $ref: "#/components/responses/DatosInvalidos"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-        "409":
-          $ref: "#/components/responses/Conflicto"
+              schema: { $ref: "#/components/schemas/Habitacion" }
+        "400": { description: Inválida, o el id del cuerpo no coincide con el de la URL. }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { description: No existe. }
     delete:
-      tags: [Habitaciones]
-      summary: Eliminar una habitación
+      tags: [extension]
       operationId: eliminarHabitacion
+      summary: Quita una habitación del inventario
       responses:
-        "204":
-          description: Habitación eliminada
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
+        "204": { description: Eliminada. }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { description: No existe. }
 
-  /habitaciones/{id}/switch:
-    parameters:
-      - $ref: "#/components/parameters/HabitacionId"
-    post:
-      tags: [Habitaciones]
-      summary: Accionar el switch de una habitación a mano
-      description: >
-        Comando (task): manda ON u OFF directo al switch de la habitación,
-        contra el servicio switch-stub, sin pasar por la lógica automática
-        del Controlador. No es una operación CRUD.
-      operationId: accionarSwitch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SwitchAccionRequest"
-            examples:
-              encender:
-                value:
-                  accion: "ON"
-      responses:
-        "200":
-          description: Switch accionado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SwitchAccionResponse"
-        "400":
-          $ref: "#/components/responses/DatosInvalidos"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-        "502":
-          description: El switch-stub no respondió
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /controlador/iniciar:
-    post:
-      tags: [Controlador]
-      summary: Iniciar el Controlador
-      description: >
-        Comando (task): arranca la lógica de termostato simple, que a partir
-        de ahí acciona los switches según cada lectura de temperatura que
-        recibe el engine por MQTT. Las lecturas se guardan siempre, esté o no
-        iniciado el Controlador. No es una operación CRUD.
-      operationId: iniciarControlador
-      responses:
-        "200":
-          description: Controlador iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ControladorEstadoResponse"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "409":
-          description: El Controlador ya estaba iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /controlador/parar:
-    post:
-      tags: [Controlador]
-      summary: Detener el Controlador
-      operationId: pararControlador
-      responses:
-        "200":
-          description: Controlador detenido
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ControladorEstadoResponse"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
-        "409":
-          description: El Controlador no estaba iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /controlador/estado:
+  /diagnostico:
     get:
-      tags: [Controlador]
-      summary: Consultar el estado del Controlador
-      operationId: estadoControlador
+      tags: [extension]
+      operationId: diagnostico
+      summary: Decisión y motivo por habitación, estado de switches y conexiones
       responses:
         "200":
-          description: Estado actual
+          description: Foto del controlador.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/ControladorEstadoResponse"
-        "401":
-          $ref: "#/components/responses/NoAutorizado"
+              example:
+                control: EN_EJECUCION
+                mqttConectado: true
+                registradoAnteEntorno: true
+                habitaciones:
+                  - id: room1
+                    temperaturaActual: 19.4
+                    ultimaLectura: "2026-10-01T09:15:03.120Z"
+                    decision: "ON"
+                    motivo: CALEFACCIONANDO
+                    idSwitch: sw-sim-room1
+                    estadoSwitch: "ON"
+        "401": { $ref: "#/components/responses/NoAutorizado" }
 
 components:
+
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: X-API-KEY
-      description: API key requerida en todas las operaciones del API.
-
-  parameters:
-    HabitacionId:
-      name: id
-      in: path
-      required: true
-      description: Identificador de la habitación
-      schema:
-        type: integer
-        format: int64
+      name: X-API-Key
+      description: |
+        El controlador exige **su** clave a quien lo llame. Cuando hay registro (§6) la declara ahí
+        y el entorno la usa; si no, la provisión queda fuera del estándar.
 
   responses:
     NoAutorizado:
-      description: Falta el header X-API-KEY o el valor enviado es incorrecto
+      description: Falta el header `X-API-Key` o no coincide.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    NoEncontrado:
-      description: No existe una habitación con el id indicado
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    Conflicto:
-      description: Ya existe una habitación con ese nombre, idTermostato o idSwitch
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    DatosInvalidos:
-      description: El body no pasó las validaciones (campos obligatorios, longitud, etc.)
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            timestamp: "2026-10-01T09:15:03.120Z"
+            status: 401
+            mensaje: falta o no coincide el header X-API-Key
+            errores: null
+
+  examples:
+    inventario:
+      summary: El sitio de ejemplo del §1
+      value:
+        schemaVersion: "2.0"
+        sitio:
+          id: casa-rodriguez
+          nombre: Casa Rodríguez
+          potenciaContratadaKW: 3.7
+          tarifa:
+            punta: { desde: "17:00", hasta: "23:00", dias: HABILES }
+        habitaciones:
+          - id: room1
+            nombre: Living
+            temperaturaEsperada: 21.5
+            potenciaKW: 1.2
+            idTermostato: ht-sim-room1
+            topicTermostato: ht-sim-room1/status/temperature:0
+            idSwitch: sw-sim-room1
+            urlSwitch: http://switches:8081
+          - id: room2
+            nombre: Dormitorio principal
+            temperaturaEsperada: 20.0
+            potenciaKW: 0.8
+            idTermostato: ht-sim-room2
+            topicTermostato: ht-sim-room2/status/temperature:0
+            idSwitch: sw-sim-room2
+            urlSwitch: http://switches:8081
 
   schemas:
-    HabitacionRequest:
-      type: object
-      required:
-        - nombre
-        - temperaturaEsperada
-        - idTermostato
-        - idSwitch
-      properties:
-        nombre:
-          type: string
-          maxLength: 50
-          example: "Dormitorio principal"
-        temperaturaEsperada:
-          type: number
-          format: double
-          example: 21.5
-        idTermostato:
-          type: string
-          maxLength: 50
-          description: Identificador del termostato Shelly (tópico MQTT), no su URL/config concreta.
-          example: "shellyht-A4CF12"
-        idSwitch:
-          type: string
-          maxLength: 50
-          description: Identificador del switch de la habitación, no su URL/config concreta.
-          example: "switch-dormitorio-01"
 
-    HabitacionPatchRequest:
+    Inventario:
       type: object
-      description: Todos los campos son opcionales; solo se actualizan los enviados.
-      properties:
-        nombre:
-          type: string
-          maxLength: 50
-        temperaturaEsperada:
-          type: number
-          format: double
-        idTermostato:
-          type: string
-          maxLength: 50
-        idSwitch:
-          type: string
-          maxLength: 50
+      description: |
+        Documento completo del sitio (§1). Sirve como semilla, como export/import entre
+        implementaciones, y como cuerpo de `PUT /sitio`.
 
-    HabitacionResponse:
+        **Reglas de consistencia** que no se pueden expresar en JSON Schema y que igual hay que
+        verificar: `id`, `idTermostato` e `idSwitch` únicos en el sitio, y `desde` < `hasta` en la
+        franja de punta.
+
+        La suma de `potenciaKW` **puede** superar la potencia contratada: no es un error, es la
+        situación que el controlador tiene que administrar encendiendo por turnos.
+      required: [schemaVersion, sitio, habitaciones]
+      properties:
+        schemaVersion:
+          type: string
+          pattern: '^2\.\d+$'
+          description: Versiona el documento. Un consumidor debe **rechazar un major distinto**.
+          example: "2.0"
+        sitio: { $ref: "#/components/schemas/Sitio" }
+        habitaciones:
+          type: array
+          items: { $ref: "#/components/schemas/Habitacion" }
+
+    Sitio:
       type: object
+      required: [id, nombre, potenciaContratadaKW, tarifa]
       properties:
         id:
-          type: integer
-          format: int64
-          example: 1
+          type: string
+          minLength: 1
+          example: casa-rodriguez
         nombre:
           type: string
-          example: "Dormitorio principal"
+          minLength: 1
+          example: Casa Rodríguez
+        potenciaContratadaKW:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: |
+            **Potencia** contratada, en **kW** — no energía. El kWh mide consumo acumulado; lo
+            contratado es el tope instantáneo: si la suma de lo encendido lo supera, salta la llave.
+            Es la magnitud que el control tiene que administrar.
+          example: 3.7
+        tarifa: { $ref: "#/components/schemas/Tarifa" }
+
+    Tarifa:
+      type: object
+      description: "Doble horario: se declara solo la punta, todo el resto del tiempo es llana."
+      required: [punta]
+      properties:
+        punta: { $ref: "#/components/schemas/Franja" }
+
+    Franja:
+      type: object
+      description: |
+        Franja en **hora local**, 24 h, semiabierta `[desde, hasta)`. No cruza la medianoche: si
+        hace falta, se parte en dos. No hay conversión de zona horaria.
+      required: [desde, hasta, dias]
+      properties:
+        desde:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: "17:00"
+        hasta:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: "23:00"
+        dias:
+          type: string
+          enum: [HABILES, TODOS]
+          description: "`HABILES` = lunes a viernes."
+
+    Habitacion:
+      type: object
+      description: |
+        La unidad de control: un termostato, un switch, una potencia. **No** lleva histéresis —
+        cuándo encender y cuándo apagar es decisión del controlador, no dato del sitio.
+      required:
+        [id, nombre, temperaturaEsperada, potenciaKW, idTermostato, topicTermostato, idSwitch, urlSwitch]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: |
+            Estable, elegido por el cliente, único en el sitio. Si la implementación usa un serial
+            en base, se serializa como string (`"1"`).
+          example: room1
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Living
         temperaturaEsperada:
           type: number
           format: double
+          description: Grados Celsius, 1 decimal. Es la temperatura del **ambiente**.
           example: 21.5
+        potenciaKW:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: |
+            Potencia de la calefacción de esa habitación. Es lo que consume mientras su switch está
+            en `ON`.
+          example: 1.2
         idTermostato:
           type: string
-          example: "shellyht-A4CF12"
+          minLength: 1
+          description: Identificador del dispositivo. Único en el sitio.
+          example: ht-sim-room1
+        topicTermostato:
+          type: string
+          minLength: 1
+          description: |
+            Topic MQTT donde ese termostato publica (§2). Por convención
+            `<idTermostato>/status/temperature:<indiceSensor>`, pero **el topic declarado es el que
+            vale**.
+          example: ht-sim-room1/status/temperature:0
         idSwitch:
           type: string
-          example: "switch-dormitorio-01"
-
-    AccionSwitch:
-      type: string
-      enum: [ON, OFF]
-
-    SwitchAccionRequest:
-      type: object
-      required:
-        - accion
-      properties:
-        accion:
-          $ref: "#/components/schemas/AccionSwitch"
-
-    SwitchAccionResponse:
-      type: object
-      properties:
-        idSwitch:
+          minLength: 1
+          description: Identificador del dispositivo. Único en el sitio.
+          example: sw-sim-room1
+        urlSwitch:
           type: string
-          example: "switch-dormitorio-01"
+          format: uri
+          description: |
+            Base URL donde se alcanza ese switch (§3, §4). Varias habitaciones pueden compartirla.
+          example: http://switches:8081
+
+    EstadoControl:
+      type: object
+      required: [estado, fechaHora, factorTiempo, iniciadoEn]
+      properties:
+        estado:
+          type: string
+          enum: [EN_EJECUCION, DETENIDO]
+          description: Arranca en `DETENIDO`.
+        fechaHora:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            **Hora del control**, no la del sistema: el instante lógico al que el controlador
+            evalúa. `null` si está `DETENIDO`.
+        factorTiempo:
+          type: number
+          format: double
+          nullable: true
+          description: Aceleración vigente. `null` si está `DETENIDO`.
+        iniciadoEn:
+          type: string
+          format: date-time
+          nullable: true
+          description: Hora **real** del último `INICIAR`. `null` si está `DETENIDO`.
+
+    ComandoControl:
+      oneOf:
+        - $ref: "#/components/schemas/ComandoIniciar"
+        - $ref: "#/components/schemas/ComandoDetener"
+      discriminator:
+        propertyName: accion
+        mapping:
+          INICIAR: "#/components/schemas/ComandoIniciar"
+          DETENER: "#/components/schemas/ComandoDetener"
+
+    ComandoIniciar:
+      type: object
+      required: [accion, fechaHora]
+      properties:
         accion:
-          $ref: "#/components/schemas/AccionSwitch"
+          type: string
+          enum: [INICIAR]
+        fechaHora:
+          type: string
+          format: date-time
+          description: Instante al que el control **sincroniza su noción del tiempo**.
+        factorTiempo:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          default: 1
+          description: Aceleración respecto del tiempo real. Ausente ⇒ `1`.
 
-    ReporteConsistencia:
+    ComandoDetener:
       type: object
+      required: [accion]
       properties:
-        consistente:
-          type: boolean
-          example: true
-        idsTermostatoDuplicados:
-          type: array
-          items:
-            type: string
-        idsSwitchDuplicados:
-          type: array
-          items:
-            type: string
+        accion:
+          type: string
+          enum: [DETENER]
 
-    ControladorEstadoResponse:
+    Error:
       type: object
-      properties:
-        corriendo:
-          type: boolean
-          example: true
-
-    ErrorResponse:
-      type: object
+      description: Cuerpo de error uniforme de las convenciones transversales.
+      required: [timestamp, status, mensaje]
       properties:
         timestamp:
           type: string
           format: date-time
-          example: "2026-09-23T01:14:44.496Z"
+          description: ISO-8601 con milisegundos.
+          example: "2026-10-01T09:15:03.120Z"
         status:
           type: integer
           example: 404
         mensaje:
           type: string
-          example: "No existe una habitación con id 1"
+          example: No existe la habitación room9
         errores:
-          type: object
+          type: array
           nullable: true
-          additionalProperties:
-            type: string
-          description: Presente solo en errores de validación (400) — campo → mensaje. null en el resto de los errores.
+          description: El detalle cuando hay varios; `null` cuando el mensaje se explica solo.
+          items: { type: string }

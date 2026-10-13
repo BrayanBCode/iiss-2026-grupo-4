@@ -1,0 +1,19 @@
+# Integración con el simulador de la cátedra en su red Docker (iiss-lab-net).
+# Se superpone al docker-compose.yml:
+#
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.lab.yml up -d --build
+#
+# Requiere que el stack del simulador esté levantado (crea la red iiss-lab-net).
+# ENTORNO_API_KEY tiene que ser la clave del simulador (está en su docker-compose.yml).
+services:
+  engine:
+    environment:
+      - ENTORNO_URL=http://iiss-simulator:9090
+      - CONTROLADOR_BASE_URL=http://ecowarm-grupo4:8080
+    networks:
+      - default
+      - iiss-lab-net
+
+networks:
+  iiss-lab-net:
+    external: true

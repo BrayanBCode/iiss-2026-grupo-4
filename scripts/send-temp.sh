@@ -1,6 +1,10 @@
 #!/bin/bash
-# Si se pasa un argumento ($1), usa ese valor; si no, usa "22.5"
+# Publica una lectura de prueba (estándar v2, §2) en el broker del entorno.
+# Uso: ./scripts/send-temp.sh [temperatura] [topic] [host-broker]
 TEMP=${1:-"22.5"}
+TOPIC=${2:-"ht-sim-room1/status/temperature:0"}
+BROKER=${3:-"localhost"}
+TS=$(date +%s.%3N)
 
-echo "Enviando temperatura: $TEMP °C al tópico shellyhtg3-a1b2c3d4e5f6/status/temperature:0..."
-curl -d "{"id":0,"tC":$TEMP,"tF":71.3,"ts":1788297466.028}" "mqtt://localhost:1883/shellyhtg3-a1b2c3d4e5f6/status/temperature:0"
+echo "Publicando $TEMP °C en $TOPIC (broker $BROKER)..."
+curl -s -d "{\"id\":0,\"tC\":$TEMP,\"ts\":$TS}" "mqtt://$BROKER:1883/$TOPIC"

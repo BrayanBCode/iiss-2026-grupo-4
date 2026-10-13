@@ -1,41 +1,21 @@
 package uy.edu.utec.iiss.engine.rest.error;
 
+import uy.edu.utec.iiss.engine.util.Instantes;
+
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 
 /**
- * Cuerpo JSON estándar para errores del API (404, 400, etc.).
+ * Cuerpo de error uniforme del estándar (convenciones transversales):
+ * {@code {"timestamp":"2026-10-01T09:15:03.120Z","status":404,"mensaje":"...","errores":null}}.
  */
-public class ErrorResponse {
-
-    private final Instant timestamp = Instant.now();
-    private final int status;
-    private final String mensaje;
-    private final Map<String, String> errores;
+public record ErrorResponse(String timestamp, int status, String mensaje, List<String> errores) {
 
     public ErrorResponse(int status, String mensaje) {
         this(status, mensaje, null);
     }
 
-    public ErrorResponse(int status, String mensaje, Map<String, String> errores) {
-        this.status = status;
-        this.mensaje = mensaje;
-        this.errores = errores;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public int getStatus() {
-        return status;
-    }
-
-    public String getMensaje() {
-        return mensaje;
-    }
-
-    public Map<String, String> getErrores() {
-        return errores;
+    public ErrorResponse(int status, String mensaje, List<String> errores) {
+        this(Instantes.iso(Instant.now()), status, mensaje, errores);
     }
 }

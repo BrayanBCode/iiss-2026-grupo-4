@@ -19,5 +19,9 @@ RUN mvn -q -B -pl modules/engine -am package
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 COPY --from=build /build/modules/engine/target/engine.jar /app/engine.jar
+# El inventario del sitio (PUT /sitio) se persiste acá: montarlo como volumen
+# para que sobreviva a recrear el contenedor (estándar v2, §5.1).
+ENV INVENTARIO_ARCHIVO=/app/data/inventario.json
+VOLUME /app/data
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app/engine.jar"]

@@ -1,6 +1,5 @@
 package uy.edu.utec.iiss.engine.rest.security;
 
-import uy.edu.utec.iiss.engine.rest.error.ErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,75 +10,51 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import uy.edu.utec.iiss.engine.rest.error.ErrorResponse;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /**
- * Esquema de autenticación simple pedido por la letra de la Iteración 3:
- * "adoptar un esquema simple (p. ej. API key o token Bearer)". Se eligió
- * API key por header, tal cual queda declarado en el securityScheme
- * "ApiKeyAuth" de docs/api/openapi.yaml (header X-API-KEY).
- * <p>
- * Se implementa como filtro de Servlet (y no con spring-boot-starter-security)
- * a propósito: no hay gestión de usuarios ni roles pedida, así que una
- * dependencia entera de autenticación/autorización sería sobreingeniería
- * para "proteger el acceso al API" con una única clave compartida.
- * <p>
- * Al ser un @Component que implementa Filter, Spring Boot lo registra
- * automáticamente para TODAS las rutas del contexto (no hace falta un
- * FilterRegistrationBean): cubre por igual /habitaciones/** y /controlador/**,
- * que es justo lo que pide la consigna ("proteger el acceso al API" en
- * general, sin distinguir CRUD de comandos).
+ * Autenticación del estándar (convenciones transversales): header
+ * {@code X-API-Key} en todas las operaciones REST; falta o no coincide → 401
+ * con el cuerpo de error uniforme. (Los nombres de header HTTP no distinguen
+ * mayúsculas: {@code X-API-KEY} también vale.)
+ *
+ * Es la clave que el controlador declara al registrarse (§6) y que el entorno
+ * usa para llamarlo. Filtro de Servlet simple: no hay usuarios ni roles, así
+ * que Spring Security sería sobreingeniería.
  */
 @Component
 public class ApiKeyFilter extends OncePerRequestFilter {
 
-    private static final String HEADER_API_KEY = "X-API-KEY";
+    static final String HEADER_API_KEY = "X-API-Key";
 
-    private final String apiKeyEsperada;
+    private final byte[] apiKeyEsperada;
     private final ObjectMapper objectMapper;
 
-    /**
-     * El default "changeme-dev-key" está DOS veces a propósito: acá en la
-     * anotación (red de seguridad si "api.security.api-key" no existiera
-     * en el classpath por algún problema de build) y también en
-     * application.properties (donde además resuelve la variable de
-     * entorno API_KEY real de docker-compose). Si algún día ambos
-     * defaults coinciden en producción, es señal de que la property del
-     * archivo no se está cargando -- revisar el build antes que el código.
-     */
-    public ApiKeyFilter(@Value("${api.security.api-key:changeme-dev-key}") String apiKeyEsperada, ObjectMapper objectMapper) {
-        this.apiKeyEsperada = apiKeyEsperada;
+    public ApiKeyFilter(@Value("${api.security.api-key}") String apiKeyEsperada, ObjectMapper objectMapper) {
+        if (apiKeyEsperada == null || apiKeyEsperada.isBlank()) {
+            throw new IllegalStateException("API_KEY no puede estar vacía: el §6 exige declarar una clave al registrarse");
+        }
+        this.apiKeyEsperada = apiKeyEsperada.getBytes(StandardCharsets.UTF_8);
         this.objectMapper = objectMapper;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-
-        String apiKeyRecibida = request.getHeader(HEADER_API_KEY);
-
-        if (apiKeyRecibida == null || !apiKeyRecibida.equals(apiKeyEsperada)) {
-            responderNoAutorizado(response);
-            return; // no se llama a filterChain.doFilter: la petición no llega al controller
+        String recibida = request.getHeader(HEADER_API_KEY);
+        // Comparación en tiempo constante: no filtra por timing cuántos caracteres coinciden.
+        if (recibida == null || !MessageDigest.isEqual(recibida.getBytes(StandardCharsets.UTF_8), apiKeyEsperada)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            objectMapper.writeValue(response.getWriter(),
+                    new ErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, "falta o no coincide el header " + HEADER_API_KEY));
+            return;
         }
-
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * Se escribe la respuesta acá mismo (no se puede delegar en
-     * ApiExceptionHandler): un filtro corre ANTES del DispatcherServlet,
-     * así que una excepción tirada acá nunca pasa por un @RestControllerAdvice.
-     * Se arma el mismo ErrorResponse que usa el resto del API para que el
-     * cliente reciba siempre el mismo formato de error, sea cual sea la causa.
-     */
-    private void responderNoAutorizado(HttpServletResponse response) throws IOException {
-        String mensaje = "Falta el header " + HEADER_API_KEY + " o el valor enviado es incorrecto.";
-        ErrorResponse body = new ErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, mensaje);
-
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), body);
     }
 }
