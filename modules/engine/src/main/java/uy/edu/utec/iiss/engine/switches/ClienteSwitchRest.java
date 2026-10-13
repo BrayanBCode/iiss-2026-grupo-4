@@ -21,7 +21,7 @@ import java.util.Map;
  * con el header {@code X-API-Key} que exige el switch.
  *
  * Timeouts cortos a propósito: un switch caído no puede trabar el lazo de
- * control (el {@link uy.edu.utec.iiss.engine.service.CoreAdapter} además espacia
+ * control (el {@link uy.edu.utec.iiss.engine.adaptador.CoreAdapter} además espacia
  * los reintentos a un switch que viene fallando).
  */
 @Component

@@ -8,7 +8,6 @@
 #   ./scripts/test.sh              -> corre los tests de TODOS los módulos
 #   ./scripts/test.sh core           -> corre solo los tests del core (CoreTest)
 #   ./scripts/test.sh engine         -> corre solo los tests de engine
-#   ./scripts/test.sh eventGenerator -> corre solo los tests de eventGenerator
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."

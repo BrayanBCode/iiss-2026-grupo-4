@@ -4,12 +4,10 @@ FROM maven:3.9-eclipse-temurin-25-alpine AS build
 WORKDIR /build
 # POM del padre
 COPY pom.xml .
-# POM de todos los módulos hijos (hace falta que estén todos para que Maven
-# pueda resolver el <modules> del padre, aunque acá solo compilemos engine)
+# POM de los módulos hijos (hace falta que estén todos para que Maven
+# pueda resolver el <modules> del padre: core y engine)
 COPY modules/core/pom.xml modules/core/pom.xml
-COPY modules/eventGenerator/pom.xml modules/eventGenerator/pom.xml
 COPY modules/engine/pom.xml modules/engine/pom.xml
-COPY modules/switch-stub/pom.xml modules/switch-stub/pom.xml
 # --mount=type=cache: el repositorio de Maven (~/.m2) se conserva entre builds,
 # así un build que se cortó por la red retoma sin volver a bajar todo.
 RUN --mount=type=cache,target=/root/.m2 mvn -q -B -pl modules/engine -am dependency:go-offline

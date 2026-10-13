@@ -476,7 +476,7 @@ modules/
 └── engine/    uy.edu.utec.iiss.engine
                ├── inventario/  §1 y §5.1: modelo, validación, persistencia
                ├── control/     §5.2: reloj del control, INICIAR/DETENER, temporizador
-               ├── service/     CoreAdapter (único puente con el core)
+               ├── adaptador/   CoreAdapter (único puente con el core)
                ├── switches/    §3/§4: cliente REST de los switches
                ├── mqtt/        §2: consumidor de los termostatos
                ├── registro/    §6: registro ante el entorno y arranque

@@ -65,7 +65,7 @@ Detalle en [`4mas1.md`](docs/arquitectura/4mas1.md).
 ├── docs/
 │   ├── api/            interop-v2.md, OpenAPI del estándar y openapi.yaml de este controlador
 │   ├── arquitectura/   4mas1.md (vista lógica + diagramas de secuencia)
-│   ├── tests/          criterio-tests.md (criterio de adecuación de los tests)
+│   ├── tests/          criterio-tests.md (criterio de adecuación) y resultados.md (última ejecución)
 │   └── Producto/       historias, personas, características, escenario
 ├── docker/
 │   ├── docker-compose.yml       el controlador, contra un entorno en el anfitrión (:9090)
@@ -73,13 +73,11 @@ Detalle en [`4mas1.md`](docs/arquitectura/4mas1.md).
 ├── scripts/            build, up, down, stop, test, api-demo, send-temp, receive-temp
 ├── modules/
 │   ├── core/           lógica de decisión pura + tests unitarios (TDD)
-│   ├── engine/         Spring Boot: integración con el exterior + tests
-│   ├── eventGenerator/ (Iteración 2, histórico) simulador de termostatos; lo reemplaza el simulador
-│   └── switch-stub/    (Iteración 3, histórico) stub de switch; lo reemplaza el simulador
+│   └── engine/         Spring Boot: integración con el exterior + tests
 └── pom.xml             POM padre
 ```
 
-Paquetes del engine: `inventario` (§1, §5.1), `control` (§5.2, reloj, temporizador), `service`
+Paquetes del engine: `inventario` (§1, §5.1), `control` (§5.2, reloj, temporizador), `adaptador`
 (`CoreAdapter`, único puente con el core), `switches` (§3, §4), `mqtt` (§2), `registro` (§6),
 `rest` (controllers, filtro `X-API-Key`, errores uniformes), `config`.
 
@@ -239,7 +237,7 @@ El criterio por el que el conjunto se considera adecuado está en
 | `build.sh` | Compila el controlador (imagen Docker, incluye el core). |
 | `up.sh [lab]` | Compila y levanta el controlador; `lab` lo conecta a la red del simulador. |
 | `stop.sh` / `down.sh` | Detiene / baja el contenedor (el inventario se conserva en su volumen). |
-| `test.sh [modulo]` | Corre los tests en Docker (todos, `core`, `engine` o `eventGenerator`). |
+| `test.sh [modulo]` | Corre los tests en Docker (todos, `core` o `engine`). |
 | `api-demo.sh [key] [url]` | Recorre el API: `PUT/GET /sitio`, un `PUT` inválido, `INICIAR`, diagnóstico, `DETENER`, `401`. |
 | `send-temp.sh [t] [topic] [broker]` | Publica una lectura §2 a mano. |
 | `receive-temp.sh` | Sigue `logs/engine.log`. |
@@ -251,10 +249,10 @@ El criterio por el que el conjunto se considera adecuado está en
 ## Licencias de terceros
 
 - **Docker** — Apache 2.0. **Apache Maven** — Apache 2.0.
-- **Spring Boot / Spring Framework** — Apache 2.0. Framework del `engine` (y del `switch-stub` histórico).
+- **Spring Boot / Spring Framework** — Apache 2.0. Framework del `engine`.
 - **Jackson** — Apache 2.0. JSON del `engine`.
 - **Eclipse Paho (mqttv3)** — EPL-2.0. Cliente MQTT.
 - **JUnit 5**, **JaCoCo** — EPL-2.0. Tests y cobertura. **Mockito** — MIT.
-- **org.json** (eventGenerator histórico) — licencia JSON. **Logback** — EPL-1.0 / LGPL-2.1.
+- **Logback** — EPL-1.0 / LGPL-2.1. Logging de Spring Boot.
 
 Todas permiten su uso en un proyecto MIT. Ver [`LICENSE`](LICENSE).

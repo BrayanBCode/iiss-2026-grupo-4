@@ -133,6 +133,6 @@ Resultado de la última ejecución (2026-10-13):
 |---|---|---|---|
 | core | 81 | 0 | 0 |
 | engine | 55 | 0 | 0 |
-| eventGenerator | 5 | 0 | 0 |
 
-Los reportes quedan en `modules/*/target/surefire-reports/`.
+Los reportes quedan en `modules/*/target/surefire-reports/`. El detalle por clase de test está en
+[`resultados.md`](resultados.md).
