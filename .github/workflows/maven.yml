@@ -2,9 +2,9 @@ name: IISS2026
 
 on:
   push:
-    branches: [ "master", "implementacion4"]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "master", "implementacion4"]
+    branches: [ "master" ]
 
 jobs:
   build:
