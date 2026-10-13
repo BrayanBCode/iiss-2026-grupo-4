@@ -26,16 +26,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pruebas del adaptador entre el engine y el core. Usan el core REAL y switches
  * falsos en memoria (recuerdan su estado como manda el §4): no hace falta
- * Spring, ni el broker, ni red.
+ * Spring, ni el broker, ni red. Salvo donde se prueba el hilo de switches, las
+ * pasadas corren en un executor sincrónico ({@code Runnable::run}), así cada
+ * comando ya se envió cuando vuelve la llamada.
  */
 @DisplayName("CoreAdapter (engine <-> core <-> switches)")
 class CoreAdapterTest {
@@ -92,7 +97,7 @@ class CoreAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ZERO);
+        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ZERO, Runnable::run);
     }
 
     private void configurarYHabilitar() {
@@ -252,7 +257,7 @@ class CoreAdapterTest {
     @Test
     @DisplayName("A un switch que viene fallando no se lo reintenta antes de la espera (no traba el lazo)")
     void switchQueFalla_seEsperaAntesDeReintentar() {
-        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ofSeconds(5));
+        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ofSeconds(5), Runnable::run);
         switches.caidos.add("sw-living");
         adaptador.configurar(sitio(3.7), List.of(LIVING));
         adaptador.habilitar();                                               // falla: espera hasta +5 s
@@ -264,6 +269,47 @@ class CoreAdapterTest {
         relojReal.ahora = relojReal.ahora.plusSeconds(6);
         adaptador.alTick(lunes(10, 1));
         assertEquals(List.of("sw-living:OFF"), switches.comandos);
+    }
+
+    @Test
+    @DisplayName("Con el hilo de switches real, habilitar y decidir no esperan a un switch lento; los comandos salen después")
+    void hiloDeSwitches_unSwitchLentoNoDemoraAlQueLlama() throws Exception {
+        CountDownLatch liberar = new CountDownLatch(1);
+        List<String> comandos = new CopyOnWriteArrayList<>();
+        ClienteSwitch lento = new ClienteSwitch() {
+            @Override
+            public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
+                comandos.add(idSwitch + ":" + accion);
+                return accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
+            }
+
+            @Override
+            public EstadoSwitch consultar(String url, String idSwitch) {
+                try {
+                    liberar.await();                                         // el switch no responde hasta que se libera
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return EstadoSwitch.DESCONOCIDO;
+            }
+        };
+        try (CoreAdapter asincrono = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), lento, relojReal, Duration.ZERO)) {
+            asincrono.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
+
+            assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
+                asincrono.habilitar();
+                asincrono.alLlegarLectura("living", 15.0, lunes(10, 0));
+                assertEquals(Accion.ON, asincrono.estados().get(0).decision());
+            });
+            assertTrue(comandos.isEmpty(), "comandó antes de que el switch respondiera: " + comandos);
+
+            liberar.countDown();
+            long limite = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+            while (comandos.size() < 2 && System.nanoTime() < limite) {
+                Thread.sleep(10);
+            }
+            assertEquals(List.of("sw-living:ON", "sw-dorm:OFF"), comandos);
+        }
     }
 
     @Test

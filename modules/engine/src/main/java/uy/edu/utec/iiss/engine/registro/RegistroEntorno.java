@@ -73,7 +73,8 @@ public class RegistroEntorno {
         this.json = json;
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(3000);
-        fabrica.setReadTimeout(5000);
+        // Holgado a propósito: antes de responder el registro, el entorno nos carga el sitio y nos da INICIAR.
+        fabrica.setReadTimeout(30_000);
         // Buffering: manda Content-Length en lugar de un cuerpo "chunked", que algunos servidores no leen.
         this.http = new RestTemplate(new BufferingClientHttpRequestFactory(fabrica));
         this.entornoUrl = sinBarraFinal(entornoUrl);

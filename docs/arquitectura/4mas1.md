@@ -298,7 +298,8 @@ classDiagram
 Decisiones de diseño relevantes:
 
 - **Un solo punto de contacto con el core** (`CoreAdapter`), que serializa las llamadas: el core no es
-  thread-safe y le llegan eventos de MQTT, del temporizador y de REST.
+  thread-safe y le llegan eventos de MQTT, del temporizador y de REST. La comunicación con los
+  switches corre aparte, en su propio hilo (ver §3), para que nadie espere a la red.
 - **Estado deseado vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
   el último estado *conocido* de su switch (por la respuesta del comando o por la consulta §4), y solo
   comanda cuando difieren. La reconciliación periódica corrige un switch que reinició
@@ -330,28 +331,29 @@ sequenceDiagram
     participant Sw as Switch (REST)
 
     Eng->>Inv: cargarGuardado() (si hay inventario persistido)
-    loop hasta 201 (espera 2, 4, 8 … 30 s)
-        Eng->>Env: POST /controladores {etiqueta, baseUrl, apiKey}
-    end
-    Env-->>Eng: 201 {mqtt: {host, puerto}}
-    Eng->>Mq: conectar(tcp://host:puerto)
+    Eng->>Env: POST /controladores {etiqueta, baseUrl, apiKey}<br/>(reintenta 2, 4, 8 … 30 s; espera la respuesta hasta 30 s)
+    Note over Env: antes de responder, el entorno configura y arranca al controlador
     Env->>Inv: PUT /sitio (inventario §1)
     Inv->>Inv: validar → grabar (atómico) → en uso
     Inv-->>Ctl: evento InventarioAplicado
     Ctl->>Ad: configurar(sitio, habitaciones)
     Ad->>Core: ConfiguracionActualizada
-    Inv-->>Mq: evento InventarioAplicado → subscribe(topicTermostato…)
+    Inv-->>Mq: evento InventarioAplicado → anota los topics
     Env->>Ctl: POST /control/comandos {INICIAR, fechaHora, factorTiempo}
     Ctl->>Ctl: RelojControl(fechaHora, factor, ahoraReal, zona)
     Ctl->>Ad: sincronizar(fechaHora, factor)
     Ad->>Core: Sincronizacion
-    Ctl->>Ad: habilitar()
-    loop cada habitación
+    Ctl->>Ad: habilitar() → pide una pasada al hilo switches
+    Ctl->>Ctl: arranca temporizador (tick 1 s, reconciliación 15 s)
+    Ctl-->>Env: 200 EN_EJECUCION (sin esperar a los switches)
+    Env-->>Eng: 201 {mqtt: {host, puerto}}
+    Eng->>Mq: conectar(tcp://host:puerto)
+    Mq->>Mq: subscribe(topicTermostato…)
+    loop hilo switches: cada habitación
         Ad->>Sw: GET /switches/{id}  (§4)
         Sw-->>Ad: DESCONOCIDO
         Ad->>Sw: POST /switches/{id}/comandos {OFF}  (§3)
     end
-    Ctl->>Ctl: arranca temporizador (tick 1 s, reconciliación 15 s)
 ```
 
 ### 2.2 Llega una lectura de temperatura (evento MQTT)
@@ -380,7 +382,8 @@ sequenceDiagram
         Core->>Core: descarta si es inválida / fuera de orden
         Core->>Core: decidir(): necesidad → tarifa → reparto
         Core-->>Ad: [room1 ON CALEFACCIONANDO, room2 OFF SIN_POTENCIA_DISPONIBLE]
-        loop decisiones distintas del estado conocido del switch
+        Ad-->>Ctl: vuelve (los comandos salen en el hilo switches)
+        loop hilo switches: decisiones distintas del estado conocido del switch
             Ad->>Sw: POST /switches/sw-room1/comandos {ON}
             alt responde 200
                 Sw-->>Ad: {estado: ON}
@@ -442,7 +445,7 @@ sequenceDiagram
         Ctl->>Ad: configurar(...)
         Ad->>Core: ConfiguracionActualizada
         Core-->>Ad: decisiones con el tope nuevo
-        Ad->>Ad: apaga de inmediato lo que ya no entra
+        Ad->>Ad: pide una pasada al hilo switches: apaga lo que ya no entra<br/>(el 200 no espera a los switches)
         Inv-->>Mq: InventarioAplicado → (des)suscribe topics
         API-->>Op: 200 {sitio, habitaciones}
     end
@@ -459,8 +462,17 @@ sequenceDiagram
 | `mqtt-conexion` | propio | conexión, reintentos cada 5 s y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
 | `control-temporizador` | propio | tick cada 1 s real y reconciliación cada 15 s |
 | `registro-entorno` | propio | registro §6 con reintentos exponenciales |
+| `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
 
-Todos convergen en `CoreAdapter` (métodos `synchronized`), que es el único que toca el core.
+Todos convergen en `CoreAdapter` (métodos `synchronized`), que es el único que toca el core. El core
+se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza lo
+deseado, pide una pasada al hilo `switches` y vuelve. Así `INICIAR` y `PUT /sitio` responden sin
+esperar a los switches —importante porque en el registro §6 el entorno nos da `INICIAR` antes de
+responder, y es él mismo quien sirve los switches: esperar ahí era un bloqueo circular— y un switch
+lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pasada se juntan en una
+sola pasada siguiente, que usa la decisión vigente en ese momento. Las pasadas son secuenciales: un
+switch lento todavía demora a los demás switches hasta su timeout (la espera entre reintentos lo
+acota).
 **Fallas previstas en el diseño** (endurecimiento y pruebas en It. 5): broker caído al arrancar o
 durante la ejecución (reintento + re-suscripción), entorno que tarda en levantar (reintento del
 registro), switch caído o lento (timeouts cortos, espera entre reintentos, reconciliación),
