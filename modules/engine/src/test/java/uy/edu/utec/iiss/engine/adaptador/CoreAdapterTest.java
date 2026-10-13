@@ -1,4 +1,4 @@
-package uy.edu.utec.iiss.engine.service;
+package uy.edu.utec.iiss.engine.adaptador;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +9,7 @@ import uy.edu.utec.iiss.core.model.Accion;
 import uy.edu.utec.iiss.core.model.DiasTarifa;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Sitio;
-import uy.edu.utec.iiss.engine.service.CoreAdapter.HabitacionControlada;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
 import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
 import uy.edu.utec.iiss.engine.switches.SwitchNoDisponibleException;

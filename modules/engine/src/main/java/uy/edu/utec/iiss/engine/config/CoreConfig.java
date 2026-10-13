@@ -8,7 +8,7 @@ import uy.edu.utec.iiss.core.MayorDeficitPrimero;
 import uy.edu.utec.iiss.core.cliente.CoreClient;
 import uy.edu.utec.iiss.core.cliente.ICoreClient;
 import uy.edu.utec.iiss.core.model.ParametrosControl;
-import uy.edu.utec.iiss.engine.service.CoreAdapter;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
 
 import java.time.Clock;

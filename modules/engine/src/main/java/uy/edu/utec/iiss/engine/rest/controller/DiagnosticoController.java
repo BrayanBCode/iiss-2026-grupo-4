@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 import uy.edu.utec.iiss.engine.control.ControlService;
 import uy.edu.utec.iiss.engine.mqtt.LecturaMqttListener;
 import uy.edu.utec.iiss.engine.registro.RegistroEntorno;
-import uy.edu.utec.iiss.engine.service.CoreAdapter;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
 import uy.edu.utec.iiss.engine.util.Instantes;
 
 import java.util.LinkedHashMap;

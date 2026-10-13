@@ -13,8 +13,8 @@ import uy.edu.utec.iiss.core.model.Sitio;
 import uy.edu.utec.iiss.engine.inventario.Inventario;
 import uy.edu.utec.iiss.engine.inventario.InventarioAplicado;
 import uy.edu.utec.iiss.engine.inventario.InventarioService;
-import uy.edu.utec.iiss.engine.service.CoreAdapter;
-import uy.edu.utec.iiss.engine.service.CoreAdapter.HabitacionControlada;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
 
 import java.time.Clock;
 import java.time.Instant;
