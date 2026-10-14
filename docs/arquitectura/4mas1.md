@@ -171,7 +171,16 @@ classDiagram
     Core ..> EstadoHabitacion : expone
 ```
 
-**La función de decisión** (`Core.decidir`) se recalcula entera ante cada estímulo, en tres pasos:
+**Estado vs decisión.** `Core.procesar(estimulo)` actualiza el estado interno (temperaturas, instante
+de cada lectura, reloj del control, configuración) y después arma la situación actual —sitio,
+habitaciones, un `EstadoHabitacion` por habitación (temperatura, cuándo se midió, si está encendida),
+hora del control y factor de tiempo— y se la pasa a `Core.decidir`. Con el resultado recuerda cuáles
+quedaron encendidas, que es lo que necesitan la histéresis y el margen del criterio en la próxima
+decisión.
+
+**La función de decisión** (`Core.decidir`) es pública y recibe por parámetro todo lo que usa: no lee
+ni modifica el estado del core, así que una misma situación da siempre las mismas decisiones. Se
+recalcula entera ante cada estímulo, en tres pasos:
 
 1. **Necesidad** de cada habitación, en este orden: sin lectura → `SIN_LECTURA`; lectura más vieja
    que la vigencia (escalada por el factor de tiempo) → `LECTURA_VENCIDA`; temperatura ≥ umbral →
@@ -380,7 +389,8 @@ sequenceDiagram
         Ctl->>Ad: alLlegarLectura("room1", 19.3, relojControl.ahora())
         Ad->>Core: procesar(NuevaLectura)
         Core->>Core: descarta si es inválida / fuera de orden
-        Core->>Core: decidir(): necesidad → tarifa → reparto
+        Core->>Core: arma la situación (sitio, habitaciones, estados, ahora)
+        Core->>Core: decidir(situación): necesidad → tarifa → reparto
         Core-->>Ad: [room1 ON CALEFACCIONANDO, room2 OFF SIN_POTENCIA_DISPONIBLE]
         Ad-->>Ctl: vuelve (los comandos salen en el hilo switches)
         loop hilo switches: decisiones distintas del estado conocido del switch
@@ -409,7 +419,7 @@ sequenceDiagram
     Tm->>Ctl: tick()
     Ctl->>Ad: alTick(relojControl.ahora())  [p. ej. lunes 17:00:00]
     Ad->>Core: procesar(Tick)
-    Core->>Core: enPunta() = true → con déficit ⇒ TARIFA_PUNTA
+    Core->>Core: decidir(situación): en punta → con déficit ⇒ TARIFA_PUNTA
     Core->>Core: lecturas vencidas ⇒ LECTURA_VENCIDA
     Core-->>Ad: todas OFF
     Ad->>Sw: POST …/comandos {OFF} (solo las que estaban ON)
@@ -485,6 +495,8 @@ modules/
 ├── core/      uy.edu.utec.iiss.core          Core, CriterioPrioridad, MayorDeficitPrimero
 │              uy.edu.utec.iiss.core.model    Estimulo, Decision, Motivo, Sitio, ...
 │              uy.edu.utec.iiss.core.cliente  ICoreClient / CoreClient (fachada)
+│              src/test                       DecidirTest (por situación), CoreTest (por estímulos),
+│                                             MayorDeficitPrimeroTest, CoreClientTest, ModeloTest
 └── engine/    uy.edu.utec.iiss.engine
                ├── inventario/  §1 y §5.1: modelo, validación, persistencia
                ├── control/     §5.2: reloj del control, INICIAR/DETENER, temporizador

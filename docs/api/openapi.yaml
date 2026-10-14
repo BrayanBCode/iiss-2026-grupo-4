@@ -8,11 +8,12 @@ info:
     §5 de `interop-v2.md`) sin cambios, más dos extensiones fuera del estándar, marcadas con el
     tag `extension`: el ABM de habitaciones sobre el mismo inventario y un diagnóstico.
 
-    Lo que un controlador tiene que exponer para ser operado desde afuera: el API que define la **§5 de `interop-v2`**: cargar y consultar el sitio, y arrancar y detener
-    el control. Es lo mínimo, y es todo lo que se le exige.
+    Lo que el estándar exige que un controlador exponga es el API de la **§5 de `interop-v2`**:
+    cargar y consultar el sitio, y arrancar y detener el control. El estándar deja lo demás a
+    criterio de cada implementación; las dos extensiones de este controlador están documentadas acá
+    para que el contrato quede completo.
 
-    Todo lo demás que un controlador ofrezca —ABM de habitaciones, diagnósticos, tableros— queda a
-    criterio de cada implementación y **fuera** de este documento.
+    Este controlador **soporta aceleración**: acepta cualquier `factorTiempo` mayor que cero.
 
     > **Este archivo no alcanza para ser conforme.** Un controlador además tiene que:
     >

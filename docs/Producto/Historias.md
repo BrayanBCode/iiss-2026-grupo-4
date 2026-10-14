@@ -8,3 +8,13 @@ Como administrador de un complejo comercial, necesito simular la capacidad de cl
 
 ## Historia 3: Consulta amigable mediante GenAI/LLM (Perfil Usuario Final)
 Como usuario que prefiere una interacción sencilla, quiero consultar en lenguaje natural al asistente inteligente sobre el comportamiento térmico de una habitación, para identificar pérdidas de calor en mi vivienda sin necesidad de analizar gráficos o datos técnicos complejos.
+
+---
+
+## Estado en el prototipo (Iteración 4)
+
+| Historia | Estado |
+|---|---|
+| 1. Optimización por tarifa | ✅ Parcial: no se calefacciona en horario punta y se restituye al salir. Falta considerar el pronóstico y programar por adelantado. |
+| 2. Capacidad y potencia | ✅ Parcial: el encendido se reparte sin superar la potencia contratada, con un criterio justificable. Falta la simulación previa de configuraciones. |
+| 3. Consulta mediante GenAI/LLM | ⏳ Pendiente. |

@@ -19,3 +19,15 @@ Registro y evaluación de datos persistidos de telemetría (temperatura vs. tiem
 ## Integración con pronóstico meteorológico (48 hs)
 **Descripción:**
 Consulta automatizada de predicciones del tiempo y datos de temperatura/humedad exterior para ajustar preventivamente las curvas de calefacción ante cambios climáticos bruscos.
+
+---
+
+## Estado en el prototipo (Iteración 4)
+
+| Característica | Estado | Dónde |
+|---|---|---|
+| Gestión de tarifas multihorario | ✅ Parcial: corta la calefacción al entrar en la franja punta y la restituye al salir (franja y días configurables en el sitio). No anticipa el encendido aprovechando la inercia térmica. | `core` (`FranjaHoraria`, `Core.decidir`) |
+| Potencia contratada | ✅ Nunca se supera la contratada: se reparte entre las habitaciones con déficit por **mayor déficit primero**. No hay todavía un modo de simulación separado. | `core` (`Core.decidir`, `MayorDeficitPrimero`) |
+| Diagnóstico mediante GenAI / LLM | ⏳ No implementado. Existe `GET /diagnostico`, que muestra por habitación la decisión y su motivo. | `engine` (`DiagnosticoController`) |
+| Análisis histórico | ⏳ No implementado: no se persiste la telemetría, solo el inventario del sitio. | — |
+| Pronóstico meteorológico | ⏳ No implementado. | — |

@@ -122,6 +122,13 @@ También obligaron a revisar dos escenarios viejos que pasaban "por casualidad" 
 minutos a 6 horas de antigüedad: con la vigencia de lecturas, un termostato que no publica en ese
 lapso se considera caído, que es el comportamiento correcto.
 
+**Refactor: `decidir` con la situación por parámetro.** Antes, la función de decisión leía el
+estado interno del core, así que para probar "esta habitación ya estaba encendida" había que
+armarlo con una secuencia de estímulos. Se la hizo pública y con toda la situación por parámetro
+(sitio, habitaciones, estado de cada una, hora y factor de tiempo), y se agregó `DecidirTest`, que
+la prueba directamente por situación. Los 81 tests anteriores siguieron en verde sin cambios, lo
+que muestra que el refactor no cambió el comportamiento.
+
 ## 4. Fuera del core
 
 El engine tiene sus propios tests (no son TDD del core, pero dan confianza en la integración):
