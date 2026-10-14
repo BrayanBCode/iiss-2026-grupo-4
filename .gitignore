@@ -34,3 +34,9 @@ bin/
 
 ### logs ###
 logs/*
+### IntelliJ IDEA (configuración personal de cada uno) ###
+.idea/
+*.iml
+
+### Inventario persistido al correr el engine fuera de Docker ###
+data/

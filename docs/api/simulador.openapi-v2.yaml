@@ -1,0 +1,549 @@
+openapi: 3.0.3
+
+info:
+  title: EcoWarm — API del simulador
+  version: "2.0.0"
+  description: |
+    Lo que el simulador de integración ofrece a un controlador. El simulador juega el rol
+    **termostato** y de **switch**, y además sirve el inventario del sitio y el registro: para el
+    controlador es el entorno completo (considerando el uso de Mosquito como Broker).
+
+    Cubre las siguientes secciones de `interop-v2`:
+
+    | | Sección |
+    |---|---|
+    | Inventario del sitio | §1 |
+    | Comandar el switch | §3 |
+    | Consultar el switch | §4 |
+    | Registro de controladores | §6 |
+
+    > **El termostato no está en este API.** El simulador publica la temperatura por MQTT (§2) y no recibe comandos;
+    > un topic MQTT no se describe en OpenAPI. El formato del mensaje y tópico utilizado está en `interop-v2.md`.
+
+    > **La consola del simulador tampoco.** Los tableros, el reloj virtual, la historia de llamadas
+    > y los disparadores para manejar un controlador a mano viven bajo `/api` y son para manejar 
+    > las pruebas, no son parte del contrato hacia el controlador: cambian sin aviso y no se documentan acá.
+
+    > En [`controlador.openapi.yaml`](controlador.openapi.yaml) se describe el API esperado que 
+    > el **controlador** implemente. El documento normativo de los dos es
+    > [`interop-v2.md`](interop-v2.md).
+
+  contact:
+    name: IISS 2026 - UTEC Maldonado
+
+servers:
+  - url: http://localhost:9090
+    description: El simulador corriendo local
+  - url: http://iiss-simulator:9090
+    description: En la red del lab (`iiss-lab-net`)
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: sitio
+    description: §1 — el inventario, por pull.
+  - name: switch
+    description: "§3 y §4 — comandar y consultar. **Solo REST**: el switch no publica nada por MQTT."
+  - name: registro
+    description: §6 — presentarse ante el entorno y recibir el broker.
+
+paths:
+
+  /sitio:
+    get:
+      tags: [sitio]
+      operationId: obtenerSitio
+      summary: El inventario del sitio
+      description: |
+        La vía **pull** para configurarse. La otra, equivalente, es que el simulador lo empuje con
+        `PUT {controlador}/sitio` (§5.1). Un controlador puede soportar una, la otra o las dos; el
+        simulador soporta ambas.
+      responses:
+        "200":
+          description: El inventario completo (§1).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inventario" }
+              examples:
+                casaRodriguez: { $ref: "#/components/examples/inventario" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /sitio.yaml:
+    get:
+      tags: [sitio]
+      operationId: obtenerSitioYaml
+      summary: El mismo inventario, en YAML
+      description: |
+        **No está en el estándar.** Es una comodidad para sembrar a mano el archivo de configuración
+        de un controlador. Se sirve como `text/plain`: YAML no tiene un MIME type estandarizado
+        (`application/yaml`, `text/yaml` y `application/x-yaml` se ven todos en la práctica).
+      responses:
+        "200":
+          description: El mismo documento del §1, en YAML.
+          content:
+            text/plain:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /switches/{idSwitch}/comandos:
+    post:
+      tags: [switch]
+      operationId: comandarSwitch
+      summary: Encender o apagar
+      parameters:
+        - $ref: "#/components/parameters/IdSwitch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoSwitch" }
+            examples:
+              encender: { summary: Encender, value: { accion: "ON" } }
+              apagar: { summary: Apagar, value: { accion: "OFF" } }
+      responses:
+        "200":
+          description: |
+            El comando se aplicó. `cambio: false` significa que ya estaba en ese estado: el comando
+            es válido, pero no movió nada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespuestaComando" }
+              examples:
+                movio:
+                  summary: Lo movió
+                  value:
+                    idSwitch: sw-sim-room1
+                    estado: "ON"
+                    cambio: true
+                    aplicadoEn: "2026-10-01T09:15:03.120Z"
+                yaEstaba:
+                  summary: Ya estaba encendido
+                  value:
+                    idSwitch: sw-sim-room1
+                    estado: "ON"
+                    cambio: false
+                    aplicadoEn: "2026-10-01T09:15:04.007Z"
+        "400":
+          description: "`accion` con un valor que no es `ON` ni `OFF`, o cuerpo que no es JSON."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/SwitchInexistente" }
+
+  /switches/{idSwitch}:
+    get:
+      tags: [switch]
+      operationId: consultarSwitch
+      summary: Estado del switch
+      description: |
+        El switch **recuerda su último estado**, no solo registra el comando.
+
+        **No reporta** temperatura, potencia ni consumo: solo su estado. La potencia de cada
+        habitación se declara en el inventario (`potenciaKW`).
+      parameters:
+        - $ref: "#/components/parameters/IdSwitch"
+      responses:
+        "200":
+          description: El estado vigente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespuestaEstado" }
+              examples:
+                conocido:
+                  summary: Alguien lo accionó
+                  value:
+                    idSwitch: sw-sim-room1
+                    estado: "ON"
+                    actualizadoEn: "2026-10-01T09:15:03.120Z"
+                desconocido:
+                  summary: Nadie lo accionó desde que arrancó
+                  value:
+                    idSwitch: sw-sim-room1
+                    estado: DESCONOCIDO
+                    actualizadoEn: null
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/SwitchInexistente" }
+
+  /controladores:
+    post:
+      tags: [registro]
+      operationId: registrarControlador
+      summary: Presentarse ante el entorno
+      description: |
+        **Idempotente por `etiqueta`**: un re-registro con la misma etiqueta reemplaza el anterior.
+        Un componente que cambia de dirección al recrearse no debe dejar entradas muertas.
+
+        El controlador debe **reintentar**: el entorno puede tardar en levantar.
+
+        La `apiKey` que se declara acá es la que el simulador enviará al llamar al controlador. No
+        vuelve en ninguna respuesta del registro.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AltaControlador" }
+            example:
+              etiqueta: control-casa-rodriguez
+              baseUrl: http://control-casa:8080
+              apiKey: la-clave-que-exige-mi-api
+      responses:
+        "201":
+          description: Registrado. El `mqtt` devuelto es el broker al que conectarse; **no se hardcodea**.
+          headers:
+            Location:
+              description: La ubicación del registro creado.
+              schema: { type: string }
+              example: /controladores/control-casa-rodriguez
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Controlador" }
+              example:
+                id: control-casa-rodriguez
+                etiqueta: control-casa-rodriguez
+                baseUrl: http://control-casa:8080
+                registradoEn: "2026-10-01T09:14:58.000Z"
+                mqtt: { host: mosquitto, puerto: 1883 }
+        "400":
+          description: Falta alguno de los tres campos, o viene vacío.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+    get:
+      tags: [registro]
+      operationId: listarControladores
+      summary: Los controladores registrados
+      description: |
+        **No está en el estándar**: al controlador no le importa quién más está registrado. Existe
+        para administrar el entorno.
+      responses:
+        "200":
+          description: La lista, sin credenciales.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Controlador" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /controladores/{id}:
+    delete:
+      tags: [registro]
+      operationId: bajaControlador
+      summary: Dar de baja un controlador
+      description: "**No está en el estándar**: administración del entorno."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: El `id` del registro, que **es** la etiqueta.
+          schema: { type: string }
+          example: control-casa-rodriguez
+      responses:
+        "204":
+          description: Dado de baja.
+        "404":
+          description: No hay un controlador registrado con ese id.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        El simulador exige **su** clave, que hay que conocer de antemano: el §6 la manda en el
+        header del propio registro, así que no puede venir del registro mismo. La del stack que se
+        entrega está en su `docker-compose.yml`.
+
+        Si el simulador arranca con la clave vacía no pide credencial y lo avisa en el log — está
+        para que el primer intento de conexión no se trabe en un problema de claves.
+
+  parameters:
+    IdSwitch:
+      name: idSwitch
+      in: path
+      required: true
+      description: El `idSwitch` que declara la habitación en el inventario.
+      schema: { type: string }
+      example: sw-sim-room1
+
+  responses:
+    NoAutorizado:
+      description: Falta el header `X-API-Key` o no coincide.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            timestamp: "2026-10-01T09:15:03.120Z"
+            status: 401
+            mensaje: falta o no coincide el header X-API-Key
+            errores: null
+    SwitchInexistente:
+      description: No hay un switch con ese id en el sitio.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            timestamp: "2026-10-01T09:15:03.120Z"
+            status: 404
+            mensaje: no existe el switch sw-sim-room9
+            errores: null
+
+  examples:
+    inventario:
+      summary: El sitio de ejemplo del §1
+      value:
+        schemaVersion: "2.0"
+        sitio:
+          id: casa-rodriguez
+          nombre: Casa Rodríguez
+          potenciaContratadaKW: 3.7
+          tarifa:
+            punta: { desde: "17:00", hasta: "23:00", dias: HABILES }
+        habitaciones:
+          - id: room1
+            nombre: Living
+            temperaturaEsperada: 21.5
+            potenciaKW: 1.2
+            idTermostato: ht-sim-room1
+            topicTermostato: ht-sim-room1/status/temperature:0
+            idSwitch: sw-sim-room1
+            urlSwitch: http://iiss-simulator:9090
+          - id: room2
+            nombre: Dormitorio principal
+            temperaturaEsperada: 20.0
+            potenciaKW: 0.8
+            idTermostato: ht-sim-room2
+            topicTermostato: ht-sim-room2/status/temperature:0
+            idSwitch: sw-sim-room2
+            urlSwitch: http://iiss-simulator:9090
+
+  schemas:
+
+    Inventario:
+      type: object
+      description: |
+        Documento completo del sitio (§1) — el mismo que el controlador recibe por `PUT /sitio` y
+        devuelve por `GET /sitio`.
+
+        **Reglas de consistencia** que no se pueden expresar en JSON Schema: `id`, `idTermostato` e
+        `idSwitch` únicos en el sitio, y `desde` < `hasta` en la franja de punta.
+
+        La suma de `potenciaKW` **puede** superar la potencia contratada: es la situación que el
+        controlador tiene que administrar encendiendo por turnos.
+      required: [schemaVersion, sitio, habitaciones]
+      properties:
+        schemaVersion:
+          type: string
+          pattern: '^2\.\d+$'
+          description: Un consumidor debe **rechazar un major distinto**.
+          example: "2.0"
+        sitio: { $ref: "#/components/schemas/Sitio" }
+        habitaciones:
+          type: array
+          items: { $ref: "#/components/schemas/Habitacion" }
+
+    Sitio:
+      type: object
+      required: [id, nombre, potenciaContratadaKW, tarifa]
+      properties:
+        id: { type: string, minLength: 1, example: casa-rodriguez }
+        nombre: { type: string, minLength: 1, example: Casa Rodríguez }
+        potenciaContratadaKW:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: |
+            **Potencia** contratada, en **kW** — no energía. Es el tope instantáneo: si la suma de
+            lo encendido lo supera, salta la llave.
+          example: 3.7
+        tarifa: { $ref: "#/components/schemas/Tarifa" }
+
+    Tarifa:
+      type: object
+      description: "Doble horario: se declara solo la punta, todo el resto del tiempo es llana."
+      required: [punta]
+      properties:
+        punta: { $ref: "#/components/schemas/Franja" }
+
+    Franja:
+      type: object
+      description: |
+        Franja en **hora local**, 24 h, semiabierta `[desde, hasta)`. No cruza la medianoche.
+      required: [desde, hasta, dias]
+      properties:
+        desde:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: "17:00"
+        hasta:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: "23:00"
+        dias:
+          type: string
+          enum: [HABILES, TODOS]
+          description: "`HABILES` = lunes a viernes."
+
+    Habitacion:
+      type: object
+      description: |
+        Un termostato, un switch, una potencia. **No** lleva histéresis: cuándo encender y cuándo
+        apagar es decisión del controlador.
+      required:
+        [id, nombre, temperaturaEsperada, potenciaKW, idTermostato, topicTermostato, idSwitch, urlSwitch]
+      properties:
+        id: { type: string, minLength: 1, example: room1 }
+        nombre: { type: string, minLength: 1, maxLength: 50, example: Living }
+        temperaturaEsperada:
+          type: number
+          format: double
+          description: Celsius, 1 decimal. Es la temperatura del **ambiente**.
+          example: 21.5
+        potenciaKW:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: Lo que consume mientras su switch está en `ON`.
+          example: 1.2
+        idTermostato: { type: string, minLength: 1, example: ht-sim-room1 }
+        topicTermostato:
+          type: string
+          minLength: 1
+          description: |
+            Topic MQTT donde ese termostato publica (§2). Por convención
+            `<idTermostato>/status/temperature:<indiceSensor>`, pero el topic declarado es el que
+            vale.
+          example: ht-sim-room1/status/temperature:0
+        idSwitch: { type: string, minLength: 1, example: sw-sim-room1 }
+        urlSwitch:
+          type: string
+          format: uri
+          description: Base URL donde se alcanza ese switch. Varias habitaciones pueden compartirla.
+          example: http://iiss-simulator:9090
+
+    ComandoSwitch:
+      type: object
+      description: |
+        Único campo del cuerpo. Otro valor → `400`.
+
+        Los valores van **entre comillas** a propósito: en YAML 1.1 —el que usan PyYAML y
+        SnakeYAML— `ON` y `OFF` sin comillas son los booleanos `true` y `false`, y el enum quedaría
+        describiendo un campo booleano. YAML 1.2 no hace esa conversión, así que el error solo
+        aparece en algunas toolchains.
+      required: [accion]
+      properties:
+        accion:
+          type: string
+          enum: ["ON", "OFF"]
+
+    EstadoSwitch:
+      type: string
+      enum: ["ON", "OFF", DESCONOCIDO]
+      description: |
+        `DESCONOCIDO` mientras nadie lo accionó desde que arrancó. No es un error: un switch real no
+        sabe en qué posición está el relé hasta que alguien lo mueve, y un controlador que asuma
+        `OFF` arranca con una creencia que no verificó.
+
+    RespuestaComando:
+      type: object
+      required: [idSwitch, estado, cambio, aplicadoEn]
+      properties:
+        idSwitch: { type: string, example: sw-sim-room1 }
+        estado: { $ref: "#/components/schemas/EstadoSwitch" }
+        cambio:
+          type: boolean
+          description: "`false` ⇒ ya estaba en ese estado."
+        aplicadoEn:
+          type: string
+          format: date-time
+          example: "2026-10-01T09:15:03.120Z"
+
+    RespuestaEstado:
+      type: object
+      required: [idSwitch, estado, actualizadoEn]
+      properties:
+        idSwitch: { type: string, example: sw-sim-room1 }
+        estado: { $ref: "#/components/schemas/EstadoSwitch" }
+        actualizadoEn:
+          type: string
+          format: date-time
+          nullable: true
+          description: "`null` si el estado es `DESCONOCIDO`: no hubo accionamiento que fechar."
+          example: "2026-10-01T09:15:03.120Z"
+
+    AltaControlador:
+      type: object
+      required: [etiqueta, baseUrl, apiKey]
+      properties:
+        etiqueta:
+          type: string
+          minLength: 1
+          description: |
+            Identifica al controlador lógico. **Estable entre reinicios**: es la clave del registro.
+          example: control-casa-rodriguez
+        baseUrl:
+          type: string
+          format: uri
+          description: Dónde alcanzar el API del controlador (§5).
+          example: http://control-casa:8080
+        apiKey:
+          type: string
+          minLength: 1
+          description: La credencial que **el entorno debe enviar** al llamar al controlador.
+          example: la-clave-que-exige-mi-api
+
+    Controlador:
+      type: object
+      description: El registro, sin la credencial que declaró.
+      required: [id, etiqueta, baseUrl, registradoEn]
+      properties:
+        id:
+          type: string
+          description: Es la etiqueta — el registro es idempotente por etiqueta.
+          example: control-casa-rodriguez
+        etiqueta: { type: string, example: control-casa-rodriguez }
+        baseUrl: { type: string, format: uri, example: http://control-casa:8080 }
+        registradoEn:
+          type: string
+          format: date-time
+          example: "2026-10-01T09:14:58.000Z"
+        mqtt:
+          allOf:
+            - $ref: "#/components/schemas/Mqtt"
+          description: |
+            Solo en la respuesta del alta: el broker al que conectarse. La lista no lo repite.
+
+    Mqtt:
+      type: object
+      required: [host, puerto]
+      properties:
+        host: { type: string, example: mosquitto }
+        puerto: { type: integer, example: 1883 }
+
+    Error:
+      type: object
+      description: Cuerpo de error uniforme de las convenciones transversales.
+      required: [timestamp, status, mensaje]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-01T09:15:03.120Z"
+        status: { type: integer, example: 404 }
+        mensaje: { type: string, example: no existe el switch sw-sim-room9 }
+        errores:
+          type: array
+          nullable: true
+          description: El detalle cuando hay varios; `null` cuando el mensaje se explica solo.
+          items: { type: string }

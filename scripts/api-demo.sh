@@ -1,74 +1,57 @@
 #!/bin/bash
-# Ejemplo de uso completo del API de habitaciones (Iteracion 3), via curl,
-# incluida la credencial de autenticacion (header X-API-KEY).
+# Recorre el API del controlador (estándar v2, §5) con curl, incluida la
+# credencial (header X-API-Key). Requiere el controlador levantado.
 #
-# Requiere que el sistema este levantado: ./scripts/up.sh
-#
-# La API_KEY tiene que ser la misma que la de docker/docker-compose.yml
-# (variable de entorno API_KEY del servicio "api"). Si se la cambia ahi,
-# hay que pasarla aca como argumento: ./scripts/api-demo.sh otra-clave
+# Uso: ./scripts/api-demo.sh [api-key] [url]
+# La API key tiene que ser la del controlador (API_KEY en docker-compose.yml).
 set -euo pipefail
 
-API_URL="http://localhost:8080"
 API_KEY=${1:-"ecowarm-grupo4-2026"}
-AUTH_HEADER="X-API-KEY: $API_KEY"
+API_URL=${2:-"http://localhost:8080"}
+AUTH="X-API-Key: $API_KEY"
 JSON="Content-Type: application/json"
-
-# Sufijo unico por corrida: para que el script se pueda ejecutar las veces
-# que haga falta sin chocar con el UNIQUE de nombre/idTermostato/idSwitch
-# si una corrida anterior no llego a borrar la habitacion de prueba.
-SUFIJO=$(date +%s)
-NOMBRE="altillo-demo-$SUFIJO"
-ID_TERMOSTATO="shellyhtg3-demo-$SUFIJO"
-ID_SWITCH="shellypro1pm-demo-$SUFIJO"
 
 separador() { echo; echo "----- $1 -----"; }
 
-separador "POST /habitaciones (crear)"
-HTTP_STATUS=$(curl -s -o /tmp/api-demo-resp.json -w "%{http_code}" -X POST "$API_URL/habitaciones" -H "$AUTH_HEADER" -H "$JSON" -d "{\"nombre\":\"$NOMBRE\",\"idTermostato\":\"$ID_TERMOSTATO\",\"idSwitch\":\"$ID_SWITCH\",\"temperaturaEsperada\":22.5}")
-RESPUESTA=$(cat /tmp/api-demo-resp.json)
-echo "$RESPUESTA"
-if [ "$HTTP_STATUS" != "201" ]; then
-    echo "No se pudo crear la habitacion de prueba (status $HTTP_STATUS). Abortando."
-    exit 1
-fi
-ID=$(echo "$RESPUESTA" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
-echo "id creado: $ID"
-
-separador "GET /habitaciones (listar)"
-curl -s "$API_URL/habitaciones" -H "$AUTH_HEADER"
+separador "PUT /sitio (carga el inventario de ejemplo del §1)"
+curl -s -X PUT "$API_URL/sitio" -H "$AUTH" -H "$JSON" -d '{
+  "schemaVersion": "2.0",
+  "sitio": { "id": "casa-rodriguez", "nombre": "Casa Rodríguez", "potenciaContratadaKW": 3.7,
+             "tarifa": { "punta": { "desde": "17:00", "hasta": "23:00", "dias": "HABILES" } } },
+  "habitaciones": [
+    { "id": "room1", "nombre": "Living", "temperaturaEsperada": 21.5, "potenciaKW": 1.2,
+      "idTermostato": "ht-sim-room1", "topicTermostato": "ht-sim-room1/status/temperature:0",
+      "idSwitch": "sw-sim-room1", "urlSwitch": "http://localhost:9090" },
+    { "id": "room2", "nombre": "Dormitorio principal", "temperaturaEsperada": 20.0, "potenciaKW": 0.8,
+      "idTermostato": "ht-sim-room2", "topicTermostato": "ht-sim-room2/status/temperature:0",
+      "idSwitch": "sw-sim-room2", "urlSwitch": "http://localhost:9090" } ] }'
 echo
 
-separador "GET /habitaciones/$ID (consultar por id)"
-curl -s "$API_URL/habitaciones/$ID" -H "$AUTH_HEADER"
+separador "GET /sitio (lo persistido y en uso)"
+curl -s "$API_URL/sitio" -H "$AUTH"; echo
+
+separador "PUT /sitio inválido (idSwitch duplicado) -> 400 y queda el anterior"
+curl -s -X PUT "$API_URL/sitio" -H "$AUTH" -H "$JSON" -d '{"schemaVersion":"2.0","sitio":{"id":"x","nombre":"x","potenciaContratadaKW":1,"tarifa":{"punta":{"desde":"17:00","hasta":"23:00","dias":"HABILES"}}},"habitaciones":[{"id":"a","nombre":"a","temperaturaEsperada":20,"potenciaKW":1,"idTermostato":"t1","topicTermostato":"t1/x","idSwitch":"s","urlSwitch":"http://h"},{"id":"b","nombre":"b","temperaturaEsperada":20,"potenciaKW":1,"idTermostato":"t2","topicTermostato":"t2/x","idSwitch":"s","urlSwitch":"http://h"}]}'
 echo
 
-separador "PATCH /habitaciones/$ID (modificacion parcial)"
-curl -s -X PATCH "$API_URL/habitaciones/$ID" -H "$AUTH_HEADER" -H "$JSON" -d '{"temperaturaEsperada":23.0}'
+separador "GET /control"
+curl -s "$API_URL/control" -H "$AUTH"; echo
+
+separador "POST /control/comandos INICIAR (acelerado x10)"
+curl -s -X POST "$API_URL/control/comandos" -H "$AUTH" -H "$JSON" \
+     -d "{\"accion\":\"INICIAR\",\"fechaHora\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",\"factorTiempo\":10}"
 echo
 
-separador "POST /habitaciones/$ID/switch (accionar switch a mano)"
-curl -s -X POST "$API_URL/habitaciones/$ID/switch" -H "$AUTH_HEADER" -H "$JSON" -d '{"accion":"ON"}'
+separador "GET /diagnostico (decisión y motivo por habitación; fuera del estándar)"
+sleep 2
+curl -s "$API_URL/diagnostico" -H "$AUTH"; echo
+
+separador "GET /habitaciones (ABM sobre el inventario; fuera del estándar)"
+curl -s "$API_URL/habitaciones" -H "$AUTH"; echo
+
+separador "POST /control/comandos DETENER"
+curl -s -X POST "$API_URL/control/comandos" -H "$AUTH" -H "$JSON" -d '{"accion":"DETENER"}'
 echo
 
-separador "GET /habitaciones/validar (comando: validar consistencia)"
-curl -s "$API_URL/habitaciones/validar" -H "$AUTH_HEADER"
-echo
-
-separador "POST /controlador/iniciar"
-curl -s -X POST "$API_URL/controlador/iniciar" -H "$AUTH_HEADER"
-echo
-
-separador "GET /controlador/estado"
-curl -s "$API_URL/controlador/estado" -H "$AUTH_HEADER"
-echo
-
-separador "POST /controlador/parar"
-curl -s -X POST "$API_URL/controlador/parar" -H "$AUTH_HEADER"
-echo
-
-separador "DELETE /habitaciones/$ID (eliminar)"
-curl -s -o /dev/null -w "status: %{http_code}\n" -X DELETE "$API_URL/habitaciones/$ID" -H "$AUTH_HEADER"
-
-separador "Sin credencial (para mostrar que la autenticacion esta aplicada) -> 401 esperado"
-curl -s -o /dev/null -w "status: %{http_code}\n" "$API_URL/habitaciones"
+separador "Sin credencial -> 401 esperado"
+curl -s -o /dev/null -w "status: %{http_code}\n" "$API_URL/control"
