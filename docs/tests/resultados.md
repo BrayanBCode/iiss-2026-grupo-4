@@ -13,14 +13,15 @@ conjunto se considera adecuado está en [`criterio-tests.md`](criterio-tests.md)
 Los reportes detallados quedan en `modules/<módulo>/target/surefire-reports/` y el de cobertura
 del core en `modules/core/target/site/jacoco/index.html`.
 
-## Última ejecución — 2026-10-13
+## Última ejecución — 2026-10-14
 
-**Resultado: BUILD SUCCESS — 136 tests, 0 fallas, 0 errores, 0 omitidos.**
+**Resultado: BUILD SUCCESS — 172 tests, 0 fallas, 0 errores, 0 omitidos.**
 
-### Módulo `core` (TDD de la función de decisión) — 81 tests
+### Módulo `core` (TDD de la función de decisión) — 116 tests
 
 | Clase de test | Grupo | Tests | Fallas |
 |---|---|---|---|
+| `DecidirTest` | función `decidir` por situación: una habitación, reparto de potencia, criterio, histéresis, tarifa punta, lecturas vencidas, tope | 35 | 0 |
 | `CoreTest` | 1. Decisión básica | 8 | 0 |
 | `CoreTest` | 2. Tarifa punta: cortar y restituir | 10 | 0 |
 | `CoreTest` | 3. Nunca superar el consumo máximo | 7 | 0 |
@@ -34,27 +35,27 @@ del core en `modules/core/target/site/jacoco/index.html`.
 | `MayorDeficitPrimeroTest` | criterio de prioridad | 9 | 0 |
 | `CoreClientTest` | fachada del core | 6 | 0 |
 | `ModeloTest` | validaciones del modelo | 3 | 0 |
-| **Total** | | **81** | **0** |
+| **Total** | | **116** | **0** |
 
 Cobertura (JaCoCo) del módulo `core`:
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 218 | 220 | 99 % |
-| Ramas | 116 | 128 | 91 % |
+| Líneas | 226 | 227 | 99 % |
+| Ramas | 118 | 130 | 91 % |
 
-### Módulo `engine` (integración) — 55 tests
+### Módulo `engine` (integración) — 56 tests
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos | 20 | 0 |
+| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos | 21 | 0 |
 | `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM) | 13 | 0 |
 | `ValidadorInventarioTest` | reglas de consistencia del §1 | 9 | 0 |
 | `RepositorioInventarioTest` | persistencia del inventario | 4 | 0 |
 | `RelojControlTest` | reloj del control con aceleración (§5.2) | 4 | 0 |
 | `PayloadTermostatoTest` | mensaje MQTT del termostato (§2) | 3 | 0 |
 | `RegistroEntornoTest` | broker informado por el registro (§6) | 2 | 0 |
-| **Total** | | **55** | **0** |
+| **Total** | | **56** | **0** |
 
 ## Mensajes `ERROR` / `WARN` esperados en el log
 

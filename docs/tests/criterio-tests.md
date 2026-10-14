@@ -6,13 +6,23 @@ cómo se construyó con TDD y cómo se ejecuta. Los tests están en
 
 ## 1. Qué se prueba
 
-El objeto bajo prueba es la **función de decisión del core** (`Core.procesar(Estimulo) → List<Decision>`):
-dada una situación inicial (configuración + lecturas previas + hora del control) y un estímulo
-(`NuevaLectura`, `Tick`, `ConfiguracionActualizada`, `Sincronizacion`), qué habitaciones reciben
-energía y **por qué** (cada `Decision` lleva un `Motivo`).
+El objeto bajo prueba es la **función de decisión del core**, `Core.decidir(sitio, habitaciones,
+estados, ahora, factorTiempo) → List<Decision>`: dada una situación (potencia contratada, franja
+punta, hora del control y, por cada habitación, su temperatura esperada, su potencia, su última
+temperatura, cuándo se midió y si está encendida), qué habitaciones reciben energía y **por qué**
+(cada `Decision` lleva un `Motivo`).
 
-El core es Java puro y determinista (no lee reloj del sistema, red ni azar): cada test arma la
-situación con estímulos, aplica uno más y verifica la decisión. Sin mocks.
+`decidir` es pública y recibe por parámetro todo lo que usa: no depende de lo que el core haya
+procesado antes. Por eso hay dos niveles de tests, todos sin mocks:
+
+- **`DecidirTest`**: llama a `decidir` directamente con una situación completa y verifica cuáles
+  prenden. Ejemplo: *"5 habitaciones con déficit de 1 kW cada una y 3 kW contratados → prenden las
+  3 de mayor déficit"*, *"la encendida con déficit 3.0 conserva la energía ante otra con 3.3"*,
+  *"lunes 18:00, 3 con déficit → ninguna prende, tarifa punta"*.
+- **`CoreTest`**: arma la situación con estímulos (`NuevaLectura`, `Tick`,
+  `ConfiguracionActualizada`, `Sincronizacion`) a través de `Core.procesar`, que actualiza el
+  estado y llama a `decidir`. Cubre lo que no es la decisión en sí: lecturas descartadas, reloj,
+  configuración atómica y secuencias largas.
 
 ## 2. Criterio de adecuación
 
@@ -23,6 +33,10 @@ se cumplen; los cuatro se cumplen hoy.
 
 Cada característica que pide la letra para el core, y cada regla del estándar v2 que afecta la
 decisión, tiene al menos un test que la verifica en positivo **y** uno en negativo.
+
+Los grupos de `CoreTest` de la tabla tienen su contraparte por situación en `DecidirTest`
+(`UnaHabitacion`, `TarifaPunta`, `RepartoDePotencia`, `TopeDePotencia`, `Criterio`, `Histeresis`,
+`LecturasVencidas`).
 
 | Requisito (letra / estándar) | Grupo en `CoreTest` | Ejemplos de casos |
 |---|---|---|
@@ -74,8 +88,8 @@ entorno defectuoso sin decidir mal. Cada escenario tiene su grupo de tests:
 
   | Métrica | Cubierto | Total | % |
   |---|---|---|---|
-  | Líneas | 218 | 220 | 99 % |
-  | Ramas | 116 | 128 | 91 % |
+  | Líneas | 226 | 227 | 99 % |
+  | Ramas | 118 | 130 | 91 % |
 
   Las ramas sin cubrir son comprobaciones defensivas (p. ej. `null` en campos que el engine nunca
   envía, combinaciones `NaN`/`∞` ya cubiertas por otra rama de la misma condición). El umbral que
@@ -114,7 +128,7 @@ El engine tiene sus propios tests (no son TDD del core, pero dan confianza en la
 
 | Clase de test | Qué verifica |
 |---|---|
-| `CoreAdapterTest` (20) | traducción decisión → comando, no repetir comandos, consulta §4 al habilitar, reconciliación (switch reiniciado o movido a mano), switch caído no bloquea a los demás, espera entre reintentos |
+| `CoreAdapterTest` (21) | traducción decisión → comando, no repetir comandos, consulta §4 al habilitar, reconciliación (switch reiniciado o movido a mano), switch caído no bloquea a los demás, espera entre reintentos |
 | `ApiEstandarTest` (13) | contexto Spring completo: §5.1 (persistencia, GET no es eco, atómico, en caliente), §5.2 (estados, INICIAR/DETENER, todos los 400), 401, ABM |
 | `ValidadorInventarioTest` (9) | reglas de consistencia del §1 |
 | `RepositorioInventarioTest` (4) | persistencia sobrevive al reinicio, archivo corrupto, escritura atómica |
@@ -127,12 +141,12 @@ El engine tiene sus propios tests (no son TDD del core, pero dan confianza en la
 ./scripts/test.sh           # todos los módulos
 ```
 
-Resultado de la última ejecución (2026-10-13):
+Resultado de la última ejecución (2026-10-14):
 
 | Módulo | Tests | Fallas | Errores |
 |---|---|---|---|
-| core | 81 | 0 | 0 |
-| engine | 55 | 0 | 0 |
+| core | 116 | 0 | 0 |
+| engine | 56 | 0 | 0 |
 
 Los reportes quedan en `modules/*/target/surefire-reports/`. El detalle por clase de test está en
 [`resultados.md`](resultados.md).

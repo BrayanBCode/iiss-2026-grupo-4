@@ -62,7 +62,7 @@ classDiagram
       -double factorTiempo
       +procesar(Estimulo) List~Decision~
       +estadoDe(id) EstadoHabitacion
-      -decidir() List~Decision~
+      +decidir(Sitio, List~ConfiguracionHabitacion~, Map~String,EstadoHabitacion~, Instant, double) List~Decision~
     }
     class Estimulo {
       <<sealed interface>>

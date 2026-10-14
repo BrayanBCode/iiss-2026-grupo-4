@@ -217,8 +217,8 @@ Recorrido completo con curl: `./scripts/api-demo.sh [api-key] [url]`.
 
 | Módulo | Tests | Qué cubren |
 |---|---|---|
-| core | 81 | Función de decisión, en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Cobertura JaCoCo: 99 % líneas, 91 % ramas. |
-| engine | 55 | `CoreAdapter` (switches falsos con memoria, reconciliación, fallas), API completa con contexto Spring (`ApiEstandarTest`), validación y persistencia del inventario, reloj acelerado, payload MQTT, registro. |
+| core | 116 | `DecidirTest` (35): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"). `CoreTest` (63), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Cobertura JaCoCo: 99 % líneas, 91 % ramas. |
+| engine | 56 | `CoreAdapter` (switches falsos con memoria, reconciliación, fallas), API completa con contexto Spring (`ApiEstandarTest`), validación y persistencia del inventario, reloj acelerado, payload MQTT, registro. |
 
 El criterio por el que el conjunto se considera adecuado está en
 [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md).

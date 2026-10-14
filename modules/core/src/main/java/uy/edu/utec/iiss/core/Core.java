@@ -31,7 +31,10 @@ import java.util.Set;
  * NO es seguro para varios hilos: quien lo integra (el engine) serializa las
  * llamadas.
  *
- * La función de decisión ({@link #decidir()}) se arma en tres pasos:
+ * La función de decisión ({@link #decidir}) es pública y recibe por parámetro
+ * toda la situación (sitio, habitaciones, estado de cada una, hora): no depende
+ * de lo que el core haya procesado antes. {@link #procesar} actualiza el estado
+ * con el estímulo y después le pasa la situación resultante. Se arma en tres pasos:
  * <ol>
  *   <li><b>Necesidad</b> de cada habitación: sin lectura, lectura vencida,
  *       satisfecha (con histéresis), excede la contratada, o con déficit.</li>
@@ -80,7 +83,7 @@ public class Core {
             case Estimulo.ConfiguracionActualizada c -> configurar(c);
             case Estimulo.Sincronizacion s -> sincronizar(s);
         }
-        return decidir();
+        return decidirConEstadoActual();
     }
 
     // ------------------------------------------------------------------
@@ -162,20 +165,54 @@ public class Core {
     // Función de decisión
     // ------------------------------------------------------------------
 
-    private List<Decision> decidir() {
+    /** Arma la situación actual con el estado interno, decide, y recuerda cuáles quedaron encendidas. */
+    private List<Decision> decidirConEstadoActual() {
         if (sitio == null) {
             return List.of();
         }
-        Map<String, EstadoHabitacion> estadoPrevio = new HashMap<>();
+        Map<String, EstadoHabitacion> estados = new HashMap<>();
         for (String id : habitaciones.keySet()) {
-            estadoPrevio.put(id, estadoDe(id));
+            estados.put(id, estadoDe(id));
         }
+        List<Decision> decisiones = decidir(sitio, List.copyOf(habitaciones.values()), estados, ahora, factorTiempo);
+        encendidas.clear();
+        for (Decision d : decisiones) {
+            if (d.accion() == Accion.ON) {
+                encendidas.add(d.idHabitacion());
+            }
+        }
+        return decisiones;
+    }
+
+    /**
+     * La función de decisión: dada una situación, qué habitaciones reciben
+     * energía y por qué. Todo lo que usa llega por parámetro (además del
+     * criterio y los parámetros de control, fijos desde el constructor): no lee
+     * ni modifica el estado del core, así que la misma situación da siempre
+     * las mismas decisiones.
+     *
+     * @param sitio        potencia contratada, franja punta y zona horaria
+     * @param habitaciones configuración de cada habitación; las decisiones salen en este orden
+     * @param estados      situación de cada habitación por id: última temperatura, cuándo se
+     *                     midió y si está encendida ahora. Una habitación sin entrada (o con
+     *                     temperatura null) se toma como sin lectura y apagada
+     * @param ahora        hora del control (null = todavía no se conoce: no hay punta ni vencimientos)
+     * @param factorTiempo aceleración vigente (escala la vigencia de las lecturas)
+     * @return una decisión por habitación, en el orden de {@code habitaciones}
+     */
+    public List<Decision> decidir(Sitio sitio, List<ConfiguracionHabitacion> habitaciones,
+                                  Map<String, EstadoHabitacion> estados, Instant ahora, double factorTiempo) {
+        Objects.requireNonNull(sitio, "sitio");
+        Objects.requireNonNull(habitaciones, "habitaciones");
+        Objects.requireNonNull(estados, "estados");
 
         // 1. Necesidad de cada habitación
-        Map<String, Motivo> motivos = new LinkedHashMap<>();
+        Map<String, Motivo> motivos = new HashMap<>();
+        Map<String, Double> potencias = new HashMap<>();
         List<ConfiguracionHabitacion> conDeficit = new ArrayList<>();
-        for (ConfiguracionHabitacion h : habitaciones.values()) {
-            Motivo sinDeficit = motivoSinDeficit(h);
+        for (ConfiguracionHabitacion h : habitaciones) {
+            potencias.put(h.id(), h.potenciaKW());
+            Motivo sinDeficit = motivoSinDeficit(h, estados.get(h.id()), sitio, ahora, factorTiempo);
             if (sinDeficit != null) {
                 motivos.put(h.id(), sinDeficit);
             } else {
@@ -184,12 +221,12 @@ public class Core {
         }
 
         // 2. Tarifa  /  3. Reparto de la potencia contratada
-        if (enPunta()) {
+        if (enPunta(sitio, ahora)) {
             conDeficit.forEach(h -> motivos.put(h.id(), Motivo.TARIFA_PUNTA));
         } else {
             double usada = 0;
-            for (String id : criterioPrioridad.ordenarCandidatas(conDeficit, estadoPrevio)) {
-                double potencia = habitaciones.get(id).potenciaKW();
+            for (String id : criterioPrioridad.ordenarCandidatas(conDeficit, estados)) {
+                double potencia = potencias.get(id);
                 if (usada + potencia <= sitio.potenciaContratadaKW() + EPS) {
                     usada += potencia;
                     motivos.put(id, Motivo.CALEFACCIONANDO);
@@ -199,33 +236,28 @@ public class Core {
             }
         }
 
-        encendidas.clear();
         List<Decision> decisiones = new ArrayList<>(habitaciones.size());
-        for (String id : habitaciones.keySet()) {
-            Motivo motivo = motivos.get(id);
-            boolean on = motivo == Motivo.CALEFACCIONANDO;
-            if (on) {
-                encendidas.add(id);
-            }
-            decisiones.add(new Decision(id, on ? Accion.ON : Accion.OFF, motivo));
+        for (ConfiguracionHabitacion h : habitaciones) {
+            Motivo motivo = motivos.get(h.id());
+            decisiones.add(new Decision(h.id(), motivo == Motivo.CALEFACCIONANDO ? Accion.ON : Accion.OFF, motivo));
         }
         return decisiones;
     }
 
     /** Por qué la habitación NO necesita energía, o null si tiene déficit y podría recibirla. */
-    private Motivo motivoSinDeficit(ConfiguracionHabitacion h) {
-        Double t = temperaturas.get(h.id());
-        if (t == null) {
+    private Motivo motivoSinDeficit(ConfiguracionHabitacion h, EstadoHabitacion e, Sitio sitio,
+                                    Instant ahora, double factorTiempo) {
+        if (e == null || e.temperaturaActual() == null) {
             return Motivo.SIN_LECTURA;
         }
-        if (vencida(instanteLectura.get(h.id()))) {
+        if (vencida(e.ultimaLectura(), ahora, factorTiempo)) {
             return Motivo.LECTURA_VENCIDA;
         }
         // Histéresis: encendida sigue hasta la esperada; apagada arranca recién debajo de la banda.
-        double umbral = encendidas.contains(h.id())
+        double umbral = e.encendida()
                 ? h.temperaturaEsperada()
                 : h.temperaturaEsperada() - parametros.histeresisC();
-        if (t >= umbral) {
+        if (e.temperaturaActual() >= umbral) {
             return Motivo.SATISFECHA;
         }
         if (h.potenciaKW() > sitio.potenciaContratadaKW() + EPS) {
@@ -234,7 +266,7 @@ public class Core {
         return null;
     }
 
-    private boolean vencida(Instant instante) {
+    private boolean vencida(Instant instante, Instant ahora, double factorTiempo) {
         if (ahora == null || instante == null) {
             return false;
         }
@@ -242,7 +274,7 @@ public class Core {
         return Duration.between(instante, ahora).toMillis() > vigenciaMs;
     }
 
-    private boolean enPunta() {
+    private static boolean enPunta(Sitio sitio, Instant ahora) {
         if (ahora == null) {
             return false;
         }
