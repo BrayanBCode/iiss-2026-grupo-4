@@ -6,7 +6,7 @@ revisiones: lo aplica una herramienta.
 
 ## Herramienta: Spotless + google-java-format
 
-Configurado en el [`pom.xml`](../pom.xml) padre, vale para `core` y `engine`:
+Configurado en el [`pom.xml`](../../pom.xml) padre, vale para `core` y `engine`:
 
 - `google-java-format` 1.36.1 (la misma versión que trae el plugin de IntelliJ), estilo `AOSP`, con `reflowLongStrings` (parte los strings largos).
 - `removeUnusedImports`: borra los imports que no se usan.

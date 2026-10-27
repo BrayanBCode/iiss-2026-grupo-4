@@ -1,15 +1,17 @@
 # Arquitectura del controlador EcoWarm — modelo 4+1
 
 Se documenta en forma incremental con la técnica 4+1 de Kruchten. En la **Iteración 4** se
-presentan la **vista lógica** y los **diagramas de secuencia** del manejo de eventos; las vistas
-de procesos, desarrollo y física, y los escenarios completos se agregan en las iteraciones 5 y 6.
+presentaron la **vista lógica** y los **diagramas de secuencia** del manejo de eventos. En la
+**Iteración 5** se completa la **vista de procesos** con el manejo de fallas, se agregan los
+escenarios de falla (§2.5 y §2.6) y se actualiza la vista de desarrollo con los tests de
+integración. La vista física queda para la iteración 6.
 
 | Vista | Estado | Dónde |
 |---|---|---|
-| Lógica | ✅ Iteración 4 | §1 |
-| Escenarios (+1) — secuencias de eventos | ✅ Iteración 4 (parcial) | §2 |
-| Procesos | ⏳ Iteración 5 (adelanto en §3) | §3 |
-| Desarrollo | ⏳ Iteración 5–6 (adelanto en §4) | §4 |
+| Lógica | ✅ Iteración 4, actualizada en la 5 | §1 |
+| Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 | §2 |
+| Procesos | ✅ Iteración 5 | §3 |
+| Desarrollo | ✅ Iteración 5 (se completa en la 6) | §4 |
 | Física | ⏳ Iteración 6 | — |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
@@ -256,6 +258,9 @@ classDiagram
     }
 
     class CoreAdapter {
+      deseado / estadoConocido
+      potenciaContratadaKW
+      retenidas
       +configurar()
       +alLlegarLectura()
       +alTick()
@@ -263,6 +268,8 @@ classDiagram
       +habilitar()
       +deshabilitar()
       +reconciliar()
+      pasada() «OFF antes que ON»
+      excederiaLaContratada()
     }
     class ClienteSwitch {
       <<interface>>
@@ -274,6 +281,7 @@ classDiagram
     class LecturaMqttListener {
       +conectar(broker)
       suscribe topicTermostato
+      reconexión ≤ 5 s
     }
     class PayloadTermostato {
       tC
@@ -320,6 +328,10 @@ Decisiones de diseño relevantes:
   ABM de habitaciones opera sobre el mismo inventario.
 - **Desacople por evento** (`InventarioAplicado`): el inventario no conoce a quién le interesa; el
   control y el listener MQTT lo adoptan en caliente.
+- **La potencia contratada se cuida también en la red** (Iteración 5). El core nunca decide más
+  de la contratada, pero los comandos pueden fallar. Por eso en cada pasada el adaptador manda
+  primero los OFF y después los ON, y retiene un ON si, contando como encendida toda habitación
+  cuyo switch no confirmó OFF, se superaría la contratada (ver §2.5).
 
 ---
 
@@ -461,15 +473,71 @@ sequenceDiagram
     end
 ```
 
+### 2.5 Falla el OFF que liberaba potencia (Iteración 5)
+
+Dos habitaciones de 1 kW con 1 kW contratado: el core pasa la energía de `dorm` a `living`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Core as core
+    participant Ad as CoreAdapter (hilo switches)
+    participant SwD as Switch dorm
+    participant SwL as Switch living
+
+    Core-->>Ad: [dorm OFF, living ON]
+    Note over Ad: pasada: primero los OFF
+    Ad->>SwD: POST …/comandos {OFF}
+    SwD--xAd: timeout / error
+    Ad->>Ad: estadoConocido[dorm] = ? (no confirmó OFF)<br/>no reintentar por 5 s
+    Note over Ad: después los ON
+    Ad->>Ad: excederiaLaContratada(living)?<br/>1 kW (living) + 1 kW (dorm sin confirmar) > 1 kW
+    Ad->>Ad: retiene el ON de living (WARN "Se retiene el ON")
+    Note over Ad,SwL: … pasada siguiente (reintento o reconciliación) …
+    Ad->>SwD: POST …/comandos {OFF}
+    SwD-->>Ad: {estado: OFF}
+    Ad->>Ad: libera el ON (INFO "Se libera el ON")
+    Ad->>SwL: POST …/comandos {ON}
+    SwL-->>Ad: {estado: ON}
+```
+
+Lo verifica `FallaSwitchTest`.
+
+### 2.6 El broker MQTT cae y vuelve (Iteración 5)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Broker
+    participant Mq as LecturaMqttListener (Paho)
+    participant Ctl as ControlService
+    participant Ad as CoreAdapter
+
+    B--xMq: connectionLost
+    Mq->>Mq: conectado = false (ERROR en el log)
+    Note over Ctl,Ad: el control sigue EN_EJECUCION: los switches quedan como estaban,<br/>el tick y la reconciliación siguen corriendo
+    loop Paho: reconexión automática, espera máxima 5 s
+        Mq-xB: connect
+    end
+    Note over Ad: si la caída es larga, las lecturas vencen<br/>y el core apaga por LECTURA_VENCIDA
+    B-->>Mq: connectComplete(reconnect = true)
+    Mq->>Mq: sincronizarSuscripciones() en el hilo mqtt-conexion<br/>(sesión limpia: hay que volver a suscribir)
+    Mq->>B: subscribe(topicTermostato…)
+    B->>Mq: lecturas nuevas → el control retoma
+```
+
+Lo verifican `FallaBrokerMqttTest` y `TermostatoCaidoTest`.
+
 ---
 
-## 3. Vista de procesos (adelanto — se completa en la Iteración 5)
+## 3. Vista de procesos (Iteración 5)
 
 | Hilo | Origen | Qué hace |
 |---|---|---|
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
 | Paho callback | broker MQTT | `messageArrived` → `ControlService.alRecibirLectura` |
-| `mqtt-conexion` | propio | conexión, reintentos cada 5 s y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
+| `mqtt-conexion` | propio | primera conexión, reintentos cada 5 s y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
+| Paho reconexión | Paho | reconexión automática tras una caída, con la espera entre intentos acotada a 5 s |
 | `control-temporizador` | propio | tick cada 1 s real y reconciliación cada 15 s |
 | `registro-entorno` | propio | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
@@ -483,12 +551,22 @@ lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pa
 sola pasada siguiente, que usa la decisión vigente en ese momento. Las pasadas son secuenciales: un
 switch lento todavía demora a los demás switches hasta su timeout (la espera entre reintentos lo
 acota).
-**Fallas previstas en el diseño** (endurecimiento y pruebas en It. 5): broker caído al arrancar o
-durante la ejecución (reintento + re-suscripción), entorno que tarda en levantar (reintento del
-registro), switch caído o lento (timeouts cortos, espera entre reintentos, reconciliación),
-termostato muerto (vigencia de lecturas en el core), reinicio del controlador (inventario persistido).
 
-## 4. Vista de desarrollo (adelanto)
+### 3.1 Manejo de fallas
+
+| Falla | Qué hace el controlador | Hilo | Test |
+|---|---|---|---|
+| Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
+| Broker cae durante la ejecución | Paho reconecta (espera ≤ 5 s); al volver se re-suscribe. El control sigue y no toca los switches por la caída | Paho + `mqtt-conexion` | `FallaBrokerMqttTest` |
+| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest` |
+| Termostato deja de publicar | la lectura vence (10 min reales, escalados por `factorTiempo`) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
+| Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
+| Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
+| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de lo deseado y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
+| Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
+| Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
+
+## 4. Vista de desarrollo
 
 ```
 modules/
@@ -505,5 +583,13 @@ modules/
                ├── mqtt/        §2: consumidor de los termostatos
                ├── registro/    §6: registro ante el entorno y arranque
                ├── rest/        controllers, filtro X-API-Key, errores uniformes
-               └── config/      armado del core y del adaptador
+               ├── config/      armado del core y del adaptador
+               └── src/test/…/integracion/
+                                IntegracionBase (contexto Spring + BrokerMqttEmbebido (Moquette)
+                                + SwitchesHttpFalsos), ControlCargaTest, ArranqueParadaTest,
+                                CambioConfiguracionTest, FallaBrokerMqttTest, PerdidaMensajesTest,
+                                FallaSwitchTest, TermostatoCaidoTest
 ```
+
+Formato del código: Spotless con google-java-format (AOSP), configurado en el `pom.xml` padre;
+`mvn verify` falla si algo no cumple (ver [`docs/calidad/`](../calidad/README.md)).

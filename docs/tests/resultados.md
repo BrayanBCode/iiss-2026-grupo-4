@@ -1,21 +1,32 @@
-# Resultados de la ejecución de las pruebas — Iteración 4
+# Resultados de la ejecución de las pruebas — Iteración 5
 
 Entregable "Ejecución de las pruebas unitarias, con sus resultados". El criterio por el que el
-conjunto se considera adecuado está en [`criterio-tests.md`](criterio-tests.md).
+conjunto se considera adecuado está en [`criterio-tests.md`](criterio-tests.md). La cobertura y la
+verificación del estándar de codificación están en [`../calidad/`](../calidad/README.md).
 
 ## Cómo se reproduce
 
 ```bash
 ./scripts/test.sh            # todos los módulos (Docker, Java 25, mvn clean test)
 ./scripts/test.sh core       # solo el core
+mvn verify                   # local: spotless:check + tests + cobertura
 ```
 
 Los reportes detallados quedan en `modules/<módulo>/target/surefire-reports/` y el de cobertura
-del core en `modules/core/target/site/jacoco/index.html`.
+del core en `modules/core/target/site/jacoco/index.html` (copia en
+[`docs/calidad/cobertura/`](../calidad/cobertura/README.md)).
 
-## Última ejecución — 2026-10-14
+## Última ejecución — 2026-10-27 (rama `implementacion5`, Java 25)
 
-**Resultado: BUILD SUCCESS — 172 tests, 0 fallas, 0 errores, 0 omitidos.**
+**Resultado: 215 tests, 214 pasan, 1 falla, 0 errores, 0 omitidos.** El `core` pasa completo;
+en el `engine` falla un test de robustez ante caídas del broker (ver
+[Falla conocida](#falla-conocida)).
+
+| Módulo | Tests | Fallas |
+|---|---|---|
+| `core` | 116 | 0 |
+| `engine` | 99 | 1 |
+| **Total** | **215** | **1** |
 
 ### Módulo `core` (TDD de la función de decisión) — 116 tests
 
@@ -37,25 +48,53 @@ del core en `modules/core/target/site/jacoco/index.html`.
 | `ModeloTest` | validaciones del modelo | 3 | 0 |
 | **Total** | | **116** | **0** |
 
-Cobertura (JaCoCo) del módulo `core`:
+Cobertura (JaCoCo) del módulo `core` — objetivo ≥ 85 % de líneas:
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 226 | 227 | 99 % |
-| Ramas | 118 | 130 | 91 % |
+| Líneas | 237 | 238 | 99,6 % |
+| Ramas | 118 | 130 | 90,8 % |
 
-### Módulo `engine` (integración) — 56 tests
+### Módulo `engine` — 99 tests
+
+Unitarios y de API:
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos | 21 | 0 |
+| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON | 21 | 0 |
 | `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM) | 13 | 0 |
 | `ValidadorInventarioTest` | reglas de consistencia del §1 | 9 | 0 |
 | `RepositorioInventarioTest` | persistencia del inventario | 4 | 0 |
 | `RelojControlTest` | reloj del control con aceleración (§5.2) | 4 | 0 |
 | `PayloadTermostatoTest` | mensaje MQTT del termostato (§2) | 3 | 0 |
 | `RegistroEntornoTest` | broker informado por el registro (§6) | 2 | 0 |
-| **Total** | | **56** | **0** |
+
+De integración (broker MQTT embebido + switches HTTP falsos, nuevos en la iteración 5):
+
+| Clase de test | Qué verifica | Tests | Fallas |
+|---|---|---|---|
+| `ControlCargaTest` | la carga total limita / no limita; nunca se supera la potencia contratada | 6 | 0 |
+| `ArranqueParadaTest` | distintas situaciones iniciales; qué se hace con la calefacción al iniciar y al detener | 11 | 0 |
+| `CambioConfiguracionTest` | cambios de configuración con el control en ejecución | 7 | 0 |
+| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | **1** |
+| `PerdidaMensajesTest` | pérdida de mensajes de los termostatos | 5 | 0 |
+| `FallaSwitchTest` | switch que no responde o falla; sin superar la contratada si falla un OFF | 5 | 0 |
+| `TermostatoCaidoTest` | un termostato deja de publicar | 5 | 0 |
+| **Total engine** | | **99** | **1** |
+
+### Falla conocida
+
+`FallaBrokerMqttTest.caidaLarga_seReconectaEnSegundos`:
+
+```
+AssertionFailedError: el engine no se reconectó ni se re-suscribió en PT5S
+```
+
+El test apaga el broker 8 s y, al levantarlo, exige que el engine esté reconectado y
+re-suscripto en 5 s. La espera máxima entre reintentos de Paho también está acotada a 5 s
+(`mqtt.reconexion-max-segundos`), así que el margen del test es nulo: si el próximo reintento cae
+justo antes de que el broker vuelva, la reconexión llega apenas después de los 5 s. Queda
+registrada para que la revise el responsable de los tests de fallas (Persona 3).
 
 ## Mensajes `ERROR` / `WARN` esperados en el log
 
@@ -68,3 +107,6 @@ aparecen en la salida **no** son fallas de los tests:
 | `No se pudo conectar al broker MQTT en tcp://127.0.0.1:1` | `ApiEstandarTest` (broker inexistente) | el API funciona con MQTT caído y se reintenta cada 5 s |
 | `Switch … está DESCONOCIDO y se creía ON: se corrige` | `CoreAdapterTest` (switch reiniciado / movido a mano) | la reconciliación corrige el estado real |
 | `No se pudo consultar el switch …` | `CoreAdapterTest` (switch caído) | un switch caído no bloquea a los demás |
+| `Conexión perdida con el broker MQTT …` / `No se pudo conectar al broker MQTT en tcp://127.0.0.1:<puerto>` | `FallaBrokerMqttTest` (broker embebido detenido) | el control sigue con los switches como estaban y se reconecta al volver el broker |
+| `Payload inválido en '…', se descarta` | `PerdidaMensajesTest` (mensajes corruptos) | un mensaje inválido no cambia la decisión |
+| `No se pudo enviar OFF a el switch …` + `Se retiene el ON de '…'` | `FallaSwitchTest` (falla un OFF) | no se supera la potencia contratada aunque un switch no confirme el OFF |

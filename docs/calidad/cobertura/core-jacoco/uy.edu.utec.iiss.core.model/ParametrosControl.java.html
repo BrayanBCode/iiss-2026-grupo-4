@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParametrosControl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">core</a> &gt; <a href="index.source.html" class="el_package">uy.edu.utec.iiss.core.model</a> &gt; <span class="el_source">ParametrosControl.java</span></div><h1>ParametrosControl.java</h1><pre class="source lang-java linenums">package uy.edu.utec.iiss.core.model;
+
+import java.time.Duration;
+import java.util.Objects;
+
+/**
+ * Parámetros de la función de decisión que son del controlador, no del inventario.
+ *
+ * @param histeresisC banda (°C) bajo la esperada en la que una habitación apagada no se enciende;
+ *     una encendida sigue hasta la esperada.
+ * @param vigenciaLectura cuánto tiempo real vale una lectura (escalado por el factor de tiempo);
+ *     vencida, la habitación se apaga.
+ * @param temperaturaMinimaValida lecturas por debajo se descartan (sensor roto).
+ * @param temperaturaMaximaValida lecturas por encima se descartan (sensor roto).
+ */
+public record ParametrosControl(
+        double histeresisC,
+        Duration vigenciaLectura,
+        double temperaturaMinimaValida,
+        double temperaturaMaximaValida) {
+
+    /** 0.3 °C de histéresis, 10 min de vigencia, rango físico -40..85 °C (el del Shelly H&amp;T). */
+<span class="fc" id="L23">    public static final ParametrosControl PREDETERMINADOS =</span>
+<span class="fc" id="L24">            new ParametrosControl(0.3, Duration.ofMinutes(10), -40.0, 85.0);</span>
+
+<span class="fc" id="L26">    public ParametrosControl {</span>
+<span class="fc" id="L27">        Objects.requireNonNull(vigenciaLectura, &quot;vigenciaLectura&quot;);</span>
+<span class="pc bpc" id="L28" title="1 of 4 branches missed.">        if (!(histeresisC &gt;= 0) || Double.isInfinite(histeresisC)) {</span>
+<span class="fc" id="L29">            throw new IllegalArgumentException(&quot;histeresisC debe ser &gt;= 0&quot;);</span>
+        }
+<span class="fc bfc" id="L31" title="All 4 branches covered.">        if (vigenciaLectura.isNegative() || vigenciaLectura.isZero()) {</span>
+<span class="fc" id="L32">            throw new IllegalArgumentException(&quot;vigenciaLectura debe ser &gt; 0&quot;);</span>
+        }
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        if (!(temperaturaMinimaValida &lt; temperaturaMaximaValida)) {</span>
+<span class="fc" id="L35">            throw new IllegalArgumentException(&quot;El rango de temperaturas válidas está vacío&quot;);</span>
+        }
+<span class="fc" id="L37">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>
