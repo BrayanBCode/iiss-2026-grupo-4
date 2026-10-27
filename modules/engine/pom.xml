@@ -55,6 +55,21 @@
             <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Broker MQTT embebido para los tests de integración (src/test/.../integracion):
+             se puede levantar y tirar desde el test. reload4j se excluye porque el
+             logging lo da Logback (Spring Boot). -->
+        <dependency>
+            <groupId>io.moquette</groupId>
+            <artifactId>moquette-broker</artifactId>
+            <version>0.17</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>uy.edu.utec.iiss</groupId>
             <artifactId>core</artifactId>

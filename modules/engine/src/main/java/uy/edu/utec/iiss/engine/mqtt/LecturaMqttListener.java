@@ -51,22 +51,12 @@ public class LecturaMqttListener implements MqttCallbackExtended {
 
     private final ControlService controlService;
     private final String clientIdBase;
-<<<<<<< Updated upstream
+    private final int reconexionMaxMs;
     private final ScheduledExecutorService hilo = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "mqtt-conexion");
         t.setDaemon(true);
         return t;
     });
-=======
-    private final int reconexionMaxMs;
-    private final ScheduledExecutorService hilo =
-            Executors.newSingleThreadScheduledExecutor(
-                    r -> {
-                        Thread t = new Thread(r, "mqtt-conexion");
-                        t.setDaemon(true);
-                        return t;
-                    });
->>>>>>> Stashed changes
 
     private final Object candado = new Object();
     private volatile Map<String, String> habitacionPorTopic = Map.of();
@@ -75,15 +65,9 @@ public class LecturaMqttListener implements MqttCallbackExtended {
     private MqttClient client;
     private long generacion;   // invalida reintentos de una conexión anterior al cambiar de broker
 
-<<<<<<< Updated upstream
     public LecturaMqttListener(ControlService controlService,
-                               @Value("${controlador.etiqueta:ecowarm-grupo4}") String etiqueta) {
-=======
-    public LecturaMqttListener(
-            ControlService controlService,
-            @Value("${controlador.etiqueta:ecowarm-grupo4}") String etiqueta,
-            @Value("${mqtt.reconexion-max-segundos:5}") int reconexionMaxSegundos) {
->>>>>>> Stashed changes
+                               @Value("${controlador.etiqueta:ecowarm-grupo4}") String etiqueta,
+                               @Value("${mqtt.reconexion-max-segundos:5}") int reconexionMaxSegundos) {
         this.controlService = controlService;
         this.clientIdBase = etiqueta;
         this.reconexionMaxMs = reconexionMaxSegundos * 1000;

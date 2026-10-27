@@ -30,7 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Adaptador entre el engine y el core: la única clase del engine que habla con
- * el core. Hace cinco cosas:
+ * el core. Hace seis cosas:
  *
  *  1. Traduce lo que llega (lectura, tick, configuración, sincronización) a
  *     llamadas al core. Los instantes ya vienen en el reloj del control.
@@ -45,6 +45,10 @@ import java.util.concurrent.RejectedExecutionException;
  *  5. Tolera switches caídos: un switch que falla no impide comandar a los
  *     demás, y no se le reintenta antes de {@code esperaReintento} (para que un
  *     switch muerto no trabe el lazo con timeouts en cada tick).
+ *  6. Cuida la potencia contratada también en la red: en cada pasada manda
+ *     primero los OFF y después los ON, y retiene un ON si, contando como
+ *     encendida toda habitación cuyo switch no confirmó OFF, la superaría
+ *     (p. ej. falló el OFF que liberaba esa potencia).
  *
  * Mientras está deshabilitado (control DETENIDO, §5.2) el core sigue
  * recibiendo configuración, pero no se comanda ni se consulta ningún switch.
@@ -130,6 +134,7 @@ public class CoreAdapter implements AutoCloseable {
                 .map(h -> new ConfiguracionHabitacion(h.id(), h.id(), h.temperaturaEsperada(), h.potenciaKW()))
                 .toArray(ConfiguracionHabitacion[]::new);
         List<Decision> decisiones = core.actualizarSitio(sitio, configuracion);   // si el core la rechaza, no se toca nada
+        potenciaContratadaKW = sitio.potenciaContratadaKW();
 
         Map<String, HabitacionControlada> porId = new LinkedHashMap<>();
         nuevas.forEach(h -> porId.put(h.id(), h));
@@ -276,11 +281,20 @@ public class CoreAdapter implements AutoCloseable {
         }
     }
 
+    /**
+     * Primero los OFF y después los ON: si una habitación cede su potencia a otra,
+     * apagar antes de encender evita superar la contratada por un instante.
+     */
     private void enviarPendientes() {
         List<HabitacionControlada> candidatas;
         synchronized (this) {
             candidatas = List.copyOf(habitaciones.values());
         }
+        enviarPendientes(candidatas, Accion.OFF);
+        enviarPendientes(candidatas, Accion.ON);
+    }
+
+    private void enviarPendientes(List<HabitacionControlada> candidatas, Accion soloEsta) {
         for (HabitacionControlada h : candidatas) {
             Accion accion;
             synchronized (this) {   // la decisión vigente se lee justo antes de mandarla
@@ -288,7 +302,9 @@ public class CoreAdapter implements AutoCloseable {
                     return;
                 }
                 Decision d = deseado.get(h.id());
-                if (!vigente(h) || d == null || coincide(estadoConocido.get(h.id()), d.accion()) || enEspera(h.id())) {
+                if (!vigente(h) || d == null || d.accion() != soloEsta
+                        || coincide(estadoConocido.get(h.id()), d.accion()) || enEspera(h.id())
+                        || (soloEsta == Accion.ON && excederiaLaContratada(h))) {
                     continue;
                 }
                 accion = d.accion();
@@ -314,6 +330,29 @@ public class CoreAdapter implements AutoCloseable {
                 }
             }
         }
+    }
+
+    /**
+     * Encender {@code h} superaría la contratada si las demás cuyo switch no confirmó
+     * OFF estuvieran encendidas. Un switch que no respondió el OFF (o que nunca se pudo
+     * consultar) puede seguir encendido: se retiene el ON hasta que lo confirme.
+     * Se llama con el bloqueo tomado.
+     */
+    private boolean excederiaLaContratada(HabitacionControlada h) {
+        double posible = h.potenciaKW();
+        for (HabitacionControlada otra : habitaciones.values()) {
+            if (!otra.id().equals(h.id()) && estadoConocido.get(otra.id()) != EstadoSwitch.OFF) {
+                posible += otra.potenciaKW();
+            }
+        }
+        boolean excede = posible > potenciaContratadaKW + 1e-9;
+        if (excede && retenidas.add(h.id())) {
+            log.warn("Se retiene el ON de '{}': con los switches sin confirmar OFF serían {} kW (contratada {} kW).",
+                    h.id(), posible, potenciaContratadaKW);
+        } else if (!excede && retenidas.remove(h.id())) {
+            log.info("Se libera el ON de '{}': la potencia ya está confirmada.", h.id());
+        }
+        return excede;
     }
 
     /** La habitación sigue configurada con el mismo switch (si no, lo que respondió el viejo ya no vale). */
