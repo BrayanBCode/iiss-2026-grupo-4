@@ -1,12 +1,11 @@
 package uy.edu.utec.iiss.engine.registro;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("RegistroEntorno (§6): broker informado en la respuesta")
 class RegistroEntornoTest {
@@ -23,8 +22,11 @@ class RegistroEntornoTest {
     @Test
     @DisplayName("Sin 'mqtt' (o incompleto) no inventa un broker")
     void sinBroker() throws Exception {
-        assertEquals(Optional.empty(), RegistroEntorno.brokerInformado(JSON.readTree("{\"id\":\"x\"}")));
-        assertEquals(Optional.empty(), RegistroEntorno.brokerInformado(JSON.readTree("{\"mqtt\":{\"host\":\"\"}}")));
+        assertEquals(
+                Optional.empty(), RegistroEntorno.brokerInformado(JSON.readTree("{\"id\":\"x\"}")));
+        assertEquals(
+                Optional.empty(),
+                RegistroEntorno.brokerInformado(JSON.readTree("{\"mqtt\":{\"host\":\"\"}}")));
         assertEquals(Optional.empty(), RegistroEntorno.brokerInformado(null));
     }
 }

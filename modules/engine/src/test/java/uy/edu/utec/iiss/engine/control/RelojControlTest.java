@@ -1,14 +1,13 @@
 package uy.edu.utec.iiss.engine.control;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("RelojControl (ahora = fechaHora + transcurrido × factor, §5.2)")
 class RelojControlTest {
@@ -44,7 +43,11 @@ class RelojControlTest {
     @Test
     @DisplayName("Factor no positivo se rechaza")
     void factorInvalido() {
-        assertThrows(IllegalArgumentException.class, () -> new RelojControl(FECHA, 0, INICIO_REAL, ZoneOffset.UTC));
-        assertThrows(IllegalArgumentException.class, () -> new RelojControl(FECHA, -1, INICIO_REAL, ZoneOffset.UTC));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new RelojControl(FECHA, 0, INICIO_REAL, ZoneOffset.UTC));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new RelojControl(FECHA, -1, INICIO_REAL, ZoneOffset.UTC));
     }
 }

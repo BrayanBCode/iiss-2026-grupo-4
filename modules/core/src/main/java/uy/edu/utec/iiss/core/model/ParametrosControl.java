@@ -4,25 +4,20 @@ import java.time.Duration;
 import java.util.Objects;
 
 /**
- * Parámetros de la función de decisión que NO vienen del inventario del
- * sitio (el estándar dice que la histéresis es "decisión del controlador, no
- * dato del sitio").
+ * Parámetros de la función de decisión que son del controlador, no del inventario.
  *
- * @param histeresisC             banda (°C) por debajo de la esperada en la que
- *                                una habitación apagada NO se enciende. Una
- *                                encendida sigue hasta llegar a la esperada.
- *                                Evita que el relé conmute con cada décima.
- * @param vigenciaLectura         cuánto tiempo REAL vale una lectura. Pasado
- *                                eso (escalado por el factor de tiempo vigente)
- *                                la habitación se trata como sin dato y se apaga:
- *                                si el termostato murió no se calefacciona a ciegas.
+ * @param histeresisC banda (°C) bajo la esperada en la que una habitación apagada no se enciende;
+ *     una encendida sigue hasta la esperada.
+ * @param vigenciaLectura cuánto tiempo real vale una lectura (escalado por el factor de tiempo);
+ *     vencida, la habitación se apaga.
  * @param temperaturaMinimaValida lecturas por debajo se descartan (sensor roto).
  * @param temperaturaMaximaValida lecturas por encima se descartan (sensor roto).
  */
-public record ParametrosControl(double histeresisC,
-                                Duration vigenciaLectura,
-                                double temperaturaMinimaValida,
-                                double temperaturaMaximaValida) {
+public record ParametrosControl(
+        double histeresisC,
+        Duration vigenciaLectura,
+        double temperaturaMinimaValida,
+        double temperaturaMaximaValida) {
 
     /** 0.3 °C de histéresis, 10 min de vigencia, rango físico -40..85 °C (el del Shelly H&T). */
     public static final ParametrosControl PREDETERMINADOS =

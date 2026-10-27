@@ -1,5 +1,6 @@
 package uy.edu.utec.iiss.engine.rest.error;
 
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -10,16 +11,13 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-
 import uy.edu.utec.iiss.engine.inventario.ConflictoException;
 import uy.edu.utec.iiss.engine.inventario.InventarioInvalidoException;
 import uy.edu.utec.iiss.engine.inventario.NoEncontradoException;
 
-import java.util.List;
-
 /**
- * Mapeo de excepciones a HTTP, siempre con el cuerpo de error uniforme del
- * estándar. Códigos: 400 payload inválido, 404 inexistente, 409 duplicado.
+ * Mapeo de excepciones a HTTP, siempre con el cuerpo de error uniforme del estándar. Códigos: 400
+ * payload inválido, 404 inexistente, 409 duplicado.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -39,7 +37,9 @@ public class ApiExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> cuerpoIlegible(HttpMessageNotReadableException ex) {
         String detalle = ex.getMostSpecificCause().getMessage();
-        return responder(HttpStatus.BAD_REQUEST, "cuerpo inválido: no es el JSON esperado",
+        return responder(
+                HttpStatus.BAD_REQUEST,
+                "cuerpo inválido: no es el JSON esperado",
                 detalle == null ? null : List.of(detalle.lines().findFirst().orElse(detalle)));
     }
 
@@ -59,7 +59,8 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> metodoNoSoportado(HttpRequestMethodNotSupportedException ex) {
+    public ResponseEntity<ErrorResponse> metodoNoSoportado(
+            HttpRequestMethodNotSupportedException ex) {
         return responder(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage(), null);
     }
 
@@ -71,10 +72,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> inesperado(Exception ex) {
         log.error("Error no previsto atendiendo una solicitud", ex);
-        return responder(HttpStatus.INTERNAL_SERVER_ERROR, "error interno: " + ex.getMessage(), null);
+        return responder(
+                HttpStatus.INTERNAL_SERVER_ERROR, "error interno: " + ex.getMessage(), null);
     }
 
-    private static ResponseEntity<ErrorResponse> responder(HttpStatus status, String mensaje, List<String> errores) {
-        return ResponseEntity.status(status).body(new ErrorResponse(status.value(), mensaje, errores));
+    private static ResponseEntity<ErrorResponse> responder(
+            HttpStatus status, String mensaje, List<String> errores) {
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(status.value(), mensaje, errores));
     }
 }

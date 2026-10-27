@@ -1,10 +1,8 @@
 package uy.edu.utec.iiss.core.model;
 
 /**
- * Por qué el core tomó una {@link Decision}. No cambia lo que hace el engine
- * (que solo mira ON/OFF), pero hace que cada decisión sea explicable: sirve
- * para los logs, para el diagnóstico y para que los tests verifiquen la
- * razón, no solo el resultado.
+ * Por qué el core tomó una {@link Decision}. El engine solo mira ON/OFF; esto es para logs,
+ * diagnóstico y tests.
  */
 public enum Motivo {
     /** ON: tiene déficit térmico y la potencia disponible alcanzó para ella. */
@@ -17,7 +15,9 @@ public enum Motivo {
     LECTURA_VENCIDA,
     /** OFF: tiene déficit, pero es horario de energía cara. */
     TARIFA_PUNTA,
-    /** OFF: tiene déficit, pero la potencia contratada ya está asignada a otras con más prioridad. */
+    /**
+     * OFF: tiene déficit, pero la potencia contratada ya está asignada a otras con más prioridad.
+     */
     SIN_POTENCIA_DISPONIBLE,
     /** OFF: su potencia sola ya supera la contratada; encenderla haría saltar la llave. */
     EXCEDE_CONTRATADA

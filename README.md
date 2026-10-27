@@ -16,6 +16,7 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 4.
 | API de este controlador (OpenAPI 3) | [`docs/api/openapi.yaml`](docs/api/openapi.yaml) |
 | Arquitectura 4+1 (vista lógica + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
 | Criterio de adecuación de los tests | [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md) |
+| Estándar de codificación | [`docs/estandar-codificacion.md`](docs/estandar-codificacion.md) |
 | Jira | [enlace](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3) |
 
 ---
@@ -95,6 +96,10 @@ No hace falta Java ni Maven en el host: todo se compila dentro de Docker.
 
 Con Java 25 y Maven locales también se puede: `mvn package` (el JAR queda en
 `modules/engine/target/engine.jar`).
+
+El código sigue Google Java Style (variante AOSP), verificado con Spotless: `mvn spotless:apply`
+formatea y `mvn verify` falla si algo no cumple. Detalle en
+[`docs/estandar-codificacion.md`](docs/estandar-codificacion.md).
 
 ---
 

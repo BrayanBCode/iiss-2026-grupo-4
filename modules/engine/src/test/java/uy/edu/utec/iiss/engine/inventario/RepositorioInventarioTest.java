@@ -1,35 +1,38 @@
 package uy.edu.utec.iiss.engine.inventario;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 @DisplayName("RepositorioInventario (persistencia local, §5.1)")
 class RepositorioInventarioTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     @DisplayName("Sin archivo no hay inventario")
     void sinArchivo_vacio() {
-        assertTrue(new RepositorioInventario(dir.resolve("x.json").toString(), new ObjectMapper()).cargar().isEmpty());
+        assertTrue(
+                new RepositorioInventario(dir.resolve("x.json").toString(), new ObjectMapper())
+                        .cargar()
+                        .isEmpty());
     }
 
     @Test
     @DisplayName("Lo grabado sobrevive a un 'reinicio' (otra instancia lee lo mismo)")
     void sobreviveAlReinicio() {
         String archivo = dir.resolve("sub/inventario.json").toString();
-        new RepositorioInventario(archivo, new ObjectMapper()).guardar(InventarioEjemplo.casaRodriguez());
+        new RepositorioInventario(archivo, new ObjectMapper())
+                .guardar(InventarioEjemplo.casaRodriguez());
 
-        assertEquals(InventarioEjemplo.casaRodriguez(),
+        assertEquals(
+                InventarioEjemplo.casaRodriguez(),
                 new RepositorioInventario(archivo, new ObjectMapper()).cargar().orElseThrow());
     }
 
@@ -39,7 +42,10 @@ class RepositorioInventarioTest {
         Path archivo = dir.resolve("inventario.json");
         Files.writeString(archivo, "{ esto no es json");
 
-        assertTrue(new RepositorioInventario(archivo.toString(), new ObjectMapper()).cargar().isEmpty());
+        assertTrue(
+                new RepositorioInventario(archivo.toString(), new ObjectMapper())
+                        .cargar()
+                        .isEmpty());
     }
 
     @Test

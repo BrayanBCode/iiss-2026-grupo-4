@@ -1,27 +1,19 @@
 package uy.edu.utec.iiss.core;
 
-import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
-import uy.edu.utec.iiss.core.model.EstadoHabitacion;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
+import uy.edu.utec.iiss.core.model.EstadoHabitacion;
 
 /**
- * Criterio de prioridad: ordena las candidatas por mayor déficit térmico
- * ({@code temperaturaEsperada - temperaturaActual}) primero — "la que más
- * lejos está de su objetivo es la que más necesita energía ahora".
+ * Primero la de mayor déficit ({@code temperaturaEsperada - temperaturaActual}): la más lejos de su
+ * objetivo es la que más necesita energía.
  *
- * <b>Anti-oscilación.</b> A una habitación que ya está encendida se le suma
- * un margen ({@code margenIntercambioC}, 0.5 °C por defecto) a su déficit.
- * Sin eso, con dos habitaciones parecidas y potencia para una sola, la energía
- * saltaría de una a otra con cada décima de diferencia y los relés conmutarían
- * todo el tiempo. Con el margen se turnan: la que espera recibe la energía
- * cuando su déficit supera al de la encendida por más del margen.
- *
- * El desempate es por {@code id} (orden alfabético): dos corridas con
- * exactamente el mismo estado dan siempre el mismo resultado, que es lo que
- * pide la letra con "no azaroso".
+ * <p>A una habitación encendida se le suma {@code margenIntercambioC} a su déficit, para que con
+ * potencia para una sola la energía no salte entre dos parecidas con cada décima: la que espera la
+ * recibe cuando la supera por más del margen. Los empates se resuelven por {@code id}, así el
+ * resultado es reproducible.
  */
 public class MayorDeficitPrimero implements CriterioPrioridad {
 
@@ -41,21 +33,26 @@ public class MayorDeficitPrimero implements CriterioPrioridad {
     }
 
     @Override
-    public List<String> ordenarCandidatas(List<ConfiguracionHabitacion> candidatas, Map<String, EstadoHabitacion> estado) {
+    public List<String> ordenarCandidatas(
+            List<ConfiguracionHabitacion> candidatas, Map<String, EstadoHabitacion> estado) {
         return candidatas.stream()
-                .sorted(Comparator
-                        .comparingDouble((ConfiguracionHabitacion h) -> prioridad(h, estado))
-                        .reversed()
-                        .thenComparing(ConfiguracionHabitacion::id))
+                .sorted(
+                        Comparator.comparingDouble(
+                                        (ConfiguracionHabitacion h) -> prioridad(h, estado))
+                                .reversed()
+                                .thenComparing(ConfiguracionHabitacion::id))
                 .map(ConfiguracionHabitacion::id)
                 .toList();
     }
 
-    private double prioridad(ConfiguracionHabitacion habitacion, Map<String, EstadoHabitacion> estado) {
+    private double prioridad(
+            ConfiguracionHabitacion habitacion, Map<String, EstadoHabitacion> estado) {
         EstadoHabitacion e = estado.get(habitacion.id());
-        double temperaturaActual = (e != null && e.temperaturaActual() != null)
-                ? e.temperaturaActual()
-                : habitacion.temperaturaEsperada(); // sin lectura todavía: no hay déficit conocido
+        double temperaturaActual =
+                (e != null && e.temperaturaActual() != null)
+                        ? e.temperaturaActual()
+                        : habitacion.temperaturaEsperada(); // sin lectura todavía: no hay déficit
+        // conocido
         double deficit = habitacion.temperaturaEsperada() - temperaturaActual;
         boolean encendida = e != null && e.encendida();
         return encendida ? deficit + margenIntercambioC : deficit;
