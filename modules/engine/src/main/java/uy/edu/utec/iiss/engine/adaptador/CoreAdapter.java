@@ -309,11 +309,20 @@ public class CoreAdapter implements AutoCloseable {
         }
     }
 
+    /**
+     * Primero los OFF y después los ON: si una habitación cede su potencia a otra, apagar antes de
+     * encender evita que por un instante se supere la potencia contratada.
+     */
     private void enviarPendientes() {
         List<HabitacionControlada> candidatas;
         synchronized (this) {
             candidatas = List.copyOf(habitaciones.values());
         }
+        enviarPendientes(candidatas, Accion.OFF);
+        enviarPendientes(candidatas, Accion.ON);
+    }
+
+    private void enviarPendientes(List<HabitacionControlada> candidatas, Accion soloEsta) {
         for (HabitacionControlada h : candidatas) {
             Accion accion;
             synchronized (this) { // la decisión vigente se lee justo antes de mandarla
@@ -323,6 +332,7 @@ public class CoreAdapter implements AutoCloseable {
                 Decision d = deseado.get(h.id());
                 if (!vigente(h)
                         || d == null
+                        || d.accion() != soloEsta
                         || coincide(estadoConocido.get(h.id()), d.accion())
                         || enEspera(h.id())) {
                     continue;

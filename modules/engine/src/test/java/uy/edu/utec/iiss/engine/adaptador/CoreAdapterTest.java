@@ -355,7 +355,7 @@ class CoreAdapterTest {
             while (comandos.size() < 2 && System.nanoTime() < limite) {
                 Thread.sleep(10);
             }
-            assertEquals(List.of("sw-living:ON", "sw-dorm:OFF"), comandos);
+            assertEquals(List.of("sw-dorm:OFF", "sw-living:ON"), comandos); // OFF antes que ON
         }
     }
 
