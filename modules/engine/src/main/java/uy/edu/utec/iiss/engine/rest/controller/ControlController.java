@@ -24,10 +24,9 @@ import java.util.Map;
  *   GET  /control           -> 200 estado del control
  *   POST /control/comandos  -> 200 INICIAR (fechaHora obligatoria, factorTiempo opcional) / DETENER
  *
- * El cuerpo del comando se valida a mano (JsonNode) para responder 400 con un
- * mensaje claro ante cada caso del estándar: acción desconocida, INICIAR sin
- * fechaHora, fechaHora no ISO-8601, factorTiempo que no es un número &gt; 0.
- * Se soporta aceleración, así que cualquier factor &gt; 0 es válido.
+ * El cuerpo se valida a mano (JsonNode) para dar un 400 claro en cada caso:
+ * acción desconocida, falta fechaHora, fechaHora no ISO-8601, factorTiempo no &gt; 0.
+ * Una fechaHora sin offset se toma en la zona del sistema.
  */
 @RestController
 @RequestMapping("/control")

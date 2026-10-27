@@ -17,14 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 /**
- * Autenticación del estándar (convenciones transversales): header
- * {@code X-API-Key} en todas las operaciones REST; falta o no coincide → 401
- * con el cuerpo de error uniforme. (Los nombres de header HTTP no distinguen
- * mayúsculas: {@code X-API-KEY} también vale.)
- *
- * Es la clave que el controlador declara al registrarse (§6) y que el entorno
- * usa para llamarlo. Filtro de Servlet simple: no hay usuarios ni roles, así
- * que Spring Security sería sobreingeniería.
+ * Autenticación del estándar: header {@code X-API-Key} en todas las operaciones;
+ * si falta o no coincide → 401 con el cuerpo de error uniforme. Es la clave que
+ * el controlador declara al registrarse (§6). Sin usuarios ni roles, no hace
+ * falta Spring Security.
  */
 @Component
 public class ApiKeyFilter extends OncePerRequestFilter {

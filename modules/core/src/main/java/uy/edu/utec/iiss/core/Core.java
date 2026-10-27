@@ -24,17 +24,13 @@ import java.util.Set;
  * Lógica de decisión del controlador: recibe {@link Estimulo}s y devuelve,
  * para cada habitación del inventario, si debe recibir energía y por qué.
  *
- * Es Java puro y determinista: no lee el reloj del sistema, ni la red, ni
- * números al azar. Todo lo que necesita llega en los estímulos, así que la
- * misma secuencia de estímulos da siempre las mismas decisiones.
+ * Java puro y determinista (sin reloj del sistema, red ni azar): la misma
+ * secuencia de estímulos da siempre las mismas decisiones. No es thread-safe;
+ * el engine serializa las llamadas.
  *
- * NO es seguro para varios hilos: quien lo integra (el engine) serializa las
- * llamadas.
- *
- * La función de decisión ({@link #decidir}) es pública y recibe por parámetro
- * toda la situación (sitio, habitaciones, estado de cada una, hora): no depende
- * de lo que el core haya procesado antes. {@link #procesar} actualiza el estado
- * con el estímulo y después le pasa la situación resultante. Se arma en tres pasos:
+ * {@link #procesar} actualiza el estado con el estímulo y llama a
+ * {@link #decidir}, que recibe toda la situación por parámetro y decide en
+ * tres pasos:
  * <ol>
  *   <li><b>Necesidad</b> de cada habitación: sin lectura, lectura vencida,
  *       satisfecha (con histéresis), excede la contratada, o con déficit.</li>
@@ -186,10 +182,8 @@ public class Core {
 
     /**
      * La función de decisión: dada una situación, qué habitaciones reciben
-     * energía y por qué. Todo lo que usa llega por parámetro (además del
-     * criterio y los parámetros de control, fijos desde el constructor): no lee
-     * ni modifica el estado del core, así que la misma situación da siempre
-     * las mismas decisiones.
+     * energía y por qué. Aparte del criterio y los parámetros de control, todo
+     * llega por parámetro: no lee ni modifica el estado del core.
      *
      * @param sitio        potencia contratada, franja punta y zona horaria
      * @param habitaciones configuración de cada habitación; las decisiones salen en este orden
@@ -210,6 +204,7 @@ public class Core {
         Map<String, Motivo> motivos = new HashMap<>();
         Map<String, Double> potencias = new HashMap<>();
         List<ConfiguracionHabitacion> conDeficit = new ArrayList<>();
+
         for (ConfiguracionHabitacion h : habitaciones) {
             potencias.put(h.id(), h.potenciaKW());
             Motivo sinDeficit = motivoSinDeficit(h, estados.get(h.id()), sitio, ahora, factorTiempo);
@@ -223,6 +218,7 @@ public class Core {
         // 2. Tarifa  /  3. Reparto de la potencia contratada
         if (enPunta(sitio, ahora)) {
             conDeficit.forEach(h -> motivos.put(h.id(), Motivo.TARIFA_PUNTA));
+
         } else {
             double usada = 0;
             for (String id : criterioPrioridad.ordenarCandidatas(conDeficit, estados)) {

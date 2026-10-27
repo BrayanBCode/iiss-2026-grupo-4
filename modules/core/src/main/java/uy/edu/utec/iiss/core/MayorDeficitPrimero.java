@@ -8,20 +8,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Criterio de prioridad: ordena las candidatas por mayor déficit térmico
- * ({@code temperaturaEsperada - temperaturaActual}) primero — "la que más
- * lejos está de su objetivo es la que más necesita energía ahora".
+ * Primero la de mayor déficit ({@code temperaturaEsperada - temperaturaActual}):
+ * la más lejos de su objetivo es la que más necesita energía.
  *
- * <b>Anti-oscilación.</b> A una habitación que ya está encendida se le suma
- * un margen ({@code margenIntercambioC}, 0.5 °C por defecto) a su déficit.
- * Sin eso, con dos habitaciones parecidas y potencia para una sola, la energía
- * saltaría de una a otra con cada décima de diferencia y los relés conmutarían
- * todo el tiempo. Con el margen se turnan: la que espera recibe la energía
- * cuando su déficit supera al de la encendida por más del margen.
- *
- * El desempate es por {@code id} (orden alfabético): dos corridas con
- * exactamente el mismo estado dan siempre el mismo resultado, que es lo que
- * pide la letra con "no azaroso".
+ * A una habitación encendida se le suma {@code margenIntercambioC} a su déficit,
+ * para que con potencia para una sola la energía no salte entre dos parecidas
+ * con cada décima: la que espera la recibe cuando la supera por más del margen.
+ * Los empates se resuelven por {@code id}, así el resultado es reproducible.
  */
 public class MayorDeficitPrimero implements CriterioPrioridad {
 

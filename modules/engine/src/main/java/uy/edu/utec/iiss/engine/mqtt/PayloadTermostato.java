@@ -9,12 +9,9 @@ import java.util.Optional;
 /**
  * Mensaje del termostato (estándar v2, §2): {@code {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}}.
  *
- * Solo {@code tC} es imprescindible para decidir. {@code ts} (epoch en
- * SEGUNDOS con 3 decimales) se conserva para los logs; el instante con el que
- * decide el core es el del reloj del control al recibir el mensaje, porque
- * tras INICIAR el controlador no usa otro reloj (§5.2). {@code tF} es
- * opcional y no se usa. El {@code id} del payload es el índice del sensor:
- * la habitación se resuelve por el topic, nunca por él.
+ * Solo se usa {@code tC}: el instante de la lectura es el del reloj del control
+ * al recibirla (§5.2), no el {@code ts} (epoch en segundos), que se parsea pero
+ * no se usa para decidir. La habitación sale del topic, nunca del {@code id}.
  */
 public record PayloadTermostato(double temperaturaC, Long tsEpochMilis) {
 

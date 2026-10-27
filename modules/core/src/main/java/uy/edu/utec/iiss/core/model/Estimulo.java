@@ -5,26 +5,15 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Los estímulos que el engine le puede mandar al core. El core nunca lee
- * MQTT ni REST directamente — el engine resuelve todo eso (a qué habitación
- * pertenece un topic, cuándo disparar un Tick, qué hora marca el reloj del
- * control) y le manda al core solo estos tipos, en términos de su propio modelo.
+ * Lo que el engine le puede mandar al core, ya traducido a su modelo (el core
+ * no sabe de MQTT ni REST). Es {@code sealed} para que el {@code switch} de
+ * {@code Core.procesar} sea exhaustivo.
  *
- * {@code sealed} + pattern matching exhaustivo en {@code Core.procesar}
- * asegura, a nivel de compilador, que no nos olvidamos de manejar un caso
- * nuevo si el día de mañana se agrega otro tipo de estímulo.
- *
- * Todos los instantes son los del RELOJ DEL CONTROL (estándar §5.2), no los
- * del sistema: el engine es quien los calcula.
+ * Los instantes son del reloj del control (§5.2), no del sistema.
  */
 public sealed interface Estimulo {
 
-    /**
-     * Llegó una lectura de temperatura. {@code idHabitacion} ya viene
-     * resuelto por el engine a partir del topic MQTT (estándar §2: "la
-     * habitación se resuelve por el topic, nunca por el id del payload") —
-     * el core no sabe nada de topics ni de termostatos.
-     */
+    /** Lectura de temperatura; el engine ya resolvió la habitación por el topic (§2). */
     record NuevaLectura(String idHabitacion, double temperaturaC, Instant ts) implements Estimulo {
         public NuevaLectura {
             Objects.requireNonNull(idHabitacion, "idHabitacion");
@@ -33,11 +22,8 @@ public sealed interface Estimulo {
     }
 
     /**
-     * Estímulo puramente temporal, sin datos de ningún sensor: el engine lo
-     * dispara periódicamente (responsable de "eventos temporales" según la
-     * letra) para que el core pueda reevaluar la franja de tarifa vigente y
-     * la vigencia de las lecturas aunque no haya llegado ninguna lectura
-     * nueva — típicamente, justo al cruzar el horario de tarifa punta.
+     * Pasó el tiempo. El engine lo dispara periódicamente para reevaluar la
+     * tarifa punta y el vencimiento de lecturas aunque no lleguen lecturas.
      */
     record Tick(Instant ts) implements Estimulo {
         public Tick {
@@ -45,10 +31,7 @@ public sealed interface Estimulo {
         }
     }
 
-    /**
-     * Reemplaza el inventario completo (coherente con que {@code PUT /sitio}
-     * del estándar, §5.1, es un reemplazo completo, no un merge parcial).
-     */
+    /** Reemplaza el inventario completo, como {@code PUT /sitio} (§5.1). */
     record ConfiguracionActualizada(Sitio sitio, List<ConfiguracionHabitacion> habitaciones) implements Estimulo {
         public ConfiguracionActualizada {
             Objects.requireNonNull(sitio, "sitio");
@@ -56,11 +39,7 @@ public sealed interface Estimulo {
         }
     }
 
-    /**
-     * El reloj del control se (re)sincronizó: {@code INICIAR} del estándar
-     * §5.2. A diferencia de un Tick, el tiempo PUEDE ir hacia atrás (se
-     * re-sincroniza a otra fecha), y cambia el factor de aceleración.
-     */
+    /** INICIAR (§5.2): a diferencia de un Tick, el reloj puede ir hacia atrás y cambia el factor de tiempo. */
     record Sincronizacion(Instant ahora, double factorTiempo) implements Estimulo {
         public Sincronizacion {
             Objects.requireNonNull(ahora, "ahora");

@@ -5,13 +5,8 @@ import java.time.LocalTime;
 import java.util.Objects;
 
 /**
- * Franja de tarifa de energía cara ("punta"), estándar §1: {@code desde} y
- * {@code hasta} en hora local, semiabierta {@code [desde, hasta)} (no cruza la
- * medianoche), más los días a los que aplica.
- *
- * Es un utilitario del modelo, no "la lógica de decisión" que hay que
- * probar con TDD — por eso está implementada de entrada, a diferencia de
- * {@link uy.edu.utec.iiss.core.Core}.
+ * Franja de tarifa punta (estándar §1): {@code [desde, hasta)} en hora local,
+ * sin cruzar la medianoche, más los días a los que aplica.
  */
 public record FranjaHoraria(LocalTime desde, LocalTime hasta, DiasTarifa dias) {
 

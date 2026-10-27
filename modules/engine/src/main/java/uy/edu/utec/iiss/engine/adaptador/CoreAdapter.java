@@ -27,38 +27,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Adaptador entre el engine y el core: la única clase del engine que habla con
- * el core. Hace cinco cosas:
+ * La única clase del engine que habla con el core.
+ * <ul>
+ *   <li>Traduce lecturas, ticks, configuración e INICIAR a llamadas al core,
+ *       serializadas con {@code synchronized} (el core no es thread-safe).</li>
+ *   <li>Recuerda la última decisión por habitación ("deseado") y el último
+ *       estado conocido de su switch; solo comanda cuando difieren.</li>
+ *   <li>Reconcilia (§4): consulta cada switch y corrige los que no coinciden
+ *       (reinicio, cambio manual, comando perdido).</li>
+ *   <li>Un switch que falla no frena a los demás y no se reintenta antes de
+ *       {@code esperaReintento}.</li>
+ * </ul>
  *
- *  1. Traduce lo que llega (lectura, tick, configuración, sincronización) a
- *     llamadas al core. Los instantes ya vienen en el reloj del control.
- *  2. Serializa las llamadas ({@code synchronized}): el core no es seguro para
- *     varios hilos y le llegan eventos de MQTT, del temporizador y de REST.
- *     El core se llama dentro del bloqueo; el I/O con los switches, no.
- *  3. Recuerda la última decisión de cada habitación ("deseado") y el último
- *     estado CONOCIDO de su switch; solo comanda cuando difieren.
- *  4. Reconcilia (§4): consulta el estado real de cada switch y, si no
- *     coincide con lo deseado (DESCONOCIDO porque el switch reinició, alguien
- *     lo movió a mano, un comando se perdió), lo vuelve a comandar.
- *  5. Tolera switches caídos: un switch que falla no impide comandar a los
- *     demás, y no se le reintenta antes de {@code esperaReintento} (para que un
- *     switch muerto no trabe el lazo con timeouts en cada tick).
- *
- * Mientras está deshabilitado (control DETENIDO, §5.2) el core sigue
- * recibiendo configuración, pero no se comanda ni se consulta ningún switch.
- *
- * <b>Hilo de switches.</b> Toda la comunicación con los switches (consultas de
- * la reconciliación y comandos) corre en un hilo propio ({@code switches}), en
- * "pasadas": cada estímulo actualiza lo deseado, pide una pasada y vuelve sin
- * esperar la red. Así ni INICIAR ni un PUT /sitio en caliente esperan a los
- * switches (el entorno que los sirve puede estar esperando nuestra respuesta),
- * y un switch lento no demora al core, a MQTT ni al API. Los pedidos que llegan
- * durante una pasada se juntan en una sola pasada siguiente.
- *
- * Limitación conocida: las pasadas son secuenciales, así que un switch lento
- * todavía demora a los demás switches (no al resto del controlador) hasta que
- * vence su timeout REST; la espera entre reintentos evita que eso se repita en
- * cada pasada.
+ * La red con los switches corre en un hilo propio, en "pasadas": cada estímulo
+ * actualiza lo deseado y pide una pasada sin esperarla, así ni INICIAR ni
+ * PUT /sitio esperan a los switches. Los pedidos durante una pasada se juntan en
+ * la siguiente. Las pasadas son secuenciales: un switch lento demora a los demás
+ * switches hasta su timeout. Deshabilitado (DETENIDO) no se toca ningún switch.
  */
 public class CoreAdapter implements AutoCloseable {
 
@@ -89,7 +74,7 @@ public class CoreAdapter implements AutoCloseable {
     private boolean pasadaEncolada;
     private boolean consultaPendiente;
 
-    /** Con su propio hilo de switches (un {@code ScheduledExecutorService} de un solo hilo). */
+    /** Con su propio hilo de switches. */
     public CoreAdapter(ICoreClient core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento) {
         this(core, switches, relojReal, esperaReintento, Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "switches");

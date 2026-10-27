@@ -1,17 +1,12 @@
 package uy.edu.utec.iiss.core.model;
 
 /**
- * Datos de configuración de una habitación, tal como llegan en el inventario
- * del sitio (estándar de interoperabilidad v2, §1 "Habitación").
+ * Lo que el core necesita de una habitación del inventario (estándar v2, §1):
+ * temperatura objetivo y potencia mientras está encendida. Termostato y switch
+ * son direccionamiento del engine y no están acá.
  *
- * No incluye idTermostato/topicTermostato/idSwitch/urlSwitch: esos son
- * detalles de direccionamiento que le importan al engine (MQTT, REST), no al
- * core — el core solo necesita saber "esta habitación quiere esta
- * temperatura y consume esta potencia mientras está encendida".
- *
- * La validez (id no vacío, potencia &gt; 0) la controla el core al recibir
- * la configuración completa, para poder rechazarla entera (ver
- * {@link uy.edu.utec.iiss.core.Core}).
+ * La valida el {@link uy.edu.utec.iiss.core.Core} al recibir la configuración
+ * completa, para poder rechazarla entera.
  */
 public record ConfiguracionHabitacion(
         String id,
