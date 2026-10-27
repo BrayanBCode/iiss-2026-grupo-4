@@ -17,10 +17,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,6 +87,8 @@ public class CoreAdapter implements AutoCloseable {
     private final Map<String, Decision> deseado = new HashMap<>();
     private final Map<String, EstadoSwitch> estadoConocido = new HashMap<>();
     private final Map<String, Instant> noReintentarAntesDe = new HashMap<>();
+    private final Set<String> retenidas = new HashSet<>(); // ON esperando potencia confirmada
+    private double potenciaContratadaKW = Double.MAX_VALUE; // hasta que se configure el sitio
     private boolean habilitado;
     private boolean pasadaEncolada;
     private boolean consultaPendiente;
