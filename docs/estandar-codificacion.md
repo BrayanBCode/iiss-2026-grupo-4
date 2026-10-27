@@ -17,9 +17,45 @@ mvn spotless:check    # solo verifica (no modifica)
 mvn verify            # compila, corre los tests y falla si algo no está formateado
 ```
 
-Antes de commitear, correr `mvn spotless:apply`. En IntelliJ conviene instalar el plugin
-**google-java-format** y activarlo con estilo *Android Open Source Project (AOSP)*, así el
-formateo del IDE coincide con el del build.
+## Configurar IntelliJ
+
+Con el plugin **google-java-format** el formateo del IDE coincide con el del build.
+
+### Instalar el plugin
+
+1. `File → Settings → Plugins → Marketplace` → buscar **google-java-format** → *Install* →
+   reiniciar IntelliJ.
+2. Si al usarlo aparece un `IllegalAccessError`, ir a `Help → Edit Custom VM Options…`, pegar
+   estas líneas y reiniciar:
+
+   ```
+   --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED
+   --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED
+   --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED
+   --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED
+   --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
+   --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+   ```
+
+### Activarlo en el proyecto
+
+1. `Settings → Other Settings → google-java-format Settings`:
+   - tildar **Enable google-java-format**;
+   - en *Code style* elegir **Android Open Source Project (AOSP) style**. No puede quedar en
+     *Default*: formatea con 2 espacios y el build falla.
+2. Opcional, pero recomendado: `Settings → Tools → Actions on Save` → tildar *Reformat code* y
+   *Optimize imports*.
+
+## Flujo de trabajo
+
+- `Ctrl+Alt+L` formatea el archivo con el estándar.
+- Antes de commitear, correr `mvn spotless:apply`; o `mvn verify`, que además corre los tests y
+  falla si algo quedó mal formateado.
+- Si `mvn verify` falla por el formato aunque se haya formateado en el IDE, puede que el plugin
+  traiga otra versión de google-java-format que la del `pom.xml` (1.36.1). En ese caso manda
+  `mvn spotless:apply`.
+- Las ramas con cambios anteriores al commit que reformateó todo corren `mvn spotless:apply`
+  antes de mergear, así se evitan conflictos de formato.
 
 ## Lo que hace el formateador
 
