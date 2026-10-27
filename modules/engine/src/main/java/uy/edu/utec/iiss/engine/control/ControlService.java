@@ -1,21 +1,6 @@
 package uy.edu.utec.iiss.engine.control;
 
 import jakarta.annotation.PreDestroy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Service;
-
-import uy.edu.utec.iiss.core.model.DiasTarifa;
-import uy.edu.utec.iiss.core.model.FranjaHoraria;
-import uy.edu.utec.iiss.core.model.Sitio;
-import uy.edu.utec.iiss.engine.inventario.Inventario;
-import uy.edu.utec.iiss.engine.inventario.InventarioAplicado;
-import uy.edu.utec.iiss.engine.inventario.InventarioService;
-import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
-import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
@@ -25,25 +10,37 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
+import uy.edu.utec.iiss.core.model.DiasTarifa;
+import uy.edu.utec.iiss.core.model.FranjaHoraria;
+import uy.edu.utec.iiss.core.model.Sitio;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
+import uy.edu.utec.iiss.engine.inventario.Inventario;
+import uy.edu.utec.iiss.engine.inventario.InventarioAplicado;
+import uy.edu.utec.iiss.engine.inventario.InventarioService;
 
 /**
  * El recurso "control" del estándar v2 (§5.2) y los eventos temporales del engine.
  *
  * <ul>
- *   <li>{@link #iniciar}: sincroniza el reloj del control, carga el sitio en el
- *       core, consulta los switches y empieza a comandarlos. Sobre un control
- *       ya en ejecución re-sincroniza (no es error).</li>
- *   <li>{@link #detener}: deja de comandar switches. Idempotente.</li>
- *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} reales
- *       (cortar/restituir en los cambios de franja, vencer lecturas) y
- *       reconcilia los switches cada {@code control.reconciliacion-segundos}.</li>
+ *   <li>{@link #iniciar}: sincroniza el reloj del control, carga el sitio en el core, consulta los
+ *       switches y empieza a comandarlos. Sobre un control ya en ejecución re-sincroniza (no es
+ *       error).
+ *   <li>{@link #detener}: deja de comandar switches. Idempotente.
+ *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} reales (cortar/restituir en
+ *       los cambios de franja, vencer lecturas) y reconcilia los switches cada {@code
+ *       control.reconciliacion-segundos}.
  * </ul>
  *
- * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora
- * local, sin conversión de zona". Se toma la zona en la que viene expresada
- * la {@code fechaHora} de INICIAR ({@code ...Z} ⇒ UTC, {@code ...-03:00} ⇒
- * UTC-3), así controlador y entorno leen la misma hora en el mismo instante.
- * Se puede fijar otra con {@code control.zona-horaria} (p. ej. America/Montevideo).
+ * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
+ * de zona". Se toma la zona en la que viene expresada la {@code fechaHora} de INICIAR ({@code ...Z}
+ * ⇒ UTC, {@code ...-03:00} ⇒ UTC-3), así controlador y entorno leen la misma hora en el mismo
+ * instante. Se puede fijar otra con {@code control.zona-horaria} (p. ej. America/Montevideo).
  */
 @Service
 public class ControlService {
@@ -57,19 +54,23 @@ public class ControlService {
     private final long tickMs;
     private final long reconciliacionSegundos;
 
-    private volatile RelojControl reloj;            // null = DETENIDO
+    private volatile RelojControl reloj; // null = DETENIDO
     private ScheduledExecutorService temporizador;
 
-    public ControlService(CoreAdapter adaptador,
-                          InventarioService inventarioService,
-                          Clock relojReal,
-                          @Value("${control.zona-horaria:}") String zonaFija,
-                          @Value("${control.tick-ms:1000}") long tickMs,
-                          @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos) {
+    public ControlService(
+            CoreAdapter adaptador,
+            InventarioService inventarioService,
+            Clock relojReal,
+            @Value("${control.zona-horaria:}") String zonaFija,
+            @Value("${control.tick-ms:1000}") long tickMs,
+            @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
         this.relojReal = relojReal;
-        this.zonaFija = zonaFija == null || zonaFija.isBlank() ? Optional.empty() : Optional.of(ZoneId.of(zonaFija.trim()));
+        this.zonaFija =
+                zonaFija == null || zonaFija.isBlank()
+                        ? Optional.empty()
+                        : Optional.of(ZoneId.of(zonaFija.trim()));
         this.tickMs = tickMs;
         this.reconciliacionSegundos = reconciliacionSegundos;
     }
@@ -79,20 +80,29 @@ public class ControlService {
     // ------------------------------------------------------------------
 
     /**
-     * INICIAR. {@code zonaDeFechaHora} es la zona/offset en que vino escrita la
-     * fechaHora; se usa para la tarifa salvo que haya una zona fija configurada.
+     * INICIAR. {@code zonaDeFechaHora} es la zona/offset en que vino escrita la fechaHora; se usa
+     * para la tarifa salvo que haya una zona fija configurada.
      */
-    public synchronized EstadoControl iniciar(Instant fechaHora, ZoneId zonaDeFechaHora, double factorTiempo) {
+    public synchronized EstadoControl iniciar(
+            Instant fechaHora, ZoneId zonaDeFechaHora, double factorTiempo) {
         boolean resincroniza = reloj != null;
-        RelojControl nuevo = new RelojControl(fechaHora, factorTiempo, relojReal.instant(),
-                zonaFija.orElse(zonaDeFechaHora));
+        RelojControl nuevo =
+                new RelojControl(
+                        fechaHora,
+                        factorTiempo,
+                        relojReal.instant(),
+                        zonaFija.orElse(zonaDeFechaHora));
         reloj = nuevo;
-        inventarioService.actual().ifPresent(this::configurarCore);   // la zona pudo cambiar
+        inventarioService.actual().ifPresent(this::configurarCore); // la zona pudo cambiar
         adaptador.sincronizar(nuevo.fechaHora(), nuevo.factorTiempo());
         adaptador.habilitar();
         arrancarTemporizador();
-        log.info("Control {}: fechaHora={} factorTiempo={} zona={}",
-                resincroniza ? "re-sincronizado" : "INICIADO", fechaHora, factorTiempo, nuevo.zona());
+        log.info(
+                "Control {}: fechaHora={} factorTiempo={} zona={}",
+                resincroniza ? "re-sincronizado" : "INICIADO",
+                fechaHora,
+                factorTiempo,
+                nuevo.zona());
         return estado();
     }
 
@@ -111,7 +121,8 @@ public class ControlService {
         if (r == null) {
             return EstadoControl.detenido();
         }
-        return new EstadoControl(EstadoControl.EN_EJECUCION, r.ahora(relojReal), r.factorTiempo(), r.iniciadoEn());
+        return new EstadoControl(
+                EstadoControl.EN_EJECUCION, r.ahora(relojReal), r.factorTiempo(), r.iniciadoEn());
     }
 
     public boolean enEjecucion() {
@@ -148,16 +159,26 @@ public class ControlService {
 
     static Sitio sitioDelCore(Inventario inv, ZoneId zona) {
         Inventario.Franja punta = inv.sitio().tarifa().punta();
-        return new Sitio(inv.sitio().id(), inv.sitio().potenciaContratadaKW(),
-                new FranjaHoraria(LocalTime.parse(punta.desde()), LocalTime.parse(punta.hasta()),
+        return new Sitio(
+                inv.sitio().id(),
+                inv.sitio().potenciaContratadaKW(),
+                new FranjaHoraria(
+                        LocalTime.parse(punta.desde()),
+                        LocalTime.parse(punta.hasta()),
                         DiasTarifa.valueOf(punta.dias())),
                 zona);
     }
 
     static List<HabitacionControlada> habitacionesDelCore(Inventario inv) {
         return inv.habitaciones().stream()
-                .map(h -> new HabitacionControlada(h.id(), h.temperaturaEsperada(), h.potenciaKW(),
-                        h.idSwitch(), h.urlSwitch()))
+                .map(
+                        h ->
+                                new HabitacionControlada(
+                                        h.id(),
+                                        h.temperaturaEsperada(),
+                                        h.potenciaKW(),
+                                        h.idSwitch(),
+                                        h.urlSwitch()))
                 .toList();
     }
 
@@ -192,14 +213,20 @@ public class ControlService {
         if (temporizador != null || tickMs <= 0) {
             return;
         }
-        temporizador = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "control-temporizador");
-            t.setDaemon(true);
-            return t;
-        });
+        temporizador =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "control-temporizador");
+                            t.setDaemon(true);
+                            return t;
+                        });
         temporizador.scheduleWithFixedDelay(this::tick, tickMs, tickMs, TimeUnit.MILLISECONDS);
         if (reconciliacionSegundos > 0) {
-            temporizador.scheduleWithFixedDelay(this::reconciliar, reconciliacionSegundos, reconciliacionSegundos, TimeUnit.SECONDS);
+            temporizador.scheduleWithFixedDelay(
+                    this::reconciliar,
+                    reconciliacionSegundos,
+                    reconciliacionSegundos,
+                    TimeUnit.SECONDS);
         }
     }
 

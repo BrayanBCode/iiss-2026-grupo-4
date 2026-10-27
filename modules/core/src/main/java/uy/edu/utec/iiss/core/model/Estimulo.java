@@ -5,11 +5,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Lo que el engine le puede mandar al core, ya traducido a su modelo (el core
- * no sabe de MQTT ni REST). Es {@code sealed} para que el {@code switch} de
- * {@code Core.procesar} sea exhaustivo.
+ * Lo que el engine le puede mandar al core, ya traducido a su modelo (el core no sabe de MQTT ni
+ * REST). Es {@code sealed} para que el {@code switch} de {@code Core.procesar} sea exhaustivo.
  *
- * Los instantes son del reloj del control (§5.2), no del sistema.
+ * <p>Los instantes son del reloj del control (§5.2), no del sistema.
  */
 public sealed interface Estimulo {
 
@@ -22,8 +21,8 @@ public sealed interface Estimulo {
     }
 
     /**
-     * Pasó el tiempo. El engine lo dispara periódicamente para reevaluar la
-     * tarifa punta y el vencimiento de lecturas aunque no lleguen lecturas.
+     * Pasó el tiempo. El engine lo dispara periódicamente para reevaluar la tarifa punta y el
+     * vencimiento de lecturas aunque no lleguen lecturas.
      */
     record Tick(Instant ts) implements Estimulo {
         public Tick {
@@ -32,14 +31,18 @@ public sealed interface Estimulo {
     }
 
     /** Reemplaza el inventario completo, como {@code PUT /sitio} (§5.1). */
-    record ConfiguracionActualizada(Sitio sitio, List<ConfiguracionHabitacion> habitaciones) implements Estimulo {
+    record ConfiguracionActualizada(Sitio sitio, List<ConfiguracionHabitacion> habitaciones)
+            implements Estimulo {
         public ConfiguracionActualizada {
             Objects.requireNonNull(sitio, "sitio");
             habitaciones = List.copyOf(Objects.requireNonNull(habitaciones, "habitaciones"));
         }
     }
 
-    /** INICIAR (§5.2): a diferencia de un Tick, el reloj puede ir hacia atrás y cambia el factor de tiempo. */
+    /**
+     * INICIAR (§5.2): a diferencia de un Tick, el reloj puede ir hacia atrás y cambia el factor de
+     * tiempo.
+     */
     record Sincronizacion(Instant ahora, double factorTiempo) implements Estimulo {
         public Sincronizacion {
             Objects.requireNonNull(ahora, "ahora");

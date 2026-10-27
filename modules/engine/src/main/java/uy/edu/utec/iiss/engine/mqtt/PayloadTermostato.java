@@ -2,16 +2,16 @@ package uy.edu.utec.iiss.engine.mqtt;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * Mensaje del termostato (estándar v2, §2): {@code {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}}.
+ * Mensaje del termostato (estándar v2, §2): {@code
+ * {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}}.
  *
- * Solo se usa {@code tC}: el instante de la lectura es el del reloj del control
- * al recibirla (§5.2), no el {@code ts} (epoch en segundos), que se parsea pero
- * no se usa para decidir. La habitación sale del topic, nunca del {@code id}.
+ * <p>Solo se usa {@code tC}: el instante de la lectura es el del reloj del control al recibirla
+ * (§5.2), no el {@code ts} (epoch en segundos), que se parsea pero no se usa para decidir. La
+ * habitación sale del topic, nunca del {@code id}.
  */
 public record PayloadTermostato(double temperaturaC, Long tsEpochMilis) {
 

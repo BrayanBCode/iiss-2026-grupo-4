@@ -1,18 +1,10 @@
 package uy.edu.utec.iiss.engine.adaptador;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import uy.edu.utec.iiss.core.MayorDeficitPrimero;
-import uy.edu.utec.iiss.core.cliente.CoreClient;
-import uy.edu.utec.iiss.core.model.Accion;
-import uy.edu.utec.iiss.core.model.DiasTarifa;
-import uy.edu.utec.iiss.core.model.FranjaHoraria;
-import uy.edu.utec.iiss.core.model.Sitio;
-import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
-import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
-import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
-import uy.edu.utec.iiss.engine.switches.SwitchNoDisponibleException;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -28,26 +20,34 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import uy.edu.utec.iiss.core.MayorDeficitPrimero;
+import uy.edu.utec.iiss.core.cliente.CoreClient;
+import uy.edu.utec.iiss.core.model.Accion;
+import uy.edu.utec.iiss.core.model.DiasTarifa;
+import uy.edu.utec.iiss.core.model.FranjaHoraria;
+import uy.edu.utec.iiss.core.model.Sitio;
+import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
+import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
+import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
+import uy.edu.utec.iiss.engine.switches.SwitchNoDisponibleException;
 
 /**
- * Pruebas del adaptador entre el engine y el core. Usan el core REAL y switches
- * falsos en memoria (recuerdan su estado como manda el §4): no hace falta
- * Spring, ni el broker, ni red. Salvo donde se prueba el hilo de switches, las
- * pasadas corren en un executor sincrónico ({@code Runnable::run}), así cada
- * comando ya se envió cuando vuelve la llamada.
+ * Pruebas del adaptador entre el engine y el core. Usan el core REAL y switches falsos en memoria
+ * (recuerdan su estado como manda el §4): no hace falta Spring, ni el broker, ni red. Salvo donde
+ * se prueba el hilo de switches, las pasadas corren en un executor sincrónico ({@code
+ * Runnable::run}), así cada comando ya se envió cuando vuelve la llamada.
  */
 @DisplayName("CoreAdapter (engine <-> core <-> switches)")
 class CoreAdapterTest {
 
     private static final String URL = "http://switches:8081";
-    private static final HabitacionControlada LIVING = new HabitacionControlada("living", 21.0, 1.2, "sw-living", URL);
-    private static final HabitacionControlada DORMITORIO = new HabitacionControlada("dormitorio", 20.0, 0.8, "sw-dorm", URL);
+    private static final HabitacionControlada LIVING =
+            new HabitacionControlada("living", 21.0, 1.2, "sw-living", URL);
+    private static final HabitacionControlada DORMITORIO =
+            new HabitacionControlada("dormitorio", 20.0, 0.8, "sw-dorm", URL);
 
     /** Lunes 5/10/2026 en hora de Uruguay. */
     private static Instant lunes(int hora, int minuto) {
@@ -55,7 +55,10 @@ class CoreAdapterTest {
     }
 
     private static Sitio sitio(double tope) {
-        return new Sitio("s", tope, new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES));
+        return new Sitio(
+                "s",
+                tope,
+                new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES));
     }
 
     /** Switches falsos: recuerdan su estado, anotan comandos y consultas, y se pueden "caer". */
@@ -67,7 +70,9 @@ class CoreAdapterTest {
 
         @Override
         public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
-            if (caidos.contains(idSwitch)) throw new SwitchNoDisponibleException(idSwitch, "caído", null);
+            if (caidos.contains(idSwitch)) {
+                throw new SwitchNoDisponibleException(idSwitch, "caído", null);
+            }
             comandos.add(idSwitch + ":" + accion);
             EstadoSwitch nuevo = accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
             estado.put(idSwitch, nuevo);
@@ -76,7 +81,9 @@ class CoreAdapterTest {
 
         @Override
         public EstadoSwitch consultar(String url, String idSwitch) {
-            if (caidos.contains(idSwitch)) throw new SwitchNoDisponibleException(idSwitch, "caído", null);
+            if (caidos.contains(idSwitch)) {
+                throw new SwitchNoDisponibleException(idSwitch, "caído", null);
+            }
             consultas.add(idSwitch);
             return estado.getOrDefault(idSwitch, EstadoSwitch.DESCONOCIDO);
         }
@@ -86,9 +93,20 @@ class CoreAdapterTest {
     static class RelojManual extends Clock {
         Instant ahora = Instant.parse("2026-10-05T12:00:00Z");
 
-        @Override public ZoneOffset getZone() { return ZoneOffset.UTC; }
-        @Override public Clock withZone(java.time.ZoneId zone) { return this; }
-        @Override public Instant instant() { return ahora; }
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return ahora;
+        }
     }
 
     private final SwitchesFalsos switches = new SwitchesFalsos();
@@ -97,7 +115,13 @@ class CoreAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ZERO, Runnable::run);
+        adaptador =
+                new CoreAdapter(
+                        new CoreClient(new MayorDeficitPrimero()),
+                        switches,
+                        relojReal,
+                        Duration.ZERO,
+                        Runnable::run);
     }
 
     private void configurarYHabilitar() {
@@ -124,7 +148,9 @@ class CoreAdapterTest {
     }
 
     @Test
-    @DisplayName("Al habilitar consulta cada switch (§4) y, si está DESCONOCIDO, lo lleva a la decisión vigente")
+    @DisplayName(
+            "Al habilitar consulta cada switch (§4) y, si está DESCONOCIDO, lo lleva a la decisión"
+                    + " vigente")
     void habilitar_consultaYLuegoComanda() {
         adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
 
@@ -241,30 +267,40 @@ class CoreAdapterTest {
     }
 
     @Test
-    @DisplayName("Un comando que falló se reintenta en la próxima decisión, cuando el switch vuelve")
+    @DisplayName(
+            "Un comando que falló se reintenta en la próxima decisión, cuando el switch vuelve")
     void comandoFallido_seReintenta() {
         switches.caidos.add("sw-living");
         adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
-        adaptador.habilitar();                                               // el OFF de living falla
+        adaptador.habilitar(); // el OFF de living falla
         switches.caidos.clear();
         switches.comandos.clear();
 
-        adaptador.alLlegarLectura("dormitorio", 21.0, lunes(10, 0));        // living sigue OFF
+        adaptador.alLlegarLectura("dormitorio", 21.0, lunes(10, 0)); // living sigue OFF
 
         assertEquals(List.of("sw-living:OFF"), switches.comandos);
     }
 
     @Test
-    @DisplayName("A un switch que viene fallando no se lo reintenta antes de la espera (no traba el lazo)")
+    @DisplayName(
+            "A un switch que viene fallando no se lo reintenta antes de la espera (no traba el"
+                    + " lazo)")
     void switchQueFalla_seEsperaAntesDeReintentar() {
-        adaptador = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), switches, relojReal, Duration.ofSeconds(5), Runnable::run);
+        adaptador =
+                new CoreAdapter(
+                        new CoreClient(new MayorDeficitPrimero()),
+                        switches,
+                        relojReal,
+                        Duration.ofSeconds(5),
+                        Runnable::run);
         switches.caidos.add("sw-living");
         adaptador.configurar(sitio(3.7), List.of(LIVING));
-        adaptador.habilitar();                                               // falla: espera hasta +5 s
+        adaptador.habilitar(); // falla: espera hasta +5 s
         switches.caidos.clear();
 
         adaptador.alTick(lunes(10, 0));
-        assertTrue(switches.comandos.isEmpty(), "reintentó antes de la espera: " + switches.comandos);
+        assertTrue(
+                switches.comandos.isEmpty(), "reintentó antes de la espera: " + switches.comandos);
 
         relojReal.ahora = relojReal.ahora.plusSeconds(6);
         adaptador.alTick(lunes(10, 1));
@@ -272,36 +308,47 @@ class CoreAdapterTest {
     }
 
     @Test
-    @DisplayName("Con el hilo de switches real, habilitar y decidir no esperan a un switch lento; los comandos salen después")
+    @DisplayName(
+            "Con el hilo de switches real, habilitar y decidir no esperan a un switch lento; los"
+                    + " comandos salen después")
     void hiloDeSwitches_unSwitchLentoNoDemoraAlQueLlama() throws Exception {
         CountDownLatch liberar = new CountDownLatch(1);
         List<String> comandos = new CopyOnWriteArrayList<>();
-        ClienteSwitch lento = new ClienteSwitch() {
-            @Override
-            public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
-                comandos.add(idSwitch + ":" + accion);
-                return accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
-            }
+        ClienteSwitch lento =
+                new ClienteSwitch() {
+                    @Override
+                    public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
+                        comandos.add(idSwitch + ":" + accion);
+                        return accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
+                    }
 
-            @Override
-            public EstadoSwitch consultar(String url, String idSwitch) {
-                try {
-                    liberar.await();                                         // el switch no responde hasta que se libera
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                return EstadoSwitch.DESCONOCIDO;
-            }
-        };
-        try (CoreAdapter asincrono = new CoreAdapter(new CoreClient(new MayorDeficitPrimero()), lento, relojReal, Duration.ZERO)) {
+                    @Override
+                    public EstadoSwitch consultar(String url, String idSwitch) {
+                        try {
+                            liberar.await(); // el switch no responde hasta que se libera
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return EstadoSwitch.DESCONOCIDO;
+                    }
+                };
+        try (CoreAdapter asincrono =
+                new CoreAdapter(
+                        new CoreClient(new MayorDeficitPrimero()),
+                        lento,
+                        relojReal,
+                        Duration.ZERO)) {
             asincrono.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
 
-            assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
-                asincrono.habilitar();
-                asincrono.alLlegarLectura("living", 15.0, lunes(10, 0));
-                assertEquals(Accion.ON, asincrono.estados().get(0).decision());
-            });
-            assertTrue(comandos.isEmpty(), "comandó antes de que el switch respondiera: " + comandos);
+            assertTimeoutPreemptively(
+                    Duration.ofSeconds(1),
+                    () -> {
+                        asincrono.habilitar();
+                        asincrono.alLlegarLectura("living", 15.0, lunes(10, 0));
+                        assertEquals(Accion.ON, asincrono.estados().get(0).decision());
+                    });
+            assertTrue(
+                    comandos.isEmpty(), "comandó antes de que el switch respondiera: " + comandos);
 
             liberar.countDown();
             long limite = System.nanoTime() + Duration.ofSeconds(2).toNanos();
@@ -313,11 +360,13 @@ class CoreAdapterTest {
     }
 
     @Test
-    @DisplayName("Reconciliar: si el switch se reinició (quedó DESCONOCIDO) se le vuelve a mandar la decisión")
+    @DisplayName(
+            "Reconciliar: si el switch se reinició (quedó DESCONOCIDO) se le vuelve a mandar la"
+                    + " decisión")
     void reconciliar_switchReiniciado_seVuelveAComandar() {
         configurarYHabilitar();
-        adaptador.alLlegarLectura("living", 15.0, lunes(10, 0));             // ON
-        switches.estado.remove("sw-living");                                 // el switch reinició
+        adaptador.alLlegarLectura("living", 15.0, lunes(10, 0)); // ON
+        switches.estado.remove("sw-living"); // el switch reinició
         switches.comandos.clear();
 
         adaptador.reconciliar();
@@ -329,7 +378,7 @@ class CoreAdapterTest {
     @DisplayName("Reconciliar: si alguien movió el switch a mano, se lo devuelve a lo decidido")
     void reconciliar_switchMovidoAMano_seCorrige() {
         configurarYHabilitar();
-        switches.estado.put("sw-dorm", EstadoSwitch.ON);                     // lo prendieron a mano
+        switches.estado.put("sw-dorm", EstadoSwitch.ON); // lo prendieron a mano
         switches.comandos.clear();
 
         adaptador.reconciliar();
@@ -342,10 +391,10 @@ class CoreAdapterTest {
     void reconfigurar_conTopeMasBajo_apagaLoQueNoEntra() {
         configurarYHabilitar();
         adaptador.alLlegarLectura("living", 15.0, lunes(10, 0));
-        adaptador.alLlegarLectura("dormitorio", 15.0, lunes(10, 1));       // ambas ON
+        adaptador.alLlegarLectura("dormitorio", 15.0, lunes(10, 1)); // ambas ON
         switches.comandos.clear();
 
-        adaptador.configurar(sitio(1.5), List.of(LIVING, DORMITORIO));      // 1.2 + 0.8 = 2.0 > 1.5
+        adaptador.configurar(sitio(1.5), List.of(LIVING, DORMITORIO)); // 1.2 + 0.8 = 2.0 > 1.5
 
         assertEquals(List.of("sw-dorm:OFF"), switches.comandos);
     }
@@ -368,7 +417,11 @@ class CoreAdapterTest {
     void reconfigurar_cambiandoElSwitch_vuelveAEnviar() {
         configurarYHabilitar();
 
-        adaptador.configurar(sitio(3.7), List.of(new HabitacionControlada("living", 21.0, 1.2, "sw-nuevo", URL), DORMITORIO));
+        adaptador.configurar(
+                sitio(3.7),
+                List.of(
+                        new HabitacionControlada("living", 21.0, 1.2, "sw-nuevo", URL),
+                        DORMITORIO));
 
         assertEquals(List.of("sw-nuevo:OFF"), switches.comandos);
     }
@@ -377,17 +430,29 @@ class CoreAdapterTest {
     @DisplayName("Una configuración que el core rechaza no cambia nada en el adaptador")
     void configuracionRechazada_noCambiaNada() {
         configurarYHabilitar();
-        adaptador.alLlegarLectura("living", 15.0, lunes(10, 0));             // ON
+        adaptador.alLlegarLectura("living", 15.0, lunes(10, 0)); // ON
 
-        assertThrows(IllegalArgumentException.class, () -> adaptador.configurar(sitio(3.7),
-                List.of(new HabitacionControlada("living", 21.0, -1, "sw-x", URL))));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        adaptador.configurar(
+                                sitio(3.7),
+                                List.of(
+                                        new HabitacionControlada(
+                                                "living", 21.0, -1, "sw-x", URL))));
 
-        assertEquals(List.of("living", "dormitorio"), adaptador.estados().stream().map(CoreAdapter.EstadoControlado::idHabitacion).toList());
+        assertEquals(
+                List.of("living", "dormitorio"),
+                adaptador.estados().stream()
+                        .map(CoreAdapter.EstadoControlado::idHabitacion)
+                        .toList());
         assertEquals(Accion.ON, adaptador.estados().get(0).decision());
     }
 
     @Test
-    @DisplayName("El diagnóstico informa decisión, motivo y estado conocido del switch de cada habitación")
+    @DisplayName(
+            "El diagnóstico informa decisión, motivo y estado conocido del switch de cada"
+                    + " habitación")
     void estados_informaDecisionYMotivo() {
         configurarYHabilitar();
         adaptador.alLlegarLectura("living", 15.0, lunes(10, 0));

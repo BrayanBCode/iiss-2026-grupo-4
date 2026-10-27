@@ -3,8 +3,8 @@ package uy.edu.utec.iiss.engine.switches;
 import uy.edu.utec.iiss.core.model.Accion;
 
 /**
- * Lo que el engine necesita de un switch (estándar v2, §3 y §4). Lo implementa
- * {@link ClienteSwitchRest}; en los tests se reemplaza por un switch falso, sin red.
+ * Lo que el engine necesita de un switch (estándar v2, §3 y §4). Lo implementa {@link
+ * ClienteSwitchRest}; en los tests se reemplaza por un switch falso, sin red.
  */
 public interface ClienteSwitch {
 

@@ -6,17 +6,18 @@ import java.util.Objects;
 /**
  * Parámetros de la función de decisión que son del controlador, no del inventario.
  *
- * @param histeresisC             banda (°C) bajo la esperada en la que una habitación
- *                                apagada no se enciende; una encendida sigue hasta la esperada.
- * @param vigenciaLectura         cuánto tiempo real vale una lectura (escalado por el
- *                                factor de tiempo); vencida, la habitación se apaga.
+ * @param histeresisC banda (°C) bajo la esperada en la que una habitación apagada no se enciende;
+ *     una encendida sigue hasta la esperada.
+ * @param vigenciaLectura cuánto tiempo real vale una lectura (escalado por el factor de tiempo);
+ *     vencida, la habitación se apaga.
  * @param temperaturaMinimaValida lecturas por debajo se descartan (sensor roto).
  * @param temperaturaMaximaValida lecturas por encima se descartan (sensor roto).
  */
-public record ParametrosControl(double histeresisC,
-                                Duration vigenciaLectura,
-                                double temperaturaMinimaValida,
-                                double temperaturaMaximaValida) {
+public record ParametrosControl(
+        double histeresisC,
+        Duration vigenciaLectura,
+        double temperaturaMinimaValida,
+        double temperaturaMaximaValida) {
 
     /** 0.3 °C de histéresis, 10 min de vigencia, rango físico -40..85 °C (el del Shelly H&T). */
     public static final ParametrosControl PREDETERMINADOS =

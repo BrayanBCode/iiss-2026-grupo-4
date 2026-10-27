@@ -1,5 +1,7 @@
 package uy.edu.utec.iiss.core.cliente;
 
+import java.time.Instant;
+import java.util.List;
 import uy.edu.utec.iiss.core.Core;
 import uy.edu.utec.iiss.core.CriterioPrioridad;
 import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
@@ -8,9 +10,6 @@ import uy.edu.utec.iiss.core.model.EstadoHabitacion;
 import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.ParametrosControl;
 import uy.edu.utec.iiss.core.model.Sitio;
-
-import java.time.Instant;
-import java.util.List;
 
 /** Implementación de {@link ICoreClient}: arma los estímulos y se los pasa al {@link Core}. */
 public class CoreClient implements ICoreClient {

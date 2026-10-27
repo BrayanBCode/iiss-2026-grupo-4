@@ -1,5 +1,9 @@
 package uy.edu.utec.iiss.core;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import uy.edu.utec.iiss.core.model.Accion;
 import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 import uy.edu.utec.iiss.core.model.Decision;
@@ -9,16 +13,11 @@ import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.Sitio;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.List;
-
 /**
  * Utilitarios compartidos por los tests del core (no es un test en sí).
  *
- * Calendario usado: octubre de 2026, hora de Uruguay (UTC-3).
- *   lunes 5, martes 6, miércoles 7, jueves 8, viernes 9, sábado 10, domingo 11.
+ * <p>Calendario usado: octubre de 2026, hora de Uruguay (UTC-3). lunes 5, martes 6, miércoles 7,
+ * jueves 8, viernes 9, sábado 10, domingo 11.
  */
 final class CoreTestFixtures {
 
@@ -30,8 +29,7 @@ final class CoreTestFixtures {
     static final FranjaHoraria PUNTA =
             new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
 
-    private CoreTestFixtures() {
-    }
+    private CoreTestFixtures() {}
 
     // ---------- construcción de core / configuración ----------
 
@@ -45,11 +43,13 @@ final class CoreTestFixtures {
         return core;
     }
 
-    static Estimulo.ConfiguracionActualizada config(double potenciaContratadaKW, ConfiguracionHabitacion... habitaciones) {
+    static Estimulo.ConfiguracionActualizada config(
+            double potenciaContratadaKW, ConfiguracionHabitacion... habitaciones) {
         return config(new Sitio("sitio-test", potenciaContratadaKW, PUNTA), habitaciones);
     }
 
-    static Estimulo.ConfiguracionActualizada config(Sitio sitio, ConfiguracionHabitacion... habitaciones) {
+    static Estimulo.ConfiguracionActualizada config(
+            Sitio sitio, ConfiguracionHabitacion... habitaciones) {
         return new Estimulo.ConfiguracionActualizada(sitio, List.of(habitaciones));
     }
 
@@ -70,13 +70,26 @@ final class CoreTestFixtures {
     // ---------- tiempo ----------
 
     static Instant dia(int diaDelMes, int hora, int minuto) {
-        return LocalDateTime.of(2026, 10, diaDelMes, hora, minuto).atZone(Sitio.ZONA_URUGUAY).toInstant();
+        return LocalDateTime.of(2026, 10, diaDelMes, hora, minuto)
+                .atZone(Sitio.ZONA_URUGUAY)
+                .toInstant();
     }
 
-    static Instant lunes(int hora, int minuto)   { return dia(5, hora, minuto); }
-    static Instant viernes(int hora, int minuto) { return dia(9, hora, minuto); }
-    static Instant sabado(int hora, int minuto)  { return dia(10, hora, minuto); }
-    static Instant domingo(int hora, int minuto) { return dia(11, hora, minuto); }
+    static Instant lunes(int hora, int minuto) {
+        return dia(5, hora, minuto);
+    }
+
+    static Instant viernes(int hora, int minuto) {
+        return dia(9, hora, minuto);
+    }
+
+    static Instant sabado(int hora, int minuto) {
+        return dia(10, hora, minuto);
+    }
+
+    static Instant domingo(int hora, int minuto) {
+        return dia(11, hora, minuto);
+    }
 
     // ---------- lectura de resultados ----------
 
@@ -101,13 +114,17 @@ final class CoreTestFixtures {
     }
 
     /** Suma de potencia (kW) de las habitaciones que quedaron en ON. */
-    static double potenciaEncendida(List<Decision> decisiones, List<ConfiguracionHabitacion> habitaciones) {
+    static double potenciaEncendida(
+            List<Decision> decisiones, List<ConfiguracionHabitacion> habitaciones) {
         return decisiones.stream()
                 .filter(d -> d.accion() == Accion.ON)
-                .mapToDouble(d -> habitaciones.stream()
-                        .filter(h -> h.id().equals(d.idHabitacion()))
-                        .mapToDouble(ConfiguracionHabitacion::potenciaKW)
-                        .findFirst().orElse(0.0))
+                .mapToDouble(
+                        d ->
+                                habitaciones.stream()
+                                        .filter(h -> h.id().equals(d.idHabitacion()))
+                                        .mapToDouble(ConfiguracionHabitacion::potenciaKW)
+                                        .findFirst()
+                                        .orElse(0.0))
                 .sum();
     }
 }

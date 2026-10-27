@@ -7,15 +7,15 @@ import java.time.ZoneId;
 import java.util.Objects;
 
 /**
- * Reloj del control (estándar v2, §5.2): tras INICIAR, todo lo que depende de
- * la hora usa
+ * Reloj del control (estándar v2, §5.2): tras INICIAR, todo lo que depende de la hora usa
  *
  * <pre>ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)</pre>
  *
- * y no el reloj del sistema. {@code zona} es la zona en la que se interpreta
- * la franja tarifaria (hora local, sin conversión: ver {@link ControlService}).
+ * y no el reloj del sistema. {@code zona} es la zona en la que se interpreta la franja tarifaria
+ * (hora local, sin conversión: ver {@link ControlService}).
  */
-public record RelojControl(Instant fechaHora, double factorTiempo, Instant iniciadoEn, ZoneId zona) {
+public record RelojControl(
+        Instant fechaHora, double factorTiempo, Instant iniciadoEn, ZoneId zona) {
 
     public RelojControl {
         Objects.requireNonNull(fechaHora, "fechaHora");
