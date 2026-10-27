@@ -226,7 +226,7 @@ Recorrido completo con curl: `./scripts/api-demo.sh [api-key] [url]`.
 | core | 116 | `DecidirTest` (35): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"). `CoreTest` (63), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Cobertura JaCoCo: 99,6 % líneas, 90,8 % ramas. |
 | engine | 99 | Unitarios (56): `CoreAdapter` (switches falsos con memoria, reconciliación, fallas), API completa con contexto Spring (`ApiEstandarTest`), validación y persistencia del inventario, reloj acelerado, payload MQTT, registro. De integración (43), con broker MQTT embebido y switches HTTP falsos: control según la carga total, arranque y parada, cambios de configuración en ejecución, caída del broker, pérdida de mensajes, switches que fallan y termostatos caídos. |
 
-Última ejecución (2026-10-27): 215 tests, 1 falla conocida en `FallaBrokerMqttTest`. Detalle en
+Última ejecución (2026-10-27): 215 tests, 0 fallas. Detalle en
 [`docs/tests/resultados.md`](docs/tests/resultados.md). El criterio por el que el conjunto se
 considera adecuado está en [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md), y la
 cobertura y el estándar de codificación, en [`docs/calidad/`](docs/calidad/README.md).

@@ -36,20 +36,26 @@ import uy.edu.utec.iiss.engine.inventario.InventarioAplicado;
  *   <li>La habitación se resuelve por el topic, nunca por el {@code id} del payload.
  *   <li>El broker no se hardcodea: lo informa el registro ante el entorno (§6) o, si no hay
  *       registro, la propiedad {@code mqtt.broker.url}.
- *   <li>Si el broker no está o se cae, reintenta cada 5 s; al reconectar restablece las
- *       suscripciones (la sesión es limpia).
+ *   <li>Si el broker no está o se cae, reintenta cada {@code mqtt.reconexion-max-segundos} (5 s por
+ *       defecto) con un cliente nuevo; al reconectar restablece las suscripciones (la sesión es
+ *       limpia).
  * </ul>
+ *
+ * <p>No se usa la reconexión automática de Paho: su espera entre reintentos es un campo estático
+ * (la comparten todos los clientes de la JVM y se duplica en cada intento fallido), y un cliente
+ * que se cierra en medio de un reintento no se cierra ("conexión ya en curso") y sigue
+ * reconectándose para siempre. Reconectando desde el hilo propio, el cliente perdido ya está
+ * desconectado cuando se cierra y al apagar no queda nada vivo.
  */
 @Component
 public class LecturaMqttListener implements MqttCallbackExtended {
 
     private static final Logger log = LoggerFactory.getLogger(LecturaMqttListener.class);
-    private static final long SEGUNDOS_ENTRE_REINTENTOS = 5;
     private static final int QOS = 1;
 
     private final ControlService controlService;
     private final String clientIdBase;
-    private final int reconexionMaxMs;
+    private final long segundosEntreReintentos;
     private final ScheduledExecutorService hilo =
             Executors.newSingleThreadScheduledExecutor(
                     r -> {
@@ -71,7 +77,7 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             @Value("${mqtt.reconexion-max-segundos:5}") int reconexionMaxSegundos) {
         this.controlService = controlService;
         this.clientIdBase = etiqueta;
-        this.reconexionMaxMs = reconexionMaxSegundos * 1000;
+        this.segundosEntreReintentos = reconexionMaxSegundos;
     }
 
     /**
@@ -87,13 +93,13 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             suscritos.clear();
             brokerUrl = nuevoBrokerUrl;
             long esta = ++generacion;
-            hilo.execute(() -> intentarConexion(esta));
+            hilo.execute(() -> intentarConexion(esta, false));
         }
     }
 
-    private void intentarConexion(long esta) {
+    private void intentarConexion(long esta, boolean reconexion) {
         synchronized (candado) {
-            if (esta != generacion) {
+            if (esta != generacion || client != null) {
                 return;
             }
             MqttClient nuevo = null;
@@ -105,25 +111,42 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                                 new MemoryPersistence());
                 MqttConnectOptions opciones = new MqttConnectOptions();
                 opciones.setCleanSession(true);
-                opciones.setAutomaticReconnect(true);
-                // Paho duplica la espera entre reintentos hasta 128 s: tras una caída larga el
-                // broker podía volver y el engine tardar 2 min en enterarse. Se acota.
-                opciones.setMaxReconnectDelay(reconexionMaxMs);
+                opciones.setAutomaticReconnect(false); // se reconecta desde el hilo propio
                 opciones.setConnectionTimeout(5);
                 nuevo.setCallback(this);
                 nuevo.connect(opciones);
                 client = nuevo;
-                log.info("Conectado al broker MQTT en {}.", brokerUrl);
+                if (reconexion) {
+                    log.info(
+                            "Reconectado al broker MQTT ({}). Se restablecen las suscripciones.",
+                            brokerUrl);
+                } else {
+                    log.info("Conectado al broker MQTT en {}.", brokerUrl);
+                }
                 sincronizarSuscripciones();
             } catch (MqttException | IllegalArgumentException e) {
                 log.error(
                         "No se pudo conectar al broker MQTT en {}: {}. Reintento en {} s.",
                         brokerUrl,
                         e.getMessage(),
-                        SEGUNDOS_ENTRE_REINTENTOS);
+                        segundosEntreReintentos);
                 cerrar(nuevo);
-                programar(() -> intentarConexion(esta), SEGUNDOS_ENTRE_REINTENTOS);
+                programar(() -> intentarConexion(esta, reconexion), segundosEntreReintentos);
             }
+        }
+    }
+
+    /** Se perdió la conexión: se descarta el cliente caído y se reintenta con uno nuevo. */
+    private void reconectar() {
+        synchronized (candado) {
+            if (client == null || client.isConnected()) {
+                return; // ya se reemplazó o no hay nada que reconectar
+            }
+            cerrar(client);
+            client = null;
+            suscritos.clear();
+            long esta = generacion;
+            programar(() -> intentarConexion(esta, true), segundosEntreReintentos);
         }
     }
 
@@ -172,14 +195,14 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             log.error(
                     "Falló la suscripción MQTT: {}. Se reintenta en {} s.",
                     e.getMessage(),
-                    SEGUNDOS_ENTRE_REINTENTOS);
+                    segundosEntreReintentos);
             programar(
                     () -> {
                         synchronized (candado) {
                             sincronizarSuscripciones();
                         }
                     },
-                    SEGUNDOS_ENTRE_REINTENTOS);
+                    segundosEntreReintentos);
         }
     }
 
@@ -209,9 +232,19 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             if (c.isConnected()) {
                 c.disconnect();
             }
+        } catch (MqttException e) {
+            log.debug("Error al desconectar el cliente MQTT: {}", e.getMessage());
+        }
+        try {
             c.close();
         } catch (MqttException e) {
-            log.warn("Error al cerrar el cliente MQTT: {}", e.getMessage());
+            // Tras un connect() fallido Paho puede quedar "conectando" y rechazar el close().
+            try {
+                c.disconnectForcibly(0, 0, false);
+                c.close();
+            } catch (MqttException otra) {
+                log.warn("Error al cerrar el cliente MQTT: {}", otra.getMessage());
+            }
         }
     }
 
@@ -224,28 +257,18 @@ public class LecturaMqttListener implements MqttCallbackExtended {
 
     @Override
     public void connectComplete(boolean reconnect, String serverURI) {
-        if (!reconnect) {
-            return; // la primera conexión ya suscribe en intentarConexion()
-        }
-        // Este método corre en el hilo de callbacks de Paho: suscribir desde acá
-        // espera una confirmación que procesa ESE MISMO hilo (deadlock). Se delega.
-        log.info("Reconectado al broker MQTT ({}). Se restablecen las suscripciones.", serverURI);
-        programar(
-                () -> {
-                    synchronized (candado) {
-                        suscritos.clear();
-                        sincronizarSuscripciones();
-                    }
-                },
-                0);
+        // Sin reconexión automática de Paho: intentarConexion() ya suscribe.
     }
 
     @Override
     public void connectionLost(Throwable causa) {
         log.error(
-                "Conexión perdida con el broker MQTT ({}): {}. Paho intenta reconectar.",
+                "Conexión perdida con el broker MQTT ({}): {}. Reintento en {} s.",
                 brokerUrl,
-                causa == null ? "?" : causa.getMessage());
+                causa == null ? "?" : causa.getMessage(),
+                segundosEntreReintentos);
+        // Corre en el hilo de Paho: cerrar el cliente desde acá puede trabarse. Se delega.
+        programar(this::reconectar, 0);
     }
 
     @Override

@@ -18,15 +18,15 @@ del core en `modules/core/target/site/jacoco/index.html` (copia en
 
 ## Última ejecución — 2026-10-27 (rama `implementacion5`, Java 25)
 
-**Resultado: 215 tests, 214 pasan, 1 falla, 0 errores, 0 omitidos.** El `core` pasa completo;
-en el `engine` falla un test de robustez ante caídas del broker (ver
-[Falla conocida](#falla-conocida)).
+**Resultado: BUILD SUCCESS — 215 tests, 0 fallas, 0 errores, 0 omitidos.** Una primera
+corrida del mismo día había dado 1 falla en `FallaBrokerMqttTest`; se corrigió la causa en el
+código (ver [Falla corregida](#falla-corregida)).
 
 | Módulo | Tests | Fallas |
 |---|---|---|
 | `core` | 116 | 0 |
-| `engine` | 99 | 1 |
-| **Total** | **215** | **1** |
+| `engine` | 99 | 0 |
+| **Total** | **215** | **0** |
 
 ### Módulo `core` (TDD de la función de decisión) — 116 tests
 
@@ -76,25 +76,37 @@ De integración (broker MQTT embebido + switches HTTP falsos, nuevos en la itera
 | `ControlCargaTest` | la carga total limita / no limita; nunca se supera la potencia contratada | 6 | 0 |
 | `ArranqueParadaTest` | distintas situaciones iniciales; qué se hace con la calefacción al iniciar y al detener | 11 | 0 |
 | `CambioConfiguracionTest` | cambios de configuración con el control en ejecución | 7 | 0 |
-| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | **1** |
+| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | 0 |
 | `PerdidaMensajesTest` | pérdida de mensajes de los termostatos | 5 | 0 |
 | `FallaSwitchTest` | switch que no responde o falla; sin superar la contratada si falla un OFF | 5 | 0 |
 | `TermostatoCaidoTest` | un termostato deja de publicar | 5 | 0 |
-| **Total engine** | | **99** | **1** |
+| **Total engine** | | **99** | **0** |
 
-### Falla conocida
+### Falla corregida
 
-`FallaBrokerMqttTest.caidaLarga_seReconectaEnSegundos`:
+En la primera corrida falló `FallaBrokerMqttTest.caidaLarga_seReconectaEnSegundos`:
 
 ```
 AssertionFailedError: el engine no se reconectó ni se re-suscribió en PT5S
 ```
 
-El test apaga el broker 8 s y, al levantarlo, exige que el engine esté reconectado y
-re-suscripto en 5 s. La espera máxima entre reintentos de Paho también está acotada a 5 s
-(`mqtt.reconexion-max-segundos`), así que el margen del test es nulo: si el próximo reintento cae
-justo antes de que el broker vuelva, la reconexión llega apenas después de los 5 s. Queda
-registrada para que la revise el responsable de los tests de fallas (Persona 3).
+El test baja la espera entre reintentos a 1 s, pero el engine no se reconectaba ni a los 5 s. El
+log mostró la causa: clientes MQTT de contextos de Spring **ya cerrados** seguían reconectándose
+al broker. Eran dos problemas de la reconexión automática de Paho 1.2.5:
+
+1. Un cliente que se cierra mientras está reintentando rechaza el `close()` ("Conexión ya en
+   curso"), queda vivo y sigue reconectándose para siempre. En producción pasaría lo mismo al
+   cambiar de broker con el anterior caído.
+2. La espera entre reintentos es un campo **estático** (`MqttAsyncClient.reconnectDelay`): la
+   comparten todos los clientes de la JVM y se duplica en cada intento fallido. Los clientes que
+   quedaban vivos la inflaban también para el cliente nuevo.
+
+Corrección en `LecturaMqttListener`: se apaga la reconexión automática de Paho. Ante
+`connectionLost` se cierra el cliente caído (ya desconectado, así que el `close()` funciona) y
+el hilo `mqtt-conexion` reintenta cada `mqtt.reconexion-max-segundos` con un cliente nuevo. El
+test no se modificó en lo que verifica; solo se actualizaron sus comentarios. Después del cambio:
+`mvn verify` completo sin fallas, `FallaBrokerMqttTest` aislado 3 veces seguidas sin fallas
+(27 s cada corrida, antes 35 s) y ningún aviso "Error al cerrar el cliente MQTT" en el log.
 
 ## Mensajes `ERROR` / `WARN` esperados en el log
 

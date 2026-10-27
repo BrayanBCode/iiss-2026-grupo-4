@@ -18,8 +18,9 @@ import uy.edu.utec.iiss.engine.mqtt.LecturaMqttListener;
  * no está, el control sigue con lo último que sabía; cuando vuelve, el engine se reconecta solo,
  * restablece las suscripciones (también las de habitaciones agregadas durante la caída) y retoma.
  *
- * <p>La espera máxima entre reintentos se baja a 1 s para que el test no dure de más; con la que
- * trae Paho por defecto (hasta 128 s) {@link #caidaLarga_seReconectaEnSegundos} falla.
+ * <p>La espera entre reintentos se baja a 1 s para que el test no dure de más. Con la reconexión
+ * automática de Paho (espera que se duplica hasta 128 s, compartida entre clientes) {@link
+ * #caidaLarga_seReconectaEnSegundos} falla.
  */
 @TestPropertySource(properties = "mqtt.reconexion-max-segundos=1")
 @DisplayName("Integración: caída y recuperación del broker MQTT")
@@ -66,7 +67,9 @@ class FallaBrokerMqttTest extends IntegracionBase {
         esperarSwitch("living", "ON");
 
         BROKER.detener();
-        Thread.sleep(8000); // con el backoff de Paho sin tope, el próximo intento sería a los 15 s
+        Thread.sleep(
+                8000); // con una espera que se duplica (1, 2, 4, 8 s) el próximo intento sería a
+        // los 15 s
         BROKER.iniciar();
 
         esperar(

@@ -1,4 +1,4 @@
-# mvn spotless:check — rama implementacion5, 2026-10-27 00:25
+# mvn spotless:check — rama implementacion5, 2026-10-27 00:44
 # Java: java version "25.0.4" 2026-07-21 LTS
 
 [INFO] Scanning for projects...
@@ -37,13 +37,13 @@
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary for ecowarm-parent 1.0.0:
 [INFO] 
-[INFO] ecowarm-parent ..................................... SUCCESS [  0.615 s]
-[INFO] core ............................................... SUCCESS [  1.444 s]
-[INFO] engine ............................................. SUCCESS [  0.924 s]
+[INFO] ecowarm-parent ..................................... SUCCESS [  0.649 s]
+[INFO] core ............................................... SUCCESS [  1.459 s]
+[INFO] engine ............................................. SUCCESS [  0.934 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  3.430 s
-[INFO] Finished at: 2026-10-27T00:25:47-03:00
+[INFO] Total time:  3.473 s
+[INFO] Finished at: 2026-10-27T00:44:47-03:00
 [INFO] ------------------------------------------------------------------------
 # exit code: 0

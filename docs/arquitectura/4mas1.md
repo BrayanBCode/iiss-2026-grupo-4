@@ -281,7 +281,7 @@ classDiagram
     class LecturaMqttListener {
       +conectar(broker)
       suscribe topicTermostato
-      reconexión ≤ 5 s
+      reintento cada 5 s (hilo propio)
     }
     class PayloadTermostato {
       tC
@@ -509,24 +509,29 @@ Lo verifica `FallaSwitchTest`.
 sequenceDiagram
     autonumber
     participant B as Broker
-    participant Mq as LecturaMqttListener (Paho)
+    participant Mq as LecturaMqttListener (hilo mqtt-conexion)
     participant Ctl as ControlService
     participant Ad as CoreAdapter
 
-    B--xMq: connectionLost
-    Mq->>Mq: conectado = false (ERROR en el log)
+    B--xMq: connectionLost (callback de Paho)
+    Mq->>Mq: cierra el cliente caído (ya desconectado) y descarta las suscripciones
     Note over Ctl,Ad: el control sigue EN_EJECUCION: los switches quedan como estaban,<br/>el tick y la reconciliación siguen corriendo
-    loop Paho: reconexión automática, espera máxima 5 s
-        Mq-xB: connect
+    loop cada mqtt.reconexion-max-segundos (5 s por defecto)
+        Mq-xB: connect con un cliente nuevo
     end
     Note over Ad: si la caída es larga, las lecturas vencen<br/>y el core apaga por LECTURA_VENCIDA
-    B-->>Mq: connectComplete(reconnect = true)
-    Mq->>Mq: sincronizarSuscripciones() en el hilo mqtt-conexion<br/>(sesión limpia: hay que volver a suscribir)
-    Mq->>B: subscribe(topicTermostato…)
+    Mq->>B: connect
+    B-->>Mq: CONNACK
+    Mq->>B: subscribe(topicTermostato…) (sesión limpia: hay que volver a suscribir)
     B->>Mq: lecturas nuevas → el control retoma
 ```
 
 Lo verifican `FallaBrokerMqttTest` y `TermostatoCaidoTest`.
+
+No se usa la reconexión automática de Paho. Su espera entre reintentos es un campo estático,
+compartido por todos los clientes de la JVM, que se duplica en cada intento fallido. Además, un
+cliente que se cierra en medio de un reintento queda vivo y sigue reconectándose. Reconectar desde
+el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cliente.
 
 ---
 
@@ -536,8 +541,7 @@ Lo verifican `FallaBrokerMqttTest` y `TermostatoCaidoTest`.
 |---|---|---|
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
 | Paho callback | broker MQTT | `messageArrived` → `ControlService.alRecibirLectura` |
-| `mqtt-conexion` | propio | primera conexión, reintentos cada 5 s y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
-| Paho reconexión | Paho | reconexión automática tras una caída, con la espera entre intentos acotada a 5 s |
+| `mqtt-conexion` | propio | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
 | `control-temporizador` | propio | tick cada 1 s real y reconciliación cada 15 s |
 | `registro-entorno` | propio | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
@@ -557,7 +561,7 @@ acota).
 | Falla | Qué hace el controlador | Hilo | Test |
 |---|---|---|---|
 | Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
-| Broker cae durante la ejecución | Paho reconecta (espera ≤ 5 s); al volver se re-suscribe. El control sigue y no toca los switches por la caída | Paho + `mqtt-conexion` | `FallaBrokerMqttTest` |
+| Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
 | Se pierden mensajes o llegan corruptos | un payload inválido se descarta; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest` |
 | Termostato deja de publicar | la lectura vence (10 min reales, escalados por `factorTiempo`) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
