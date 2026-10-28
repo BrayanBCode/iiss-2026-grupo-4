@@ -15,7 +15,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uy.edu.utec.iiss.core.Core;
@@ -52,10 +51,11 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  * durante una pasada se juntan en la siguiente. Las pasadas son secuenciales: un switch lento
  * demora a los demás switches hasta su timeout.
  *
- * <p><b>En marcha.</b> El adaptador no guarda si el control está en marcha: lo pregunta ({@code
- * enMarcha}, que en el engine es {@code ControlService.enEjecucion()}). Así hay un solo lugar donde
- * vive ese dato y no se pueden desincronizar. Detenido, se sigue decidiendo (por ejemplo, ante un
- * PUT /sitio) pero no se toca ningún switch.
+ * <p><b>Estado de ejecución.</b> El adaptador es el único dueño del estado de ejecución ({@link
+ * #iniciar}, {@link #detener}, {@link #enEjecucion}); {@code ControlService} le delega y nunca
+ * guarda una copia. La dependencia va en un solo sentido (ControlService usa al adaptador, nunca al
+ * revés), así los candados se toman siempre en el mismo orden y no hay deadlock. Detenido, se sigue
+ * decidiendo (por ejemplo, ante un PUT /sitio) pero no se toca ningún switch.
  */
 public class CoreAdapter implements AutoCloseable {
 
@@ -83,8 +83,9 @@ public class CoreAdapter implements AutoCloseable {
     private final ClienteSwitch switches;
     private final Clock relojReal;
     private final Duration esperaReintento;
-    private final BooleanSupplier enMarcha;
     private final Executor hiloSwitches;
+
+    private boolean enEjecucion; // solo se toca con el candado de esta clase
 
     // Situación del control: es lo que se le pasa a core.decidir.
     private Sitio sitio; // null hasta el primer inventario
@@ -105,17 +106,12 @@ public class CoreAdapter implements AutoCloseable {
 
     /** Con su propio hilo de switches. */
     public CoreAdapter(
-            Core core,
-            ClienteSwitch switches,
-            Clock relojReal,
-            Duration esperaReintento,
-            BooleanSupplier enMarcha) {
+            Core core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento) {
         this(
                 core,
                 switches,
                 relojReal,
                 esperaReintento,
-                enMarcha,
                 Executors.newSingleThreadScheduledExecutor(
                         r -> {
                             Thread t = new Thread(r, "switches");
@@ -133,13 +129,11 @@ public class CoreAdapter implements AutoCloseable {
             ClienteSwitch switches,
             Clock relojReal,
             Duration esperaReintento,
-            BooleanSupplier enMarcha,
             Executor hiloSwitches) {
         this.core = Objects.requireNonNull(core);
         this.switches = Objects.requireNonNull(switches);
         this.relojReal = Objects.requireNonNull(relojReal);
         this.esperaReintento = Objects.requireNonNull(esperaReintento);
-        this.enMarcha = Objects.requireNonNull(enMarcha);
         this.hiloSwitches = Objects.requireNonNull(hiloSwitches);
     }
 
@@ -187,7 +181,7 @@ public class CoreAdapter implements AutoCloseable {
     /**
      * Procesa un estímulo (lectura, tick, configuración o INICIAR): actualiza la situación, le pide
      * al core que decida y aplica las decisiones (los switches se comandan en su hilo, si el
-     * control está en marcha).
+     * control está en ejecución).
      *
      * <p>Una {@code ConfiguracionActualizada} recibida directamente cambia lo que se decide pero no
      * los switches; el engine usa {@link #configurar}, que actualiza las dos cosas.
@@ -298,13 +292,26 @@ public class CoreAdapter implements AutoCloseable {
     // ------------------------------------------------------------------
 
     /**
-     * El control acaba de pasar a estar en marcha: se olvidan las esperas entre reintentos y se
-     * pide una pasada que primero consulta el estado real de cada switch (§4) y después manda lo
-     * que falte. No espera a los switches.
+     * Pone el control en ejecución (o lo re-sincroniza si ya lo estaba): se olvidan las esperas
+     * entre reintentos y se pide una pasada que primero consulta el estado real de cada switch (§4)
+     * y después manda lo que falte. No espera a los switches.
      */
-    public synchronized void alIniciar() {
+    public synchronized void iniciar() {
+        enEjecucion = true;
         noReintentarAntesDe.clear();
         programarPasada(true);
+    }
+
+    /**
+     * Deja de comandar switches. Una pasada que ya está en curso lo ve antes de mandar el próximo
+     * comando, porque lee el estado de ejecución con el mismo candado. Idempotente.
+     */
+    public synchronized void detener() {
+        enEjecucion = false;
+    }
+
+    public synchronized boolean enEjecucion() {
+        return enEjecucion;
     }
 
     /**
@@ -338,7 +345,7 @@ public class CoreAdapter implements AutoCloseable {
      * bloqueo tomado.
      */
     private void programarPasada(boolean consultarAntes) {
-        if (!enMarcha.getAsBoolean()) {
+        if (!enEjecucion) {
             return;
         }
         consultaPendiente |= consultarAntes;
@@ -364,7 +371,7 @@ public class CoreAdapter implements AutoCloseable {
                 pasadaEncolada = false; // lo que llegue desde ahora pide otra pasada
                 boolean consultar = consultaPendiente;
                 consultaPendiente = false;
-                if (!enMarcha.getAsBoolean()) {
+                if (!enEjecucion) {
                     return;
                 }
                 aConsultar =
@@ -426,7 +433,7 @@ public class CoreAdapter implements AutoCloseable {
         for (HabitacionControlada h : candidatas) {
             Accion accion;
             synchronized (this) { // la decisión vigente se lee justo antes de mandarla
-                if (!enMarcha.getAsBoolean()) {
+                if (!enEjecucion) {
                     return;
                 }
                 Decision d = deseado.get(h.id());

@@ -2,7 +2,6 @@ package uy.edu.utec.iiss.engine.config;
 
 import java.time.Clock;
 import java.time.Duration;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +9,6 @@ import uy.edu.utec.iiss.core.Core;
 import uy.edu.utec.iiss.core.MayorDeficitPrimero;
 import uy.edu.utec.iiss.core.model.ParametrosControl;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
-import uy.edu.utec.iiss.engine.control.ControlService;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
 
 /**
@@ -41,22 +39,15 @@ public class CoreConfig {
     }
 
     /**
-     * El adaptador pregunta si el control está en marcha a {@link ControlService}, el único que lo
-     * sabe. Se busca recién cuando se pregunta ({@code ObjectProvider}) porque {@code
-     * ControlService} a su vez usa el adaptador: inyectarlo directo sería una dependencia circular.
+     * El adaptador guarda el estado de ejecución; {@code ControlService} lo usa y no al revés (sin
+     * ciclo).
      */
     @Bean
     public CoreAdapter coreAdapter(
             Core core,
             ClienteSwitch switches,
             Clock relojReal,
-            @Value("${switch.espera-reintento-segundos:5}") long esperaReintento,
-            ObjectProvider<ControlService> control) {
-        return new CoreAdapter(
-                core,
-                switches,
-                relojReal,
-                Duration.ofSeconds(esperaReintento),
-                () -> control.getObject().enEjecucion());
+            @Value("${switch.espera-reintento-segundos:5}") long esperaReintento) {
+        return new CoreAdapter(core, switches, relojReal, Duration.ofSeconds(esperaReintento));
     }
 }

@@ -171,7 +171,7 @@ class ArranqueParadaTest extends IntegracionBase {
 
     @Test
     @DisplayName(
-            "Con el control en marcha, un cambio manual en un switch se corrige al reconciliar")
+            "Con el control en ejecución, un cambio manual en un switch se corrige al reconciliar")
     void cambioManualSeCorrige() throws Exception {
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
         iniciar();

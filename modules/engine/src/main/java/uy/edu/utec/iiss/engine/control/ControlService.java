@@ -58,8 +58,10 @@ public class ControlService {
     private final Duration vigenciaLectura;
     private final boolean tsEnTiempoReal;
 
-    // Único lugar donde vive el estado de marcha: null = DETENIDO. CoreAdapter lo consulta con
-    // enEjecucion() en vez de guardar una bandera propia.
+    // `reloj` solo da la hora (fechaHora, factor, zona) y NO dice si el control está detenido: si
+    // está en ejecución lo dice adaptador.enEjecucion(). Queda con el último INICIAR después de
+    // DETENER y
+    // es null antes del primero; así hay una sola bandera de estado de ejecución.
     private volatile RelojControl reloj;
     private ScheduledExecutorService temporizador;
 
@@ -95,14 +97,14 @@ public class ControlService {
      */
     public synchronized EstadoControl iniciar(
             Instant fechaHora, ZoneId zonaDeFechaHora, double factorTiempo) {
-        boolean resincroniza = reloj != null;
+        boolean resincroniza = enEjecucion();
         RelojControl nuevo =
                 new RelojControl(
                         fechaHora,
                         factorTiempo,
                         relojReal.instant(),
                         zonaFija.orElse(zonaDeFechaHora));
-        // Primero se configura y se sincroniza, y recién después se marca "en marcha": así la
+        // Primero se configura y se sincroniza, y recién después se marca "en ejecución": así la
         // primera pasada de switches es la que consulta su estado real (§4) antes de comandar.
         Optional<Inventario> inventario = inventarioService.actual(); // la zona pudo cambiar
         if (inventario.isPresent()) {
@@ -110,7 +112,7 @@ public class ControlService {
         }
         adaptador.procesar(new Estimulo.Sincronizacion(nuevo.fechaHora(), nuevo.factorTiempo()));
         reloj = nuevo;
-        adaptador.alIniciar();
+        adaptador.iniciar();
         arrancarTemporizador();
         log.info(
                 "Control {}: fechaHora={} factorTiempo={} zona={}",
@@ -122,8 +124,8 @@ public class ControlService {
     }
 
     public synchronized EstadoControl detener() {
-        if (reloj != null) {
-            reloj = null; // desde acá el adaptador no comanda más switches
+        if (enEjecucion()) {
+            adaptador.detener(); // desde acá el adaptador no comanda más switches
             pararTemporizador();
             log.info("Control DETENIDO: no se comandan más switches.");
         }
@@ -131,8 +133,11 @@ public class ControlService {
     }
 
     public EstadoControl estado() {
+        // iniciar() fija el reloj antes de poner en ejecución al adaptador, así que en ejecución
+        // implica
+        // reloj != null; el chequeo de r solo evita un NPE, no decide si está detenido.
         RelojControl r = reloj;
-        if (r == null) {
+        if (!enEjecucion() || r == null) {
             return EstadoControl.detenido();
         }
         return new EstadoControl(
@@ -140,7 +145,7 @@ public class ControlService {
     }
 
     public boolean enEjecucion() {
-        return reloj != null;
+        return adaptador.enEjecucion();
     }
 
     // ------------------------------------------------------------------
@@ -160,19 +165,22 @@ public class ControlService {
      */
     public synchronized void alRecibirLectura(
             String idHabitacion, double temperaturaC, Instant ts) {
-        RelojControl r = reloj;
-        if (r == null) {
+        if (!enEjecucion()) {
             return;
         }
-        Instant instante = r.instanteDeLectura(ts, tsEnTiempoReal, vigenciaLectura, relojReal);
+        Instant instante = reloj.instanteDeLectura(ts, tsEnTiempoReal, vigenciaLectura, relojReal);
         adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante));
     }
 
     /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */
     @EventListener
-    public synchronized void alAplicarseInventario(InventarioAplicado evento) {
-        RelojControl r = reloj;
-        ZoneId zona = r != null ? r.zona() : zonaFija.orElse(ZoneId.systemDefault());
+    public synchronized void aplicarInventario(InventarioAplicado evento) {
+        // Detenido se usa la zona fija aunque quede el reloj del último INICIAR (como antes);
+        // el próximo INICIAR vuelve a configurar con su zona.
+        ZoneId zona = zonaFija.orElse(ZoneId.systemDefault());
+        if (enEjecucion()) {
+            zona = reloj.zona();
+        }
         configurarCore(evento.inventario(), zona);
     }
 
@@ -215,19 +223,18 @@ public class ControlService {
      * synchronized} por lo mismo que {@link #alRecibirLectura}.
      */
     synchronized void tick() {
-        RelojControl r = reloj;
-        if (r == null) {
+        if (!enEjecucion()) {
             return;
         }
         try {
-            adaptador.procesar(new Estimulo.Tick(r.ahora(relojReal)));
+            adaptador.procesar(new Estimulo.Tick(reloj.ahora(relojReal)));
         } catch (RuntimeException e) {
             log.error("Error en el tick del control: {}", e.getMessage());
         }
     }
 
     void reconciliar() {
-        if (reloj == null) {
+        if (!enEjecucion()) {
             return;
         }
         try {
