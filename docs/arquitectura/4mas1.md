@@ -189,8 +189,7 @@ estímulo, en tres pasos (con `ahora` en null, todavía sin hora del control, no
 vencimientos):
 
 1. **Necesidad** de cada habitación, en este orden: sin lectura → `SIN_LECTURA`; lectura más vieja
-   que la vigencia (hoy escalada por el factor de tiempo; la tarjeta T8c la pasa a tiempo simulado,
-   sin escalar) → `LECTURA_VENCIDA`; temperatura ≥ umbral →
+   que la vigencia (en tiempo de control, sin escalar por el factor: T8c) → `LECTURA_VENCIDA`; temperatura ≥ umbral →
    `SATISFECHA` (umbral = esperada si está encendida, esperada − histéresis si está apagada);
    potencia > contratada → `EXCEDE_CONTRATADA`; si no, **tiene déficit**.
 2. **Tarifa**: si la hora del control cae en la franja punta, todas las que tienen déficit →
@@ -269,7 +268,6 @@ classDiagram
       +ahora(Clock) Instant
       +aTiempoDeControl(Instant) Instant
       +instanteDeLectura(ts, tsEnTiempoReal, vigencia, Clock) Instant
-      +escalar(Duration) Duration
     }
 
     class CoreAdapter {
@@ -476,10 +474,10 @@ Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageA
 
 **Instante de la lectura (`ts`, tarjeta T8).** La lectura se guarda con el instante que informa el termostato (`ts`, epoch con 3 decimales, §2), leído exacto con `BigDecimal`. Ese instante es el que se compara para descartar las lecturas que llegan fuera de orden (`ts` anterior a la última guardada) y el que se usa para el vencimiento. Si falta, está en el futuro o es tan viejo que llegaría ya vencido, no puede ser una medición recién hecha (reloj desfasado) y se usa la hora del control al recibirla; la temperatura nunca se descarta por eso. El simulador envía el `ts` en **hora real** (epoch del reloj real de su máquina) y el controlador debe llevarlo a la hora del control con la misma fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min × 2 = 10 min, así que su hora del control es 13:10 (con `fechaHora = 08:00` daría 08:10). Lo que todavía no refleja esa regla queda pendiente:
 
-- La conversión ya existe en el código (`RelojControl.aTiempoDeControl`), pero está detrás de la propiedad `termostato.ts-tiempo-real`, que hoy vale `false`: por defecto el `ts` se toma sin convertir, lo cual es incorrecto. La tarjeta T8b deja la conversión siempre activa y elimina la propiedad.
+- La conversión está en `RelojControl.aTiempoDeControl` y la propiedad `termostato.ts-tiempo-real` vale `true` por defecto, así que el `ts` se convierte. La tarjeta T8b elimina la propiedad y deja la conversión fija.
 - La conversión supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase entre máquinas se multiplica por el factor: 2 s de desfase con factor 30 son 1 min simulado. Se verifica en la tarjeta T13.
 - Un `ts` más viejo que la vigencia hoy se registra con la hora del control al recibirlo. La regla nueva (descartarla y contarla en `/diagnostico`) depende de la decisión D8 del equipo y se implementa en T8b.
-- La vigencia de las lecturas hoy se escala por el factor de tiempo (en `RelojControl.instanteDeLectura` y en `Core.decidir`). La tarjeta T8c la pasa a tiempo simulado, sin escalar.
+- La vigencia de las lecturas se mide en tiempo de control, sin escalar por el factor (T8c), tanto en `RelojControl.instanteDeLectura` como en `Core.decidir`.
 
 ### 2.3 Evento temporal: entrada y salida de la franja punta
 
@@ -641,7 +639,7 @@ acota).
 | Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
 | Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango o una lectura fuera de orden también; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
-| Termostato deja de publicar | la lectura vence (hoy 10 min reales, escalados por `factorTiempo`; T8c la pasa a tiempo simulado) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
+| Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
 | Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de lo deseado y lo vuelve a comandar | `switches` | `CoreAdapterTest` |

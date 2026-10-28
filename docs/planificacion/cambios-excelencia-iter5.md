@@ -282,7 +282,7 @@ Ya está muy bien resuelto (OFF antes que ON, retención del ON). Falta:
 
 ## Postura del equipo
 
-Este documento está escrito desde el punto de vista del docente. Esta sección registra qué decidió el equipo sobre cada cambio. El plan del equipo para tocar Core y Engine (`docs/revision-docente.md`, tarjetas T4 y T5) se considera el mejor camino.
+Este documento está escrito desde el punto de vista del docente. Esta sección registra qué decidió el equipo sobre cada cambio. El plan del equipo para tocar Core y Engine (`docs/planificacion/revision-docente.md`, tarjetas T4 y T5) se considera el mejor camino.
 
 | Cambio | Decisión | Motivo | Estado (commit `67fe9a9`) |
 |---|---|---|---|
