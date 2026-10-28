@@ -423,7 +423,7 @@ sequenceDiagram
     Ctl->>Ad: procesar(Sincronizacion(fechaHora, factor))
     Ad->>Core: decidir(situación)
     Ctl->>Ad: iniciar() → en ejecución, pide una pasada con consulta al hilo switches
-    Ctl->>Ctl: arranca temporizador (tick 1 s, reconciliación 15 s)
+    Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales, reconciliación 15 s
     Ctl-->>Env: 200 EN_EJECUCION (sin esperar a los switches)
     Env-->>Eng: 201 {mqtt: {host, puerto}}
     Eng->>Mq: conectar(tcp://host:puerto)
@@ -491,7 +491,7 @@ La vigencia se mide en tiempo de control, sin escalar por el factor (T8c), tanto
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Tm as Temporizador (cada 1 s real)
+    participant Tm as Temporizador (cada max(10 ms, 1 s / factor) reales)
     participant Ctl as ControlService
     participant Ad as CoreAdapter
     participant Core as core
@@ -512,6 +512,17 @@ sequenceDiagram
     Core-->>Ad: las que tienen déficit vuelven a ON (respetando la contratada)
     Ad->>Sw: hilo switches: POST …/comandos {ON}
 ```
+
+**Tiempo acelerado y atraso del corte (T12).** Cada tick avanza `control.tick-ms` (1 s) de tiempo de control, así que el período real es `max(10 ms, tickMs / factor)` y se reprograma en cada INICIAR. El corte o la restitución se atrasan como mucho un tick en tiempo de control, más la latencia de la pasada de switches:
+
+| Factor | Período real del tick | Atraso máximo del corte (tiempo de control) |
+|---|---|---|
+| 1 | 1 s | 1 s |
+| 30 | 33 ms | 1 s |
+| 100 | 10 ms | 1 s |
+| 600 | 10 ms (mínimo) | 6 s |
+
+Con el tick fijo de antes (1 s real) el atraso era de un tick real: 30 s de control a ×30 y 10 min a ×600. `TiempoAceleradoTest` arranca a ×600 cinco minutos antes de la punta y verifica el corte en menos de 1 s real (y con menos de 1 min de control de atraso); y lo mismo con la restitución al salir. Con el tick sin escalar los dos tests fallan (el corte llega a los ~1025 ms reales).
 
 ### 2.4 Cambio de configuración en caliente (`PUT /sitio` con el control en ejecución)
 
@@ -613,7 +624,7 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
 | Paho callback | broker MQTT | `messageArrived` → `procesarMensaje` → `ControlService.alRecibirLectura` |
 | `mqtt-conexion` | propio (`LecturaMqttListener`) | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
-| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` (1 s real por defecto) y reconciliación cada 15 s; existe solo mientras el control está en ejecución |
+| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), y reconciliación cada 15 s reales; existe solo mientras el control está en ejecución |
 | `registro-entorno` | propio (`RegistroEntorno`) | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
 | `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |

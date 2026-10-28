@@ -35,9 +35,10 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *       consulta los switches y empieza a comandarlos. Sobre un control ya en ejecución
  *       re-sincroniza (no es error).
  *   <li>{@link #detener}: deja de comandar switches. Idempotente.
- *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} reales (cortar/restituir en
- *       los cambios de franja, vencer lecturas) y reconcilia los switches cada {@code
- *       control.reconciliacion-segundos}.
+ *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} de tiempo de control, o sea
+ *       cada {@code max(10 ms, tickMs / factor)} reales (T12), para cortar y restituir en los
+ *       cambios de franja y vencer lecturas; y reconcilia los switches cada {@code
+ *       control.reconciliacion-segundos} reales.
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
@@ -107,7 +108,7 @@ public class ControlService {
         adaptador.procesar(new Estimulo.Sincronizacion(nuevo.fechaHora(), nuevo.factorTiempo()));
         reloj = nuevo;
         adaptador.iniciar();
-        arrancarTemporizador();
+        arrancarTemporizador(nuevo.factorTiempo()); // T12: el período depende del factor
         log.info(
                 "Control {}: fechaHora={} factorTiempo={} zona={}",
                 resincroniza ? "re-sincronizado" : "INICIADO",
@@ -242,8 +243,26 @@ public class ControlService {
         }
     }
 
-    private void arrancarTemporizador() {
-        if (temporizador != null || tickMs <= 0) {
+    /** Período mínimo del tick en tiempo real, para no saturar el hilo con factores muy altos. */
+    static final long TICK_MINIMO_MS = 10;
+
+    /**
+     * Período REAL del tick para que cada tick avance {@code tickMs} de tiempo de control (T12):
+     * {@code max(10 ms, tickMs / factor)}. Con factor 30 y 1 s, un tick cada 33 ms reales; con
+     * factor 600, cada 10 ms (el mínimo), que son 6 s de control. El corte de la franja se atrasa
+     * como mucho un tick en tiempo de control: {@code max(tickMs, 10 ms × factor)}.
+     */
+    static long periodoTickMs(long tickMs, double factorTiempo) {
+        return Math.max(TICK_MINIMO_MS, Math.round(tickMs / factorTiempo));
+    }
+
+    /**
+     * (Re)arma el temporizador con el período que corresponde al factor. Se llama en cada INICIAR,
+     * así un INICIAR con otro factor reprograma el tick.
+     */
+    private void arrancarTemporizador(double factorTiempo) {
+        pararTemporizador();
+        if (tickMs <= 0) {
             return;
         }
         temporizador =
@@ -253,7 +272,8 @@ public class ControlService {
                             t.setDaemon(true);
                             return t;
                         });
-        temporizador.scheduleWithFixedDelay(this::tick, tickMs, tickMs, TimeUnit.MILLISECONDS);
+        long periodo = periodoTickMs(tickMs, factorTiempo);
+        temporizador.scheduleWithFixedDelay(this::tick, periodo, periodo, TimeUnit.MILLISECONDS);
         if (reconciliacionSegundos > 0) {
             temporizador.scheduleWithFixedDelay(
                     this::reconciliar,
