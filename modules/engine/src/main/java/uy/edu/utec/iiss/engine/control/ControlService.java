@@ -22,6 +22,7 @@ import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Sitio;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
+import uy.edu.utec.iiss.engine.adaptador.MotivoDescarte;
 import uy.edu.utec.iiss.engine.inventario.Inventario;
 import uy.edu.utec.iiss.engine.inventario.InventarioAplicado;
 import uy.edu.utec.iiss.engine.inventario.InventarioService;
@@ -62,7 +63,6 @@ public class ControlService {
     private final long tickMs;
     private final long reconciliacionSegundos;
     private final Duration vigenciaLectura;
-    private final boolean tsEnTiempoReal;
 
     // `reloj` solo da la hora (fechaHora, factor, zona) y NO dice si el control está detenido: eso
     // lo dice adaptador.enEjecucion(), así hay una sola bandera de estado de ejecución. Queda con
@@ -77,8 +77,7 @@ public class ControlService {
             @Value("${control.zona-horaria:}") String zonaFija,
             @Value("${control.tick-ms:1000}") long tickMs,
             @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos,
-            @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos,
-            @Value("${termostato.ts-tiempo-real:true}") boolean tsEnTiempoReal) {
+            @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
         this.relojReal = relojReal;
@@ -89,7 +88,6 @@ public class ControlService {
         this.tickMs = tickMs;
         this.reconciliacionSegundos = reconciliacionSegundos;
         this.vigenciaLectura = Duration.ofSeconds(vigenciaSegundos);
-        this.tsEnTiempoReal = tsEnTiempoReal;
     }
 
     // ------------------------------------------------------------------
@@ -159,10 +157,11 @@ public class ControlService {
     /**
      * Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. Se guarda con
      * el instante que dice el termostato ({@code ts}, en hora real, puede ser null) convertido a la
-     * hora del control, con las salvedades de {@link RelojControl#instanteDeLectura}; el adaptador
-     * descarta la que es más vieja que la última. Un error se propaga: lo atrapa {@code
-     * LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la conexión
-     * si el callback lanza).
+     * hora del control, con las salvedades de {@link RelojControl#instanteDeLectura}. Se descarta
+     * (y se cuenta en {@code /diagnostico}) si su {@code ts} es más viejo que la vigencia (D8); el
+     * adaptador descarta además la que es más vieja que la última. Un error se propaga: lo atrapa
+     * {@code LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la
+     * conexión si el callback lanza).
      *
      * <p>{@code synchronized} como {@link #iniciar}: así una lectura sellada con el reloj viejo no
      * se procesa después de que INICIAR re-sincronizó el reloj (lo dejaría en la línea de tiempo
@@ -173,8 +172,12 @@ public class ControlService {
         if (!enEjecucion()) {
             return;
         }
-        Instant instante = reloj.instanteDeLectura(ts, tsEnTiempoReal, vigenciaLectura, relojReal);
-        adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante));
+        Optional<Instant> instante = reloj.instanteDeLectura(ts, vigenciaLectura, relojReal);
+        if (instante.isEmpty()) {
+            adaptador.descartarLectura(idHabitacion, MotivoDescarte.TS_VENCIDO); // D8
+            return;
+        }
+        adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante.get()));
     }
 
     /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */

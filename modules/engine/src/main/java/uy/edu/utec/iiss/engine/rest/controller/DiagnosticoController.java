@@ -52,6 +52,7 @@ public class DiagnosticoController {
                                     h.put("motivo", e.motivo());
                                     h.put("idSwitch", e.idSwitch());
                                     h.put("estadoSwitch", e.estadoSwitch());
+                                    h.put("lecturasDescartadas", e.lecturasDescartadas());
                                     return h;
                                 })
                         .toList();

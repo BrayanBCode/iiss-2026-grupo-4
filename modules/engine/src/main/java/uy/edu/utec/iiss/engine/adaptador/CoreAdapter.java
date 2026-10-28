@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -77,7 +78,8 @@ public class CoreAdapter implements AutoCloseable {
             Accion decision,
             String motivo,
             EstadoSwitch estadoSwitch,
-            String idSwitch) {}
+            String idSwitch,
+            Map<MotivoDescarte, Integer> lecturasDescartadas) {}
 
     private final Core core;
     private final ClienteSwitch switches;
@@ -92,6 +94,8 @@ public class CoreAdapter implements AutoCloseable {
     private List<ConfiguracionHabitacion> configuracion = List.of();
     private final Map<String, Double> temperaturas = new HashMap<>();
     private final Map<String, Instant> instanteLectura = new HashMap<>();
+    // Lecturas descartadas por habitación y motivo, para /diagnostico (D8).
+    private final Map<String, Map<MotivoDescarte, Integer>> descartes = new HashMap<>();
     private Instant ahora; // reloj del control según los estímulos (null = aún ninguno)
 
     // Switches
@@ -200,6 +204,24 @@ public class CoreAdapter implements AutoCloseable {
         return decisiones;
     }
 
+    /**
+     * Una lectura que no llegó a ser estímulo porque se descartó antes (por ejemplo, su {@code ts}
+     * es más viejo que la vigencia): solo se cuenta para {@code /diagnostico}. No cambia ninguna
+     * decisión.
+     */
+    public synchronized void descartarLectura(String idHabitacion, MotivoDescarte motivo) {
+        if (estaConfigurada(idHabitacion)) {
+            contarDescarte(idHabitacion, motivo);
+        }
+    }
+
+    private void contarDescarte(String idHabitacion, MotivoDescarte motivo) {
+        descartes
+                .computeIfAbsent(idHabitacion, id -> new EnumMap<>(MotivoDescarte.class))
+                .merge(motivo, 1, Integer::sum);
+        log.debug("Lectura de '{}' descartada: {}", idHabitacion, motivo);
+    }
+
     private void registrarLectura(Estimulo.NuevaLectura l) {
         String id = l.idHabitacion();
         if (!estaConfigurada(id)) {
@@ -210,7 +232,8 @@ public class CoreAdapter implements AutoCloseable {
         }
         Instant anterior = instanteLectura.get(id);
         if (anterior != null && l.ts().isBefore(anterior)) {
-            return; // llegó fuera de orden: hay un dato más nuevo
+            contarDescarte(id, MotivoDescarte.FUERA_DE_ORDEN); // hay un dato más nuevo
+            return;
         }
         temperaturas.put(id, l.temperaturaC());
         instanteLectura.put(id, l.ts());
@@ -235,6 +258,7 @@ public class CoreAdapter implements AutoCloseable {
         temperaturas.keySet().retainAll(ids);
         instanteLectura.keySet().retainAll(ids);
         deseado.keySet().retainAll(ids);
+        descartes.keySet().retainAll(ids);
     }
 
     /**
@@ -552,7 +576,8 @@ public class CoreAdapter implements AutoCloseable {
                             d == null ? null : d.accion(),
                             d == null ? null : d.motivo().name(),
                             estadoConocido.getOrDefault(h.id(), EstadoSwitch.DESCONOCIDO),
-                            h.idSwitch()));
+                            h.idSwitch(),
+                            Map.copyOf(descartes.getOrDefault(h.id(), Map.of()))));
         }
         return salida;
     }

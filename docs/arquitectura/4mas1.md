@@ -267,7 +267,7 @@ classDiagram
       zona
       +ahora(Clock) Instant
       +aTiempoDeControl(Instant) Instant
-      +instanteDeLectura(ts, tsEnTiempoReal, vigencia, Clock) Instant
+      +instanteDeLectura(ts, vigencia, Clock) Optional~Instant~
     }
 
     class CoreAdapter {
@@ -283,6 +283,7 @@ classDiagram
       -Set~String~ retenidas
       +configurar(Sitio, List~HabitacionControlada~)
       +procesar(Estimulo) List~Decision~
+      +descartarLectura(id, MotivoDescarte)
       +estadoDe(idHabitacion) EstadoHabitacion
       +iniciar()
       +detener()
@@ -452,7 +453,7 @@ sequenceDiagram
     alt control DETENIDO (adaptador.enEjecucion() == false, único estado de ejecución)
         Ctl-->>Mq: se ignora
     else EN_EJECUCION
-        Ctl->>Ctl: instante = relojControl.instanteDeLectura(ts) (sin ts, futuro o ya vencido ⇒ ahora)
+        Ctl->>Ctl: instante = relojControl.instanteDeLectura(ts): ts convertido a la hora del control<br/>(sin ts o futuro ⇒ ahora, más viejo que la vigencia ⇒ se descarta y se cuenta, D8)
         Ctl->>Ad: 4. procesar(NuevaLectura("room1", 19.3, instante))
         Ad->>Ad: descarta si la habitación no está configurada, si es inválida (core.lecturaValida)<br/>o si llegó fuera de orden, guarda temperatura e instante y arma la situación
         Ad->>Core: 5. decidir(sitio, habitaciones, estados, ahora, factor)
@@ -472,12 +473,17 @@ sequenceDiagram
 
 Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageArrived`, callback de Paho con el único try/catch; (2) `procesarMensaje`, que resuelve la habitación por el topic y parsea el payload (se prueba sin broker); (3) `ControlService.alRecibirLectura`, dueño del reloj del control; (4) `CoreAdapter.procesar`, dueño del estado y del estado de ejecución (T7b); (5) `Core.decidir`, la función pura. Antes eran 10: `CoreClient` y el `procesar` del core, que guardaba un estado duplicado, se eliminaron (tarjetas T4, T5 y T7).
 
-**Instante de la lectura (`ts`, tarjeta T8).** La lectura se guarda con el instante que informa el termostato (`ts`, epoch con 3 decimales, §2), leído exacto con `BigDecimal`. Ese instante es el que se compara para descartar las lecturas que llegan fuera de orden (`ts` anterior a la última guardada) y el que se usa para el vencimiento. Si falta, está en el futuro o es tan viejo que llegaría ya vencido, no puede ser una medición recién hecha (reloj desfasado) y se usa la hora del control al recibirla; la temperatura nunca se descarta por eso. El simulador envía el `ts` en **hora real** (epoch del reloj real de su máquina) y el controlador debe llevarlo a la hora del control con la misma fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min × 2 = 10 min, así que su hora del control es 13:10 (con `fechaHora = 08:00` daría 08:10). Lo que todavía no refleja esa regla queda pendiente:
+**Instante de la lectura (`ts`, tarjetas T8 y T8b).** El simulador envía el `ts` (epoch con 3 decimales, §2) en **hora real**, el reloj real de su máquina. Se lee exacto con `BigDecimal` y **siempre** se lleva a la hora del control con la fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min × 2 = 10 min, así que su hora del control es 13:10 (con `fechaHora = 08:00` daría 08:10). Ese instante es el que se usa para el vencimiento y para descartar las lecturas fuera de orden. Las reglas (`RelojControl.instanteDeLectura`):
 
-- La conversión está en `RelojControl.aTiempoDeControl` y la propiedad `termostato.ts-tiempo-real` vale `true` por defecto, así que el `ts` se convierte. La tarjeta T8b elimina la propiedad y deja la conversión fija.
-- La conversión supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase entre máquinas se multiplica por el factor: 2 s de desfase con factor 30 son 1 min simulado. Se verifica en la tarjeta T13.
-- Un `ts` más viejo que la vigencia hoy se registra con la hora del control al recibirlo. La regla nueva (descartarla y contarla en `/diagnostico`) depende de la decisión D8 del equipo y se implementa en T8b.
-- La vigencia de las lecturas se mide en tiempo de control, sin escalar por el factor (T8c), tanto en `RelojControl.instanteDeLectura` como en `Core.decidir`.
+| `ts` (ya convertido) | Qué pasa | Por qué |
+|---|---|---|
+| no vino | se guarda con la hora del control | la temperatura vale igual |
+| en el futuro | se guarda con la hora del control | reloj del termostato adelantado: guardado tal cual, no vencería a tiempo |
+| dentro de la vigencia | se guarda con el `ts` convertido | el caso normal (llega milisegundos después de medirse) |
+| más viejo que la vigencia | **se descarta** y se cuenta en `/diagnostico` (`TS_VENCIDO`, D8) | un dato obsoleto no sostiene la calefacción; sellarlo con la hora actual haría que la próxima lectura buena pareciera fuera de orden |
+| anterior a la última guardada | **se descarta** y se cuenta (`FUERA_DE_ORDEN`) | hay un dato más nuevo |
+
+La vigencia se mide en tiempo de control, sin escalar por el factor (T8c), tanto acá como en `Core.decidir`. Un desfase entre el reloj real del simulador y el del controlador se multiplica por el factor (2 s con factor 30 son 1 min de control): `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede; en Docker sobre el mismo host los dos comparten el reloj, y se verifica contra el simulador en T13.
 
 ### 2.3 Evento temporal: entrada y salida de la franja punta
 
@@ -638,7 +644,7 @@ acota).
 |---|---|---|---|
 | Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
-| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango o una lectura fuera de orden también; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
+| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango, una lectura fuera de orden o con `ts` más viejo que la vigencia también (estas dos se cuentan en `/diagnostico`); la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |

@@ -2,11 +2,13 @@ package uy.edu.utec.iiss.engine.control;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -41,18 +43,38 @@ class RelojControlTest {
         assertEquals(FECHA.plusSeconds(5), r.ahora(realEn(10)));
     }
 
-    // ---------- instante de una lectura (ts del termostato) ----------
+    // ---------- instante de una lectura (ts del termostato, en hora real) ----------
 
     private static final Duration VIGENCIA = Duration.ofMinutes(10);
+    private static final Instant TRECE = Instant.parse("2026-10-13T13:00:00Z");
+
+    private static Clock real(Instant instante) {
+        return Clock.fixed(instante, ZoneOffset.UTC);
+    }
 
     @Test
     @DisplayName(
-            "ts en tiempo de control y razonable (unos segundos antes de ahora) -> se usa tal cual")
-    void ts_razonable_seUsa() {
-        RelojControl r = new RelojControl(FECHA, 1, INICIO_REAL, ZoneOffset.UTC);
-        Instant ts = FECHA.plusSeconds(28).plusMillis(123); // ahora = FECHA + 30 s
+            "Factor 2, INICIAR a las 13:00 reales con fechaHora 13:00: ts 13:05 real -> 13:10 de"
+                    + " control (se escala lo transcurrido, no la hora)")
+    void conversion_factorDos_mismaHora() {
+        RelojControl r = new RelojControl(TRECE, 2, TRECE, ZoneOffset.UTC);
+        Instant ts = TRECE.plusSeconds(5 * 60);
 
-        assertEquals(ts, r.instanteDeLectura(ts, false, VIGENCIA, realEn(30)));
+        assertEquals(
+                Optional.of(TRECE.plusSeconds(10 * 60)),
+                r.instanteDeLectura(ts, VIGENCIA, real(TRECE.plusSeconds(6 * 60))));
+    }
+
+    @Test
+    @DisplayName("Factor 2 con fechaHora 08:00: el mismo ts 13:05 real -> 08:10 de control")
+    void conversion_factorDos_otraFechaHora() {
+        Instant ocho = Instant.parse("2026-10-13T08:00:00Z");
+        RelojControl r = new RelojControl(ocho, 2, TRECE, ZoneOffset.UTC);
+
+        assertEquals(
+                Optional.of(ocho.plusSeconds(10 * 60)),
+                r.instanteDeLectura(
+                        TRECE.plusSeconds(5 * 60), VIGENCIA, real(TRECE.plusSeconds(6 * 60))));
     }
 
     @Test
@@ -60,62 +82,89 @@ class RelojControlTest {
     void sinTs_usaElReloj() {
         RelojControl r = new RelojControl(FECHA, 1, INICIO_REAL, ZoneOffset.UTC);
 
-        assertEquals(FECHA.plusSeconds(30), r.instanteDeLectura(null, false, VIGENCIA, realEn(30)));
+        assertEquals(
+                Optional.of(FECHA.plusSeconds(30)),
+                r.instanteDeLectura(null, VIGENCIA, realEn(30)));
     }
 
     @Test
     @DisplayName(
-            "ts en el futuro (reloj desfasado) -> la hora del control, sin descartar la lectura")
+            "ts en el futuro (reloj del termostato adelantado) -> la hora del control, sin"
+                    + " descartar la lectura")
     void tsFuturo_usaElReloj() {
         RelojControl r = new RelojControl(FECHA, 1, INICIO_REAL, ZoneOffset.UTC);
-        Instant futuro = FECHA.plusSeconds(3600);
+        Instant futuro = INICIO_REAL.plusSeconds(3600);
 
         assertEquals(
-                FECHA.plusSeconds(30), r.instanteDeLectura(futuro, false, VIGENCIA, realEn(30)));
+                Optional.of(FECHA.plusSeconds(30)),
+                r.instanteDeLectura(futuro, VIGENCIA, realEn(30)));
     }
 
     @Test
-    @DisplayName(
-            "ts tan viejo que llegaría vencido (más que la vigencia) -> la hora del control; justo"
-                    + " en el límite se usa el ts")
-    void tsMasViejoQueLaVigencia_usaElReloj() {
+    @DisplayName("ts viejo pero dentro de la vigencia -> se usa el ts convertido")
+    void tsViejoDentroDeLaVigencia_seUsa() {
         RelojControl r = new RelojControl(FECHA, 1, INICIO_REAL, ZoneOffset.UTC);
-        Instant ahora = FECHA.plusSeconds(30);
+        Instant hace5Min = INICIO_REAL.plusSeconds(600 - 300); // ahora = FECHA + 600 s
 
         assertEquals(
-                ahora,
-                r.instanteDeLectura(
-                        ahora.minus(VIGENCIA).minusSeconds(1), false, VIGENCIA, realEn(30)));
-        assertEquals(
-                ahora.minus(VIGENCIA),
-                r.instanteDeLectura(ahora.minus(VIGENCIA), false, VIGENCIA, realEn(30)));
+                Optional.of(FECHA.plusSeconds(300)),
+                r.instanteDeLectura(hace5Min, VIGENCIA, realEn(600)));
     }
 
     @Test
     @DisplayName(
-            "ts en tiempo real con factor 60: se convierte a la hora del control antes de usarlo")
-    void tsEnTiempoReal_seConvierte() {
-        RelojControl r = new RelojControl(FECHA, 60, INICIO_REAL, ZoneOffset.UTC);
-        Instant tsReal = INICIO_REAL.plusSeconds(10); // 10 s reales = 10 min de control
+            "ts más viejo que la vigencia -> se descarta (D8); justo en el límite todavía se usa")
+    void tsMasViejoQueLaVigencia_seDescarta() {
+        RelojControl r = new RelojControl(FECHA, 1, INICIO_REAL, ZoneOffset.UTC);
+        Clock ahoraReal = realEn(3600); // ahora = FECHA + 1 h
 
         assertEquals(
-                FECHA.plusSeconds(600), r.instanteDeLectura(tsReal, true, VIGENCIA, realEn(11)));
+                Optional.empty(),
+                r.instanteDeLectura(INICIO_REAL.plusSeconds(3600 - 601), VIGENCIA, ahoraReal));
+        assertEquals(
+                Optional.of(FECHA.plusSeconds(3600 - 600)),
+                r.instanteDeLectura(INICIO_REAL.plusSeconds(3600 - 600), VIGENCIA, ahoraReal));
     }
 
     @Test
     @DisplayName(
-            "Con factor 60 la vigencia no se escala: un ts de hace más que la vigencia de"
-                    + " control es un reloj desfasado")
+            "Factor 60: la vigencia no se escala; un ts de hace 30 s reales (30 min de control) se"
+                    + " descarta")
     void vigenciaSinEscalar_conFactor() {
         RelojControl r = new RelojControl(FECHA, 60, INICIO_REAL, ZoneOffset.UTC);
-        Instant ahora = FECHA.plusSeconds(60 * 60 * 2); // 2 min reales = 2 h de control
-        Instant haceUnaHora = ahora.minusSeconds(3600);
-        Instant dentroDeLaVigencia = ahora.minus(VIGENCIA);
 
-        assertEquals(ahora, r.instanteDeLectura(haceUnaHora, false, VIGENCIA, realEn(120)));
         assertEquals(
-                dentroDeLaVigencia,
-                r.instanteDeLectura(dentroDeLaVigencia, false, VIGENCIA, realEn(120)));
+                Optional.empty(),
+                r.instanteDeLectura(INICIO_REAL.plusSeconds(90), VIGENCIA, realEn(120)));
+        assertEquals(
+                Optional.of(FECHA.plusSeconds(115 * 60)),
+                r.instanteDeLectura(INICIO_REAL.plusSeconds(115), VIGENCIA, realEn(120)));
+    }
+
+    @Test
+    @DisplayName(
+            "Desfase de reloj de ±2 s a ×30 (1 min de control): con lecturas cada 10 s reales"
+                    + " ninguna se descarta y los instantes no retroceden")
+    void desfaseDeReloj_noDescartaNiDesordena() {
+        RelojControl r = new RelojControl(FECHA, 30, INICIO_REAL, ZoneOffset.UTC);
+        for (long desfase : new long[] {2, -2}) {
+            Instant anterior = null;
+            for (int i = 1; i <= 20; i++) {
+                Instant llegada = INICIO_REAL.plusSeconds(10L * i);
+                Optional<Instant> instante =
+                        r.instanteDeLectura(llegada.plusSeconds(desfase), VIGENCIA, real(llegada));
+
+                assertTrue(
+                        instante.isPresent(),
+                        "se descartó la lectura " + i + " (" + desfase + " s)");
+                if (anterior != null) {
+                    assertTrue(
+                            instante.get().isAfter(anterior),
+                            "la lectura " + i + " quedó antes que la anterior (" + desfase + " s)");
+                }
+                anterior = instante.get();
+            }
+        }
     }
 
     @Test

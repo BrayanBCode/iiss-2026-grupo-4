@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Reloj del control (estándar v2, §5.2): tras INICIAR, todo lo que depende de la hora usa
@@ -39,35 +40,38 @@ public record RelojControl(
     }
 
     /**
-     * Con qué instante (hora del control) se guarda una lectura cuyo termostato dice {@code ts}.
+     * Con qué instante (hora del control) se guarda una lectura cuyo termostato dice {@code ts}, o
+     * vacío si la lectura se descarta. El simulador escribe el {@code ts} en hora real, así que
+     * siempre se convierte con {@link #aTiempoDeControl}.
      *
      * <ul>
      *   <li>Sin {@code ts}: la hora del control al recibirla.
-     *   <li>Con {@code ts}: el simulador lo escribe en hora real, así que se convierte a hora del
-     *       control con {@link #aTiempoDeControl}. {@code tsEnTiempoReal} ({@code
-     *       termostato.ts-tiempo-real}, {@code true} por defecto) se elimina en la tarjeta T8b, que
-     *       deja la conversión fija.
-     *   <li>Un {@code ts} en el futuro, o tan viejo que la lectura llegaría ya vencida, no puede
-     *       ser la medición recién hecha de un sensor sano: es un reloj desfasado (o un {@code ts}
-     *       en otra escala). Se usa la hora del control. La temperatura nunca se descarta por esto.
+     *   <li>{@code ts} convertido en el futuro: reloj del termostato adelantado. Se usa la hora del
+     *       control; si se guardara el {@code ts}, la lectura no vencería a tiempo y las siguientes
+     *       parecerían anteriores.
+     *   <li>{@code ts} convertido más viejo que la vigencia: es un dato obsoleto (por ejemplo, una
+     *       lectura de las 19:00 que llega a las 21:00). <b>Se descarta</b> (D8): no puede sostener
+     *       la calefacción, ni sellarse con la hora actual, porque haría que la próxima lectura
+     *       buena pareciera fuera de orden.
+     *   <li>En cualquier otro caso: el {@code ts} convertido.
      * </ul>
-     *
-     * Así, el peor caso de una suposición equivocada sobre el {@code ts} es el comportamiento sin
-     * {@code ts}: guardar la lectura con la hora de llegada.
      *
      * @param vigencia vigencia de una lectura en tiempo de control, sin escalar (igual que en el
      *     core)
+     * @return el instante de la lectura, o vacío si se descarta por vieja
      */
-    public Instant instanteDeLectura(
-            Instant ts, boolean tsEnTiempoReal, Duration vigencia, Clock real) {
+    public Optional<Instant> instanteDeLectura(Instant ts, Duration vigencia, Clock real) {
         Instant ahora = ahora(real);
         if (ts == null) {
-            return ahora;
+            return Optional.of(ahora);
         }
-        Instant medido = tsEnTiempoReal ? aTiempoDeControl(ts) : ts;
-        if (medido.isAfter(ahora) || medido.isBefore(ahora.minus(vigencia))) {
-            return ahora;
+        Instant medido = aTiempoDeControl(ts);
+        if (medido.isAfter(ahora)) {
+            return Optional.of(ahora);
         }
-        return medido;
+        if (medido.isBefore(ahora.minus(vigencia))) {
+            return Optional.empty();
+        }
+        return Optional.of(medido);
     }
 }

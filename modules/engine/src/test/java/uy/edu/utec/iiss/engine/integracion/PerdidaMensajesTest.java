@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import uy.edu.utec.iiss.engine.adaptador.MotivoDescarte;
 
 /**
  * Mensajes de termostato perdidos, rotos, repetidos o que no son para nadie. Un mensaje malo nunca
@@ -120,8 +122,9 @@ class PerdidaMensajesTest extends IntegracionBase {
 
     @Test
     @DisplayName(
-            "Se usa el ts del termostato: exacto como instante de la lectura, una más vieja que la"
-                    + " última se descarta, y sin ts se usa la hora de llegada")
+            "Se usa el ts del termostato: exacto como instante de la lectura; una más vieja que la"
+                    + " última o que la vigencia se descarta y se cuenta; sin ts se usa la hora de"
+                    + " llegada")
     void tsDelTermostato() throws Exception {
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
         iniciar();
@@ -150,6 +153,15 @@ class PerdidaMensajesTest extends IntegracionBase {
                 Duration.ofMillis(700),
                 () -> estado("living").temperaturaActual() == 16.0,
                 () -> "se usó una lectura fuera de orden: " + estado("living"));
+        assertEquals(
+                Map.of(MotivoDescarte.FUERA_DE_ORDEN, 1), estado("living").lecturasDescartadas());
+
+        // 11 min más vieja que ahora (vigencia 10 min): dato obsoleto, se descarta y se cuenta (D8)
+        BROKER.publicar(topic("living"), payload(25.0, tsReal(iniciadoEn.minusSeconds(660))));
+        esperar(
+                () -> estado("living").lecturasDescartadas().containsKey(MotivoDescarte.TS_VENCIDO),
+                () -> "no se contó la lectura vencida: " + estado("living").lecturasDescartadas());
+        assertEquals(16.0, estado("living").temperaturaActual());
 
         // sin ts: vale igual, con la hora de llegada
         BROKER.publicar(topic("living"), "{\"id\":0,\"tC\":25.0}");

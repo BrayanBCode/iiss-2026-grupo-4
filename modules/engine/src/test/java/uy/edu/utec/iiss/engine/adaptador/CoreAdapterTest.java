@@ -167,6 +167,27 @@ class CoreAdapterTest {
 
     @Test
     @DisplayName(
+            "Las lecturas descartadas se cuentan por habitación y motivo (fuera de orden y ts"
+                    + " vencido, D8) y no cambian la decisión")
+    void lecturasDescartadas_seCuentan() {
+        adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
+        leer("living", 15.0, lunes(10, 5)); // ON
+        leer("living", 25.0, lunes(10, 0)); // anterior a la última: fuera de orden
+        adaptador.descartarLectura("living", MotivoDescarte.TS_VENCIDO);
+        adaptador.descartarLectura("living", MotivoDescarte.TS_VENCIDO);
+        adaptador.descartarLectura("noExiste", MotivoDescarte.TS_VENCIDO); // se ignora
+
+        CoreAdapter.EstadoControlado living = adaptador.estados().get(0);
+        assertEquals(
+                Map.of(MotivoDescarte.FUERA_DE_ORDEN, 1, MotivoDescarte.TS_VENCIDO, 2),
+                living.lecturasDescartadas());
+        assertEquals(15.0, living.temperaturaActual());
+        assertEquals(Accion.ON, living.decision());
+        assertEquals(Map.of(), adaptador.estados().get(1).lecturasDescartadas());
+    }
+
+    @Test
+    @DisplayName(
             "Una sola bandera: al detenerse el control, el adaptador deja de comandar y de"
                     + " consultar sin que nadie le avise, pero sigue decidiendo")
     void alDetenerse_dejaDeComandarSinAviso() {

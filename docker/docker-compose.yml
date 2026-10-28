@@ -30,8 +30,6 @@ services:
       # Zona para la franja tarifaria: hora local de Uruguay. TZ alinea también los logs.
       - CONTROL_ZONA_HORARIA=${CONTROL_ZONA_HORARIA:-America/Montevideo}
       - TZ=${TZ:-America/Montevideo}
-      # El ts de las lecturas llega en hora real y se convierte a la hora del control.
-      - TERMOSTATO_TS_TIEMPO_REAL=${TERMOSTATO_TS_TIEMPO_REAL:-true}
       - LOGGING_FILE_NAME=logs/engine.log
     extra_hosts:
       # En Linux host.docker.internal no existe por defecto.
