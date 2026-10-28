@@ -6,13 +6,17 @@ presentaron la **vista lógica** y los **diagramas de secuencia** del manejo de 
 escenarios de falla (§2.5 y §2.6) y se actualiza la vista de desarrollo con los tests de
 integración. La vista física queda para la iteración 6.
 
+Tras la revisión docente de la iteración 5 (tarjetas T4, T5, T7 y T7b) las vistas describen el diseño
+actual: el core contiene el modelo y la función pura `decidir`, y el estado del control (situación y
+estado de ejecución) lo guarda `CoreAdapter` en el engine.
+
 | Vista | Estado | Dónde |
 |---|---|---|
-| Lógica | ✅ Iteración 4, actualizada en la 5 | §1 |
-| Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 | §2 |
-| Procesos | ✅ Iteración 5 | §3 |
-| Desarrollo | ✅ Iteración 5 (se completa en la 6) | §4 |
-| Física | ⏳ Iteración 6 | — |
+| Lógica | ✅ Iteración 4, actualizada en la 5 (diseño actual, T11a) | §1 |
+| Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 (diseño actual, T11a) | §2 |
+| Procesos | ✅ Iteración 5 (diseño actual, T11a) | §3 |
+| Desarrollo | ✅ Iteración 5 (diseño actual, T11a; se completa en la 6) | §4 |
+| Física | ⏳ Iteración 6 (tarjeta T11) | — |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
 
@@ -43,8 +47,8 @@ flowchart LR
 
 | Módulo | Responsabilidad | Depende de |
 |---|---|---|
-| **core** | Decidir qué habitación recibe energía, con un modelo interno del estado, los estímulos y las decisiones. Sin comunicación externa, sin reloj del sistema, sin azar. | nada (solo JUnit en test) |
-| **engine** | Conectar el core con el mundo: MQTT, REST entrante y saliente, persistencia, registro, reloj del control y eventos temporales. | core, Spring Boot, Paho |
+| **core** | Decidir qué habitación recibe energía, con un modelo interno del estado, los estímulos y las decisiones. El modelo son los records y enums de `core.model` (`EstadoHabitacion`, `Estimulo`, `Decision`, `Sitio`, `ConfiguracionHabitacion`, `ParametrosControl`, `FranjaHoraria`, `Accion`, `Motivo`, `DiasTarifa`); la decisión es la función pura `Core.decidir`. El core **no guarda estado** entre llamadas: recibe la situación por parámetro. Sin comunicación externa, sin reloj del sistema, sin azar. | nada (solo JUnit en test) |
+| **engine** | Conectar el core con el mundo: MQTT, REST entrante y saliente, persistencia, registro, reloj del control y eventos temporales. Guarda el estado del control en `CoreAdapter` (temperaturas, instantes de lectura, sitio, reloj, última decisión, estado de ejecución) y se lo pasa a `Core.decidir`. | core, Spring Boot, Paho |
 
 La dirección de dependencia la impone Maven: `core` no tiene dependencias de producción, así que
 el compilador impide que importe algo del engine.
@@ -55,15 +59,9 @@ el compilador impide que importe algo del engine.
 classDiagram
     direction LR
     class Core {
-      -Sitio sitio
-      -Map~String,ConfiguracionHabitacion~ habitaciones
-      -Map~String,Double~ temperaturas
-      -Map~String,Instant~ instanteLectura
-      -Set~String~ encendidas
-      -Instant ahora
-      -double factorTiempo
-      +procesar(Estimulo) List~Decision~
-      +estadoDe(id) EstadoHabitacion
+      -CriterioPrioridad criterioPrioridad
+      -ParametrosControl parametros
+      +lecturaValida(double temperaturaC) boolean
       +decidir(Sitio, List~ConfiguracionHabitacion~, Map~String,EstadoHabitacion~, Instant, double) List~Decision~
     }
     class Estimulo {
@@ -116,13 +114,19 @@ classDiagram
     class Sitio {
       id
       potenciaContratadaKW
+      puntaTarifa
       zona
     }
     class FranjaHoraria {
       desde
       hasta
       dias
-      +incluye(dia, hora)
+      +incluye(dia, hora) boolean
+    }
+    class DiasTarifa {
+      <<enum>>
+      HABILES
+      TODOS
     }
     class ConfiguracionHabitacion {
       id
@@ -139,53 +143,54 @@ classDiagram
     class ParametrosControl {
       histeresisC
       vigenciaLectura
-      rango válido
+      temperaturaMinimaValida
+      temperaturaMaximaValida
     }
     Sitio --> FranjaHoraria : puntaTarifa
+    FranjaHoraria --> DiasTarifa
 
     class CriterioPrioridad {
       <<interface>>
-      +ordenarCandidatas(candidatas, estado)
+      +ordenarCandidatas(candidatas, estado) List~String~
     }
     class MayorDeficitPrimero {
       -margenIntercambioC
+      +ordenarCandidatas(candidatas, estado) List~String~
     }
     CriterioPrioridad <|.. MayorDeficitPrimero
 
-    class ICoreClient {
-      <<interface>>
-      nuevaTemperatura()
-      tick()
-      actualizarSitio()
-      sincronizar()
-      estadoById()
-    }
-    class CoreClient
-    ICoreClient <|.. CoreClient
-    CoreClient --> Core
-
     Core --> CriterioPrioridad
     Core --> ParametrosControl
-    Core --> Sitio
-    Core --> ConfiguracionHabitacion
-    Core ..> Estimulo : procesa
+    Core ..> Sitio : recibe
+    Core ..> ConfiguracionHabitacion : recibe
+    Core ..> EstadoHabitacion : recibe
     Core ..> Decision : produce
-    Core ..> EstadoHabitacion : expone
 ```
 
-**Estado vs decisión.** `Core.procesar(estimulo)` actualiza el estado interno (temperaturas, instante
-de cada lectura, reloj del control, configuración) y después arma la situación actual —sitio,
-habitaciones, un `EstadoHabitacion` por habitación (temperatura, cuándo se midió, si está encendida),
-hora del control y factor de tiempo— y se la pasa a `Core.decidir`. Con el resultado recuerda cuáles
-quedaron encendidas, que es lo que necesitan la histéresis y el margen del criterio en la próxima
-decisión.
+`Core` solo tiene campos finales (el criterio y los parámetros), así que no tiene estado y se puede
+compartir entre hilos. Los `Estimulo` son parte del modelo del core (`core.model`), pero no los
+procesa el core: los procesa `CoreAdapter.procesar` en el engine (§1.4), con un `switch` exhaustivo
+sobre la interfaz `sealed`.
 
-**La función de decisión** (`Core.decidir`) es pública y recibe por parámetro todo lo que usa: no lee
-ni modifica el estado del core, así que una misma situación da siempre las mismas decisiones. Se
-recalcula entera ante cada estímulo, en tres pasos:
+**Estado vs decisión.** El estado del control vive en el engine, en `CoreAdapter`: sitio y
+configuración de las habitaciones, la última temperatura válida y el instante de cada lectura, el
+reloj del control (`ahora`), el factor de tiempo y la última decisión de cada habitación (que dice
+cuáles están encendidas, lo que necesitan la histéresis y el margen del criterio). Ante cada estímulo,
+`CoreAdapter.procesar` actualiza ese estado, arma la situación actual —sitio, habitaciones, un
+`EstadoHabitacion` por habitación (temperatura, cuándo se midió, si está encendida), hora del control
+y factor de tiempo— y se la pasa por parámetro a `Core.decidir`. El core no guarda nada entre
+llamadas: es una función pura, y la misma situación da siempre las mismas decisiones. Antes de guardar
+una lectura, el adaptador le pregunta al core si la temperatura es válida (`Core.lecturaValida`:
+finita y dentro del rango físico del sensor, de −40 °C a 85 °C).
+
+**La función de decisión** (`Core.decidir`) es pública y recibe por parámetro todo lo que usa, salvo
+el criterio y los parámetros de control, que fija el constructor. Se recalcula entera ante cada
+estímulo, en tres pasos (con `ahora` en null, todavía sin hora del control, no hay punta ni
+vencimientos):
 
 1. **Necesidad** de cada habitación, en este orden: sin lectura → `SIN_LECTURA`; lectura más vieja
-   que la vigencia (escalada por el factor de tiempo) → `LECTURA_VENCIDA`; temperatura ≥ umbral →
+   que la vigencia (hoy escalada por el factor de tiempo; la tarjeta T8c la pasa a tiempo simulado,
+   sin escalar) → `LECTURA_VENCIDA`; temperatura ≥ umbral →
    `SATISFECHA` (umbral = esperada si está encendida, esperada − histéresis si está apagada);
    potencia > contratada → `EXCEDE_CONTRATADA`; si no, **tiene déficit**.
 2. **Tarifa**: si la hora del control cae en la franja punta, todas las que tienen déficit →
@@ -226,50 +231,76 @@ classDiagram
     }
 
     class InventarioService {
-      +reemplazar(Inventario)
-      +actual()
-      ABM
+      +cargarGuardado()
+      +reemplazar(Inventario) Inventario
+      +actual() Optional~Inventario~
+      ABM de habitaciones
     }
     class ValidadorInventario {
-      +validar(Inventario) List~String~
+      +validar(Inventario)$ List~String~
     }
     class RepositorioInventario {
-      +guardar()
-      +cargar()  «JSON atómico»
+      +guardar(Inventario)
+      +cargar() Optional~Inventario~
+      JSON con escritura atómica
     }
     class InventarioAplicado {
       <<evento>>
+      inventario
     }
 
     class ControlService {
-      +iniciar(fechaHora, zona, factor)
-      +detener()
-      +estado()
-      +alRecibirLectura()
+      -RelojControl reloj
+      +iniciar(fechaHora, zona, factor) EstadoControl
+      +detener() EstadoControl
+      +estado() EstadoControl
+      +enEjecucion() boolean
+      +alRecibirLectura(idHabitacion, temperaturaC, ts)
+      +aplicarInventario(InventarioAplicado)
       tick()
       reconciliar()
     }
     class RelojControl {
+      <<record>>
       fechaHora
       factorTiempo
       iniciadoEn
       zona
-      +ahora(relojReal)
+      +ahora(Clock) Instant
+      +aTiempoDeControl(Instant) Instant
+      +instanteDeLectura(ts, tsEnTiempoReal, vigencia, Clock) Instant
+      +escalar(Duration) Duration
     }
 
     class CoreAdapter {
-      deseado / estadoConocido
-      potenciaContratadaKW
-      retenidas
-      +configurar()
-      +alLlegarLectura()
-      +alTick()
-      +sincronizar()
-      +habilitar()
-      +deshabilitar()
+      -boolean enEjecucion
+      -Sitio sitio
+      -List~ConfiguracionHabitacion~ configuracion
+      -Map~String,Double~ temperaturas
+      -Map~String,Instant~ instanteLectura
+      -Instant ahora
+      -double factorTiempo
+      -Map~String,Decision~ deseado
+      -Map~String,EstadoSwitch~ estadoConocido
+      -Set~String~ retenidas
+      +configurar(Sitio, List~HabitacionControlada~)
+      +procesar(Estimulo) List~Decision~
+      +estadoDe(idHabitacion) EstadoHabitacion
+      +iniciar()
+      +detener()
+      +enEjecucion() boolean
       +reconciliar()
-      pasada() «OFF antes que ON»
-      excederiaLaContratada()
+      +estados() List~EstadoControlado~
+      -pasada()
+      -excederiaLaContratada(HabitacionControlada) boolean
+    }
+    class Core {
+      +lecturaValida(double) boolean
+      +decidir(...) List~Decision~
+    }
+    class CoreConfig {
+      <<configuration>>
+      arma Core y CoreAdapter
     }
     class ClienteSwitch {
       <<interface>>
@@ -279,23 +310,33 @@ classDiagram
     class ClienteSwitchRest
 
     class LecturaMqttListener {
-      +conectar(broker)
-      suscribe topicTermostato
-      reintento cada 5 s (hilo propio)
+      +conectar(brokerUrl)
+      +alAplicarseInventario(InventarioAplicado)
+      +messageArrived(topic, mensaje)
+      procesarMensaje(topic, payload)
+      +conectado() boolean
+      reintento cada 5 s (hilo mqtt-conexion)
     }
     class PayloadTermostato {
-      tC
+      <<record>>
+      temperaturaC
       ts
+      +parsear(payload)$ Optional~PayloadTermostato~
     }
     class RegistroEntorno {
+      +arrancar()
       POST /controladores con reintentos
       GET /sitio (pull)
+      +registrado() boolean
     }
 
     SitioController --> InventarioService
     HabitacionController --> InventarioService
     ControlController --> ControlService
     DiagnosticoController --> CoreAdapter
+    DiagnosticoController --> ControlService
+    DiagnosticoController --> LecturaMqttListener
+    DiagnosticoController --> RegistroEntorno
     InventarioService --> ValidadorInventario
     InventarioService --> RepositorioInventario
     InventarioService ..> InventarioAplicado : publica
@@ -303,27 +344,41 @@ classDiagram
     InventarioAplicado ..> LecturaMqttListener : escucha
     ControlService --> RelojControl
     ControlService --> CoreAdapter
-    CoreAdapter --> CoreClient : ICoreClient
+    ControlService --> InventarioService : inventario actual
+    CoreAdapter --> Core
     CoreAdapter --> ClienteSwitch
     ClienteSwitch <|.. ClienteSwitchRest
+    CoreConfig ..> Core : crea
+    CoreConfig ..> CoreAdapter : crea
     LecturaMqttListener --> ControlService
     LecturaMqttListener ..> PayloadTermostato
     RegistroEntorno --> LecturaMqttListener : broker informado
     RegistroEntorno --> InventarioService
 ```
 
+Las dependencias del control van en un solo sentido: `ControlService` → `CoreAdapter` → `Core`. El
+adaptador nunca llama a `ControlService` y el core no conoce a nadie del engine.
+
 Decisiones de diseño relevantes:
 
-- **Un solo punto de contacto con el core** (`CoreAdapter`), que serializa las llamadas: el core no es
-  thread-safe y le llegan eventos de MQTT, del temporizador y de REST. La comunicación con los
-  switches corre aparte, en su propio hilo (ver §3), para que nadie espere a la red.
+- **Un solo punto de contacto con el core** (`CoreAdapter`), que además es el único dueño del estado
+  del control. El core no tiene estado, pero el adaptador sí, y le llegan estímulos de MQTT, del
+  temporizador y de REST: por eso sus métodos son `synchronized` y procesan un estímulo por vez. La
+  comunicación con los switches corre aparte, en su propio hilo (ver §3), para que nadie espere a la
+  red.
+- **Un solo estado de ejecución** (tarjetas T7 y T7b). Si el control está en ejecución lo dice
+  `CoreAdapter.enEjecucion()`, que cambia con `iniciar()` y `detener()`. `ControlService` le delega
+  (`ControlService.enEjecucion()` devuelve `adaptador.enEjecucion()`) y no guarda una copia: su campo
+  `reloj` solo da la hora (y queda con el último INICIAR después de DETENER). Detenido, el adaptador
+  sigue decidiendo (por ejemplo, ante un `PUT /sitio`) pero no comanda ningún switch.
 - **Estado deseado vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
   el último estado *conocido* de su switch (por la respuesta del comando o por la consulta §4), y solo
   comanda cuando difieren. La reconciliación periódica corrige un switch que reinició
   (`DESCONOCIDO`), que alguien movió a mano o cuyo comando se perdió.
-- **El reloj lo pone el engine.** Las lecturas se estampan con la hora del control al llegar (no con
-  el `ts` del payload), así el core decide siempre con el reloj sincronizado (§5.2), también con
-  tiempo acelerado.
+- **El reloj lo pone el engine.** `ControlService` mantiene el `RelojControl` (§5.2) y estampa cada
+  estímulo con la hora del control: el Tick con `ahora`, y la lectura con el instante que da
+  `RelojControl.instanteDeLectura` a partir del `ts` del payload (§2.2). El core nunca lee el reloj del
+  sistema: decide con la hora que recibe por parámetro, también con tiempo acelerado.
 - **Inventario como única fuente de verdad**, persistido en un archivo JSON con escritura atómica. El
   ABM de habitaciones opera sobre el mismo inventario.
 - **Desacople por evento** (`InventarioAplicado`): el inventario no conoce a quién le interesa; el
@@ -356,15 +411,18 @@ sequenceDiagram
     Note over Env: antes de responder, el entorno configura y arranca al controlador
     Env->>Inv: PUT /sitio (inventario §1)
     Inv->>Inv: validar → grabar (atómico) → en uso
-    Inv-->>Ctl: evento InventarioAplicado
+    Inv-->>Ctl: evento InventarioAplicado (aplicarInventario)
     Ctl->>Ad: configurar(sitio, habitaciones)
-    Ad->>Core: ConfiguracionActualizada
+    Ad->>Ad: procesar(ConfiguracionActualizada) → guarda sitio y habitaciones
+    Ad->>Core: decidir(situación)
+    Note over Ad: detenido: guarda la decisión pero no comanda switches
     Inv-->>Mq: evento InventarioAplicado → anota los topics
     Env->>Ctl: POST /control/comandos {INICIAR, fechaHora, factorTiempo}
-    Ctl->>Ctl: RelojControl(fechaHora, factor, ahoraReal, zona)
-    Ctl->>Ad: sincronizar(fechaHora, factor)
-    Ad->>Core: Sincronizacion
-    Ctl->>Ad: habilitar() → pide una pasada al hilo switches
+    Ctl->>Ctl: nuevo RelojControl(fechaHora, factor, ahoraReal, zona)
+    Ctl->>Ad: configurar(sitio, habitaciones) (si hay inventario, con la zona del INICIAR)
+    Ctl->>Ad: procesar(Sincronizacion(fechaHora, factor))
+    Ad->>Core: decidir(situación)
+    Ctl->>Ad: iniciar() → en ejecución, pide una pasada con consulta al hilo switches
     Ctl->>Ctl: arranca temporizador (tick 1 s, reconciliación 15 s)
     Ctl-->>Env: 200 EN_EJECUCION (sin esperar a los switches)
     Env-->>Eng: 201 {mqtt: {host, puerto}}
@@ -398,11 +456,11 @@ sequenceDiagram
     else EN_EJECUCION
         Ctl->>Ctl: instante = relojControl.instanteDeLectura(ts) (sin ts, futuro o ya vencido ⇒ ahora)
         Ctl->>Ad: 4. procesar(NuevaLectura("room1", 19.3, instante))
-        Ad->>Ad: descarta si es inválida (core.lecturaValida) o fuera de orden,<br/>guarda temperatura e instante y arma la situación
+        Ad->>Ad: descarta si la habitación no está configurada, si es inválida (core.lecturaValida)<br/>o si llegó fuera de orden, guarda temperatura e instante y arma la situación
         Ad->>Core: 5. decidir(sitio, habitaciones, estados, ahora, factor)
         Core-->>Ad: [room1 ON CALEFACCIONANDO, room2 OFF SIN_POTENCIA_DISPONIBLE]
         Ad-->>Ctl: vuelve (los comandos salen en el hilo switches)
-        loop hilo switches, mientras ControlService.enEjecucion(): decisiones distintas del estado conocido del switch
+        loop hilo switches, mientras adaptador.enEjecucion(): decisiones distintas del estado conocido del switch (primero los OFF)
             Ad->>Sw: POST /switches/sw-room1/comandos {ON}
             alt responde 200
                 Sw-->>Ad: {estado: ON}
@@ -416,7 +474,11 @@ sequenceDiagram
 
 Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageArrived`, callback de Paho con el único try/catch; (2) `procesarMensaje`, que resuelve la habitación por el topic y parsea el payload (se prueba sin broker); (3) `ControlService.alRecibirLectura`, dueño del reloj del control; (4) `CoreAdapter.procesar`, dueño del estado y del estado de ejecución (T7b); (5) `Core.decidir`, la función pura. Antes eran 10: `CoreClient` y el `procesar` del core, que guardaba un estado duplicado, se eliminaron (tarjetas T4, T5 y T7).
 
-**Instante de la lectura (`ts`, tarjeta T8).** La lectura se guarda con el instante que informa el termostato (`ts`, epoch con 3 decimales, §2), leído exacto con `BigDecimal`. Ese instante es el que se compara para descartar las lecturas que llegan fuera de orden (`ts` anterior a la última guardada) y el que se usa para el vencimiento. Si falta, está en el futuro o es tan viejo que llegaría ya vencido, no puede ser una medición recién hecha (reloj desfasado o en otra escala) y se usa la hora del control al recibirla; la temperatura nunca se descarta por eso. **Pendiente de confirmar con el docente:** el estándar no dice si, con tiempo acelerado, el simulador escribe el `ts` en tiempo simulado o real. Por defecto se toma como hora del control (`termostato.ts-tiempo-real=false`); si es real, con `true` se convierte con el `RelojControl` (`fechaHora + (ts − iniciadoEn) × factor`). Con cualquiera de las dos suposiciones, si resulta equivocada, el peor caso es el comportamiento sin `ts`.
+**Instante de la lectura (`ts`, tarjeta T8).** La lectura se guarda con el instante que informa el termostato (`ts`, epoch con 3 decimales, §2), leído exacto con `BigDecimal`. Ese instante es el que se compara para descartar las lecturas que llegan fuera de orden (`ts` anterior a la última guardada) y el que se usa para el vencimiento. Si falta, está en el futuro o es tan viejo que llegaría ya vencido, no puede ser una medición recién hecha (reloj desfasado o en otra escala) y se usa la hora del control al recibirla; la temperatura nunca se descarta por eso. El docente confirmó que, con tiempo acelerado, el `ts` está en **tiempo simulado**, en la misma escala que el reloj del control, así que se toma tal cual en esa escala. Lo que todavía no refleja esa respuesta queda pendiente:
+
+- La propiedad `termostato.ts-tiempo-real` (por defecto `false`, es decir, el `ts` en la hora del control) todavía existe en el código, junto con la conversión de `RelojControl.aTiempoDeControl` que se usa si vale `true`. La tarjeta T8b elimina las dos.
+- Un `ts` más viejo que la vigencia hoy se registra con la hora del control al recibirlo. La regla nueva (descartarla y contarla en `/diagnostico`) depende de la decisión D8 del equipo y se implementa en T8b.
+- La vigencia de las lecturas hoy se escala por el factor de tiempo (en `RelojControl.instanteDeLectura` y en `Core.decidir`). La tarjeta T8c la pasa a tiempo simulado, sin escalar.
 
 ### 2.3 Evento temporal: entrada y salida de la franja punta
 
@@ -429,19 +491,20 @@ sequenceDiagram
     participant Core as core
     participant Sw as Switches
 
-    Tm->>Ctl: tick()
-    Ctl->>Ad: alTick(relojControl.ahora())  [p. ej. lunes 17:00:00]
-    Ad->>Core: procesar(Tick)
-    Core->>Core: decidir(situación): en punta → con déficit ⇒ TARIFA_PUNTA
+    Tm->>Ctl: tick() (si está en ejecución)
+    Ctl->>Ad: procesar(Tick(reloj.ahora()))  [p. ej. lunes 17:00:00]
+    Ad->>Ad: avanza su reloj (nunca hacia atrás) y arma la situación
+    Ad->>Core: decidir(situación)
+    Core->>Core: en punta → con déficit ⇒ TARIFA_PUNTA
     Core->>Core: lecturas vencidas ⇒ LECTURA_VENCIDA
     Core-->>Ad: todas OFF
-    Ad->>Sw: POST …/comandos {OFF} (solo las que estaban ON)
+    Ad->>Sw: hilo switches: POST …/comandos {OFF} (solo las que estaban ON)
     Note over Tm,Sw: … 23:00:00 (fin de la franja, exclusivo) …
     Tm->>Ctl: tick()
-    Ctl->>Ad: alTick(23:00:00)
-    Ad->>Core: procesar(Tick)
+    Ctl->>Ad: procesar(Tick(23:00:00))
+    Ad->>Core: decidir(situación)
     Core-->>Ad: las que tienen déficit vuelven a ON (respetando la contratada)
-    Ad->>Sw: POST …/comandos {ON}
+    Ad->>Sw: hilo switches: POST …/comandos {ON}
 ```
 
 ### 2.4 Cambio de configuración en caliente (`PUT /sitio` con el control en ejecución)
@@ -464,12 +527,13 @@ sequenceDiagram
         API-->>Op: 400 {errores: [...]} (queda el anterior)
     else válido
         Inv->>Inv: grabar (temporal + rename atómico)
-        Inv-->>Ctl: InventarioAplicado
-        Ctl->>Ad: configurar(...)
-        Ad->>Core: ConfiguracionActualizada
+        Inv-->>Ctl: InventarioAplicado (aplicarInventario)
+        Ctl->>Ad: configurar(sitio, habitaciones)
+        Ad->>Ad: procesar(ConfiguracionActualizada)<br/>olvida lo que sabía de habitaciones que ya no están
+        Ad->>Core: decidir(situación)
         Core-->>Ad: decisiones con el tope nuevo
         Ad->>Ad: pide una pasada al hilo switches: apaga lo que ya no entra<br/>(el 200 no espera a los switches)
-        Inv-->>Mq: InventarioAplicado → (des)suscribe topics
+        Inv-->>Mq: InventarioAplicado → (des)suscribe topics en el hilo mqtt-conexion
         API-->>Op: 200 {sitio, habitaciones}
     end
 ```
@@ -541,15 +605,27 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | Hilo | Origen | Qué hace |
 |---|---|---|
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
-| Paho callback | broker MQTT | `messageArrived` → `ControlService.alRecibirLectura` |
-| `mqtt-conexion` | propio | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
-| `control-temporizador` | propio | tick cada 1 s real y reconciliación cada 15 s |
-| `registro-entorno` | propio | registro §6 con reintentos exponenciales |
+| Paho callback | broker MQTT | `messageArrived` → `procesarMensaje` → `ControlService.alRecibirLectura` |
+| `mqtt-conexion` | propio (`LecturaMqttListener`) | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
+| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` (1 s real por defecto) y reconciliación cada 15 s; existe solo mientras el control está en ejecución |
+| `registro-entorno` | propio (`RegistroEntorno`) | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
+| `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |
 
-Todos convergen en `CoreAdapter` (métodos `synchronized`), que es el único que toca el core. El core
-se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza lo
-deseado, pide una pasada al hilo `switches` y vuelve. Así `INICIAR` y `PUT /sitio` responden sin
+**Candados.** Los estímulos convergen en `CoreAdapter`, el único que toca el core y el único dueño del
+estado del control, incluido el estado de ejecución. Sus métodos públicos son `synchronized`; el core
+no tiene estado y se llama dentro de ese bloqueo. `ControlService` tiene su propio candado (`iniciar`,
+`detener`, `alRecibirLectura`, `aplicarInventario` y `tick` son `synchronized`), para que una lectura
+estampada con el reloj viejo no se procese después de que INICIAR re-sincronizó el reloj. Los
+candados se toman siempre en el mismo orden (`InventarioService` → `ControlService` → `CoreAdapter`,
+ya que el evento `InventarioAplicado` se publica en forma sincrónica) y nunca al revés, porque el
+adaptador no llama a `ControlService`: no hay deadlock. `LecturaMqttListener` usa un candado propio
+solo para la conexión y las suscripciones; el callback de Paho no lo toma.
+
+El core se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza lo
+deseado, pide una pasada al hilo `switches` y vuelve. La pasada toma el candado del adaptador solo para
+leer o actualizar el estado, y antes de cada comando vuelve a mirar el estado de ejecución: un DETENER
+que llega durante una pasada corta los comandos que faltan. Así `INICIAR` y `PUT /sitio` responden sin
 esperar a los switches —importante porque en el registro §6 el entorno nos da `INICIAR` antes de
 responder, y es él mismo quien sirve los switches: esperar ahí era un bloqueo circular— y un switch
 lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pasada se juntan en una
@@ -563,8 +639,8 @@ acota).
 |---|---|---|---|
 | Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
-| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest` |
-| Termostato deja de publicar | la lectura vence (10 min reales, escalados por `factorTiempo`) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
+| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango o una lectura fuera de orden también; la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
+| Termostato deja de publicar | la lectura vence (hoy 10 min reales, escalados por `factorTiempo`; T8c la pasa a tiempo simulado) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
 | Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de lo deseado y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
@@ -575,26 +651,44 @@ acota).
 
 ```
 modules/
-├── core/      uy.edu.utec.iiss.core          Core, CriterioPrioridad, MayorDeficitPrimero
-│              uy.edu.utec.iiss.core.model    Estimulo, Decision, Motivo, Sitio, ...
-│              uy.edu.utec.iiss.core.cliente  ICoreClient / CoreClient (fachada)
-│              src/test                       DecidirTest (por situación), CoreTest (por estímulos),
-│                                             MayorDeficitPrimeroTest, CoreClientTest, ModeloTest
-└── engine/    uy.edu.utec.iiss.engine
-               ├── inventario/  §1 y §5.1: modelo, validación, persistencia
-               ├── control/     §5.2: reloj del control, INICIAR/DETENER, temporizador
-               ├── adaptador/   CoreAdapter (único puente con el core)
-               ├── switches/    §3/§4: cliente REST de los switches
-               ├── mqtt/        §2: consumidor de los termostatos
-               ├── registro/    §6: registro ante el entorno y arranque
-               ├── rest/        controllers, filtro X-API-Key, errores uniformes
-               ├── config/      armado del core y del adaptador
-               └── src/test/…/integracion/
+├── core/      uy.edu.utec.iiss.core          Core (decidir, lecturaValida), CriterioPrioridad,
+│                                             MayorDeficitPrimero
+│              uy.edu.utec.iiss.core.model    Accion, ConfiguracionHabitacion, Decision, DiasTarifa,
+│                                             EstadoHabitacion, Estimulo, FranjaHoraria, Motivo,
+│                                             ParametrosControl, Sitio
+│              src/test                       DecidirTest (por situación), MayorDeficitPrimeroTest,
+│                                             ModeloTest, CoreTestFixtures (utilitarios)
+└── engine/    uy.edu.utec.iiss.engine        EngineApplication
+               ├── inventario/  §1 y §5.1: modelo, validación, persistencia, evento InventarioAplicado
+               ├── control/     §5.2: ControlService (INICIAR/DETENER, temporizador),
+               │                RelojControl, EstadoControl
+               ├── adaptador/   CoreAdapter (único puente con el core y dueño del estado del control)
+               ├── switches/    §3/§4: ClienteSwitch, ClienteSwitchRest, EstadoSwitch
+               ├── mqtt/        §2: LecturaMqttListener, PayloadTermostato
+               ├── registro/    §6: RegistroEntorno (registro ante el entorno y arranque)
+               ├── rest/        controller/ (Sitio, Habitacion, Control, Diagnostico),
+               │                security/ (ApiKeyFilter, X-API-Key), error/ (errores uniformes)
+               ├── config/      CoreConfig: armado del core y del adaptador
+               ├── util/        Instantes (formato ISO-8601 con milisegundos)
+               └── src/test/…/
+                   ├── adaptador/   CoreAdapterTest (switches, pasadas, estado de ejecución),
+                   │                CoreAdapterEstimulosTest (por estímulos), EstimulosFixtures
+                   ├── control/     RelojControlTest
+                   ├── inventario/  ValidadorInventarioTest, RepositorioInventarioTest,
+                   │                InventarioEjemplo
+                   ├── mqtt/        PayloadTermostatoTest
+                   ├── registro/    RegistroEntornoTest
+                   ├── rest/        ApiEstandarTest
+                   └── integracion/
                                 IntegracionBase (contexto Spring + BrokerMqttEmbebido (Moquette)
                                 + SwitchesHttpFalsos), ControlCargaTest, ArranqueParadaTest,
                                 CambioConfiguracionTest, FallaBrokerMqttTest, PerdidaMensajesTest,
                                 FallaSwitchTest, TermostatoCaidoTest
 ```
+
+Los tests de estímulos (lectura, tick, configuración, INICIAR) eran `CoreTest` hasta la iteración 5;
+con el core sin estado pasaron a `CoreAdapterEstimulosTest`, junto con `CoreAdapter.procesar`
+(tarjeta T5).
 
 Formato del código: Spotless con google-java-format (AOSP), configurado en el `pom.xml` padre;
 `mvn verify` falla si algo no cumple (ver [`docs/calidad/`](../calidad/README.md)).
