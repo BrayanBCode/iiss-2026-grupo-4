@@ -22,13 +22,14 @@ Corregir lo que marcó el docente sin romper nada de la iteración 5 (215 tests 
 ### Decisiones para la reunión
 Hay que tomarlas antes de pasar las tarjetas a "Listo":
 
-| # | Decisión | Propuesta |
-|---|---|---|
-| D1 | ¿El core queda sin estado? | **Sí**: solo `decidir` y el modelo (sugerencia del docente) |
-| D2 | ¿`Estimulo` se borra (A) o queda como modelo, procesado en el engine (B)? | **B**: es lo que pide la letra de la iteración 4 ("modelo de los estímulos") |
-| D3 | ¿El `ts` del termostato es el instante de la lectura? | **Sí**. Si falta o viene en el futuro, se usa el reloj del control |
-| D4 | ¿Zona horaria fija del sitio? | **Sí**, `America/Montevideo`, configurable. Hay que confirmarlo con el contrato del simulador nuevo |
-| D5 | ¿Una rama por tarjeta, con PR a `implementacion5`? | **Sí**, así cada tarjeta se revisa por separado |
+| # | Decisión | Propuesta | Resultado |
+|---|---|---|---|
+| D1 | ¿El core queda sin estado? | **Sí**: solo `decidir` y el modelo (sugerencia del docente) | **Sí** (aplicada en `67fe9a9`) |
+| D2 | ¿`Estimulo` se borra (A) o queda como modelo, procesado en el engine (B)? | **B**: es lo que pide la letra de la iteración 4 ("modelo de los estímulos") | **B** (aplicada en `67fe9a9`) |
+| D3 | ¿El `ts` del termostato es el instante de la lectura? | **Sí**. Llega en tiempo real y se lleva a tiempo de control con la fórmula de la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones). Si falta o queda en el futuro respecto de `ahora`, se usa `ahora` | **Sí**, con la regla nueva (actualizada) |
+| D4 | ¿Zona horaria fija del sitio? | **Sí**, `America/Montevideo`, configurable. Hay que confirmarlo con el contrato del simulador nuevo | **Sí**. Uruguay es obligatorio para el equipo |
+| D5 | ¿Una rama por tarjeta, con PR a `implementacion5`? | **Sí**, así cada tarjeta se revisa por separado | **Sí**. Recordatorio: se incumplió en `67fe9a9` (un solo commit); se aplica desde ahora |
+| D6 | ¿Se acepta la bandera de marcha vía `ObjectProvider` (solución de `67fe9a9`)? | **Sí**, si los tests de arranque/parada siguen en verde | Pendiente |
 
 ### Fuera de alcance de esta planificación
 La vista física del 4+1, el tag `version5` y el MCP opcional. Siguen en el backlog de la entrega.
@@ -48,29 +49,37 @@ La vista física del 4+1, el tag `version5` y el MCP opcional. Siguen en el back
   - commit con formato `módulo: descripción`;
   - los comentarios afectados están actualizados.
 - **Pull:** quien termina toma la próxima tarjeta de "Listo" en el orden del carril; nadie asigna tarjetas.
+- **Tablero al día:** la columna Estado del tablero (y Jira) se actualiza en el mismo PR de cada tarjeta.
 
 ## 3. Tarjetas
 
 Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 
-| ID | Tarjeta | Carril | Depende de | Tamaño | Criterio de aceptación |
-|---|---|---|---|---|---|
-| T1 | CI con `mvn verify`, sin `-DskipTests` | B | — | S | El workflow corre un solo `mvn -B verify` y pasa en el PR |
-| T2 | Reglas "Java que usamos" + `docs/calidad/guia-java.md` | B | D2 | S | El estándar tiene la sección y la guía explica cada técnica que se mantiene con un ejemplo del proyecto |
-| T4 | El estado pasa a `CoreAdapter`, que llama a `core.decidir` | A | D1, D2 | L | `CoreAdapter` guarda temperaturas, instantes, sitio y reloj; ya no usa `procesar` ni `estadoById`. Los 215 tests en verde |
-| T5 | `Core` queda solo con `decidir`; se migran los tests de `CoreTest` | A | T4 | L | Ya no existen `procesar`, `CoreClient` ni `ICoreClient`. Los tests de decisión están en `DecidirTest` y los de estímulos en `CoreAdapterTest`. Cobertura del core ≥ 85 % |
-| T3 | Verificar OFF antes que ON después del refactor | B | T5 | S | El test de `CoreAdapterTest` (OFF antes que ON) sigue en verde y no cambió |
-| T7 | Una sola bandera de "en marcha" y un solo try/catch en la lectura MQTT | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de marcha. Una lectura recorre 5 pasos |
-| T8 | `ts` del termostato como instante de la lectura | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj) |
-| T9 | Zona horaria fija del sitio | A | T8, D4 | M | No se usa `ZoneId.systemDefault()`. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta de las 18:00 de Montevideo |
-| T10 | Simplificar streams, ternarios y `::` en el engine | A | T9, T2 | M | Se cumplen las reglas de T2. Los tests no cambian y siguen en verde |
-| T11 | Documentación: 4+1, cobertura y resultados | B | T10 | M | `4mas1.md` sin `CoreClient` y con el camino nuevo. `docs/calidad/cobertura/` regenerado. `resultados.md` con los conteos nuevos |
+**Estado al 2026-10-28 (commit `67fe9a9`).** Ese commit (lucas-811, "Implementacion codigo, test y 4+1", 68 archivos) cerró varias tarjetas de una vez, sin rama por tarjeta (incumple D5) y sin actualizar el tablero. Lo de la tabla está verificado contra el código; `mvn -B verify` sobre `67fe9a9` todavía no lo corrimos nosotros.
+
+| ID | Tarjeta | Estado | Carril | Depende de | Tamaño | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T1 | CI con `mvn verify`, sin `-DskipTests` | **Hecho** | B | — | S | El workflow corre un solo `mvn -B verify` y pasa en el PR. Hecho: un solo `verify`, artefactos, dispara en `implementacion*` y tags `version*` (cubre también A1 y A2 de excelencia: JaCoCo `check` ≥ 0.85 en líneas y ramas) |
+| T2 | Reglas "Java que usamos" + `docs/calidad/guia-java.md` | **Pendiente** | B | D2 | S | El estándar tiene la sección y la guía explica cada técnica que se mantiene con un ejemplo del proyecto |
+| T4 | El estado pasa a `CoreAdapter`, que llama a `core.decidir` | **Hecho** | A | D1, D2 | L | `CoreAdapter` guarda temperaturas, instantes, sitio y reloj; ya no usa `procesar` ni `estadoById`. Los 215 tests en verde |
+| T5 | `Core` queda solo con `decidir`; se migran los tests de `CoreTest` | **Hecho** | A | T4 | L | Ya no existen `procesar`, `CoreClient` ni `ICoreClient`. Los tests de decisión están en `DecidirTest` y los de estímulos en `CoreAdapterEstimulosTest`. Cobertura del core ≥ 85 % |
+| T3 | Verificar OFF antes que ON después del refactor | **Pendiente** | B | T5 | S | El test de `CoreAdapterTest` (OFF antes que ON) sigue en verde y no cambió |
+| T7 | Una sola bandera de "en marcha" y un solo try/catch en la lectura MQTT | **Hecho** | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de marcha. Una lectura recorre 5 pasos. Hecho con `BooleanSupplier` vía `ObjectProvider<ControlService>` (ver D6) y `alRecibirLectura` `synchronized` |
+| T8 | `ts` del termostato como instante de la lectura | **Parcial** | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj). Hecho: parseo exacto con `BigDecimal`, `RelojControl.instanteDeLectura`/`aTiempoDeControl`, descarte de `ts` anterior al último. Falta: ver T8b |
+| T8b | `ts` en tiempo real por defecto y regla del ts viejo | **Pendiente** | A | T7 | S | `termostato.ts-tiempo-real` en `true` por defecto (hoy `false`). Se decide y documenta qué pasa con un `ts` más viejo que la vigencia (hoy se reemplaza por `ahora` y la lectura entra como fresca; propuesta: descartarla). Tests de ambos casos |
+| T9 | Zona horaria fija del sitio | **Pendiente** | A | T8, D4 | M | No se usa `ZoneId.systemDefault()` (hoy en `ControlService.java:175` y `ControlController.java:66`). `CONTROL_ZONA_HORARIA` con valor en `application.properties` y `docker-compose.yml`; sin parámetro `zonaDeFechaHora`; `TZ` en el contenedor; `Sitio.ZONA_URUGUAY` como default. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta (`TARIFA_PUNTA`) de las 18:00 de Montevideo |
+| T10 | Simplificar streams, ternarios y `::` en el engine | **Parcial** | A | T9, T2 | M | Se cumplen las reglas de T2. Los tests no cambian y siguen en verde. Hecho solo en `CoreAdapter` |
+| T11 | Documentación: 4+1, cobertura y resultados | **Parcial** | B | T10 | M | `4mas1.md` sin `CoreClient` y con el camino nuevo. `docs/calidad/cobertura/` regenerado. `resultados.md` con los conteos nuevos. Hecho: 4+1 §2.2 con el camino de 5 pasos |
+| T12 | Tick escalado con el factor | **Pendiente** | A | T9 | S | Período del tick = `max(10 ms, tickMs / factor)` (hoy `scheduleWithFixedDelay(tickMs)` en `ControlService.java:251`). Error máximo documentado en `4mas1.md`. Test con factor alto que corte la punta en menos de 1 s real |
+| T13 | Corrida contra el simulador con evidencia | **Pendiente** | B | T9, T12 | M | Según B2 de `cambios-excelencia-iter5.md`: script de integración, corridas (carga no limitante y limitante, cruce de franja acelerado, broker caído, switch caído) y tabla esperado/observado en `resultados.md` |
+| T14 | Documentar decisiones sobre el tiempo | **Pendiente** | B | — | S | Sección en `4mas1.md` con los 3 relojes y la tabla letra vs decisión (la de la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones)) |
 
 ### Orden y paralelismo
 ```
-Carril A (código, de a uno):  T4 → T5 → T7 → T8 → T9 → T10
-Carril B (en paralelo):       T1, T2 (cuando está D2)
-                              T3 (después de T5) · T11 (al final)
+Hecho (67fe9a9):              T1, T4, T5, T7
+Carril A restante (de a uno): T8b → T9 → T12 → T10 (resto)
+Carril B (en paralelo):       T2, T3, T14 ya
+                              T13 tras T12 · T11 al final
 ```
 Con 3 o 4 integrantes: una persona lleva el carril A, otra toma T1 y T2 y después revisa los PR del carril A, y el resto avanza con la vista física del 4+1 (fuera de esta lista).
 
@@ -78,6 +87,65 @@ Con 3 o 4 integrantes: una persona lleva el carril A, otra toma T1 y T2 y despu�
 - **Qué mostrar:** el tablero, el diff del core (antes y después) y el camino de una lectura reducido de 10 a 5 pasos.
 - **Qué validar con el docente:** que la opción de `Estimulo` (D2) cumple con el "modelo de los estímulos" que pide la letra, y la zona horaria del simulador (D4).
 - **Qué ajustar:** si el carril A se atrasa, T10 pasa a la iteración 6. Las tarjetas T4, T5, T8 y T9 son las que corrigen lo que marcó el docente.
+
+## 5. Tiempo del sistema: letra y decisiones
+
+Hay tres relojes y cada uno tiene un único trabajo:
+
+```
+(a) reloj del sistema   Clock relojReal = Clock.systemUTC()   (CoreConfig)
+        |  solo mide duraciones (y esperas de reintento)
+        v
+(b) reloj del control   RelojControl
+        |  ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)
+        |  ÚNICA fuente de "qué hora es" para decidir (tarifa, vencimiento, ticks)
+        ^
+(c) ts del termostato   solo fecha la medición; nunca mueve la hora del control
+```
+
+**Fórmula** (estándar v2 §5.2), válida desde el INICIAR:
+
+```
+ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)
+tiempoRealTranscurrido = Duration.between(iniciadoEn, relojReal.instant())
+```
+
+`iniciadoEn` es la hora del sistema en el momento en que llega el INICIAR. Un INICIAR repetido re-sincroniza: se vuelve a fijar `fechaHora`, `factorTiempo` e `iniciadoEn`.
+
+**Regla del `ts`.** El `ts` llega en tiempo real (lo dijo el docente de palabra) y se lleva a tiempo de control con la misma fórmula, **sin multiplicar el epoch**:
+
+```
+tsControl = fechaHora + (tsReal − iniciadoEn) × factorTiempo
+```
+
+- Si el `ts` falta o queda en el futuro respecto de `ahora`, se usa `ahora`. La temperatura nunca se descarta por eso.
+- Un termostato adelantado no puede adelantar el sistema: el `ts` no toca el reloj del control.
+- Las lecturas con `ts` anterior a la última guardada se descartan (T8). Qué pasa con un `ts` más viejo que la vigencia se decide en T8b.
+
+### Qué dice la letra y qué decidimos nosotros
+
+La letra son los PDF de las iteraciones 1 a 5 y `docs/api/interop-v2.md`. Lo que ella no dice son **decisiones del equipo** y se documentan como tales.
+
+| Tema | Qué dice la letra (fuente) | Decisión del equipo | Motivo |
+|---|---|---|---|
+| Sincronización | Sincronizar con `fechaHora` al INICIAR (interop v2 §5.2) | Igual que la letra | — |
+| Fórmula del tiempo | `ahora = fechaHora + tiempoReal × factorTiempo` (§5.2) | Igual que la letra | — |
+| `factorTiempo` | Mayor que 0; ausente = 1 (§5.2) | Igual que la letra | — |
+| INICIAR repetido | Re-sincroniza (§5.2) | Igual que la letra | — |
+| Tarifa punta | Por hora y día de semana, en "hora local" (it.1–5) | Igual que la letra | — |
+| Corte y restitución | Cortar al entrar en punta y restituir al salir (it.1–5) | Igual que la letra | — |
+| Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
+| Escala del `ts` | No la dice | Tiempo real, convertido con la fórmula | Lo dijo el docente de palabra; falta confirmarlo por escrito |
+| Zona horaria | No la define ("hora local") | `America/Montevideo`, obligatoria, sin `systemDefault()` | El sitio es de Uruguay y un contenedor en UTC cambiaría la punta |
+| Vigencia de lecturas | No la define | 600 s (`control.vigencia-lectura-segundos`) | Sin lecturas no se calefacciona; el valor debe justificarse con la frecuencia del simulador |
+| Período del tick | No lo define | 1 s, escalado por el factor: `max(10 ms, tickMs / factor)` (T12) | Con factor alto un tick fijo atrasa el corte de la punta |
+| Canal del factor en it.5 | "Parámetro al inicio" | Asumimos el `factorTiempo` del INICIAR | Es el único canal que define el estándar; falta verificarlo con el simulador |
+
+### Preguntas abiertas al docente
+- Escala y origen del `ts`: confirmarlo por escrito (tiempo real, epoch del sistema que publica).
+- Canal del factor de tiempo en la iteración 5.
+- Cada cuánto publica un termostato el simulador (para justificar la vigencia de 600 s).
+- Confirmar Uruguay como hora local.
 
 ---
 
@@ -93,22 +161,25 @@ No hay cambios de código. Al terminar T5 se revisa que siga valiendo, porque el
 ## A2. CI: sacar `-DskipTests` — T1
 En `.github/workflows/maven.yml` los dos pasos (`mvn clean test` y `mvn package -DskipTests`) se reemplazan por uno solo: `mvn -B verify`. Así quedan incluidos los tests, Spotless y la cobertura.
 
-## A3. Timestamp del termostato — T8
+## A3. Timestamp del termostato — T8 y T8b
+**Estado:** el parseo exacto, la conversión (`RelojControl.instanteDeLectura` y `aTiempoDeControl`) y el descarte de `ts` anterior al último están hechos en `67fe9a9`. Falta T8b: `termostato.ts-tiempo-real` en `true` por defecto y decidir qué se hace con un `ts` más viejo que la vigencia.
+
 - **`PayloadTermostato`** (`engine/mqtt`):
-  - parsear `ts` exacto con `json.path("ts").decimalValue()` → `Instant.ofEpochSecond(seg, nanos)`, sin pasar por `double × 1000`;
-  - el campo pasa a ser `Instant ts` (null si falta);
-  - actualizar el javadoc, que hoy dice que no se usa.
-- **`LecturaMqttListener.procesarMensaje`**: pasar `p.ts()` a `controlService.alRecibirLectura(id, tC, ts)`.
-- **`ControlService.alRecibirLectura`**: el instante de la lectura es `ts`. Si `ts` es null o está en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`.
+  - parsear `ts` exacto con `BigDecimal` → `Instant.ofEpochSecond(seg, nanos)`, sin pasar por `double × 1000`;
+  - el campo es `Instant ts` (null si falta).
+- **Escala del `ts`:** llega en **tiempo real** (docente, de palabra) y se lleva a tiempo de control con `tsControl = fechaHora + (tsReal − iniciadoEn) × factorTiempo`. **No** se multiplica el epoch por el factor. Ver la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones).
+- **`ControlService.alRecibirLectura`**: el instante de la lectura es el `ts` convertido. Si `ts` es null o queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`.
   - **La temperatura nunca se descarta por esto**: solo se reemplaza el instante con que se guarda.
   - **Por qué**: un `ts` futuro solo puede salir de relojes desfasados entre el termostato o el simulador y el control. Si se guardara tal cual, pasarían dos cosas:
     - la lectura no vencería hasta que el reloj del control alcance ese `ts`, y con un reloj muy adelantado no vencería nunca: se calefacciona con un dato viejo;
     - las lecturas siguientes, con su `ts` correcto, parecerían "más viejas" y se descartarían como fuera de orden: el sensor queda bloqueado.
   - **En el caso normal** el `ts` llega unos milisegundos antes que `ahora` (la latencia de la red) y se usa tal cual.
-- **Lecturas fuera de orden**: el engine descarta las que tienen un `ts` anterior a la última (A4).
+- **Lecturas fuera de orden**: `CoreAdapter.registrarLectura` descarta las que tienen un `ts` anterior a la última (A4).
+- **`ts` más viejo que la vigencia (T8b)**: hoy se reemplaza por `ahora` y la lectura entra como fresca. Hay que decidir si se descarta (propuesta) y dejarlo escrito.
 - **Tests**:
   - `PayloadTermostatoTest`: el ts exacto, por ejemplo `.123` → 123 ms sin error de redondeo, y el caso sin ts;
-  - un test de lectura con `ts` viejo (descartada) y con `ts` futuro (se usa el reloj).
+  - un test de lectura con `ts` viejo (descartada) y con `ts` futuro (se usa el reloj);
+  - un test con factor distinto de 1 que verifique la conversión con la fórmula.
 
 ## A4. Core sin estado — T4 y T5
 **Core** (`modules/core`):
@@ -214,11 +285,15 @@ Rama `revision/<id>` desde `implementacion5` y PR de vuelta a `implementacion5` 
 | T5 | `revision/t5-core-sin-estado` | `core: core sin estado, solo decidir y el modelo` |
 | T7 | `revision/t7-camino-lectura` | `engine: una sola bandera de marcha y un solo try/catch en la lectura MQTT` |
 | T8 | `revision/t8-ts` | `engine: usar el ts del termostato como instante de la lectura` |
+| T8b | `revision/t8b-ts-real` | `engine: ts en tiempo real por defecto y regla del ts viejo` |
 | T9 | `revision/t9-zona` | `engine: zona horaria fija del sitio` |
 | T10 | `revision/t10-legibilidad` | `estilo: loops e if en vez de streams y ternarios` |
 | T11 | `revision/t11-docs` | `docs: 4+1, cobertura y resultados tras la revisión` |
+| T12 | `revision/t12-tick` | `engine: tick escalado con el factor de tiempo` |
+| T13 | `revision/t13-simulador` | `test: corrida contra el simulador con evidencia` |
+| T14 | `revision/t14-doc-tiempo` | `docs: relojes y decisiones sobre el tiempo` |
 
-T3 no genera commit, salvo que la verificación encuentre algo.
+T3 no genera commit, salvo que la verificación encuentre algo. T1, T4, T5 y T7 ya entraron juntas en `67fe9a9`, sin rama propia: desde ahora cada tarjeta va en su rama.
 
 ## A9. Verificación final
 - `mvn verify` en la raíz: Spotless, todos los tests en verde y cobertura del core ≥ 85 % (`modules/core/target/site/jacoco/index.html`).
