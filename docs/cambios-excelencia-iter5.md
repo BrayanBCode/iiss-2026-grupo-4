@@ -288,7 +288,7 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 | A1 CI con `mvn -B verify` + artefactos | Adoptar | Hoy ninguna máquina ejecuta lo que el estándar dice que falla en `verify`. | Hecho en `67fe9a9` |
 | A2 JaCoCo `check` ≥ 85 % en líneas y ramas | Adoptar | La letra pide "asegurar" la cobertura; una regla en `verify` lo asegura. | Hecho en `67fe9a9` |
 | A3 Core sin estado | Adoptar | `Estimulo` queda en `core/model` y el `switch` pasa a `CoreAdapter.procesar`. Es el plan de las tarjetas T4/T5. | Hecho en `67fe9a9` (T4 y T5) |
-| A4 Una sola bandera de marcha | Ajustar | Se elimina el `try/catch` duplicado (queda solo el de `messageArrived`). Se implementó con inyección perezosa (`ObjectProvider`) que evita el ciclo `ControlService` ↔ `CoreAdapter`; se evalúa en D6 de `revision-docente.md`. | Hecho con `ObjectProvider` (T7); pasa a decisión D6 |
+| A4 Una sola bandera de marcha | Ajustar | Se elimina el `try/catch` duplicado (queda solo el de `messageArrived`). `67fe9a9` dejó una sola bandera con `ObjectProvider` (inyección perezosa); el equipo lo considera un parche poco intuitivo. D6: la marcha pasa a `CoreAdapter` y `ControlService` le delega (tarjeta T7b). | Parcial → T7b |
 | A5 Usar el `ts` del termostato | Adoptar | Con la regla de tiempo acelerado aclarada por el docente (ver notas). | Parcial; falta T8b |
 | A6 Zona horaria explícita | Adoptar | Requisito: la zona es Uruguay, sí o sí (ver notas). | Pendiente (T9) |
 | A7 `revision-docente.md` como registro | Adoptar | El repositorio no debe decir que las correcciones no están hechas cuando sí lo están. | Pendiente |
@@ -309,7 +309,7 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 
 ### Notas
 
-**A4 (bandera de marcha).** `ControlService` ya depende de `CoreAdapter`; derivar `habilitado` de `ControlService` a secas habría creado un ciclo. En `67fe9a9` se resolvió con un `BooleanSupplier` que `CoreAdapter` recibe vía `ObjectProvider<ControlService>` en `CoreConfig` (inyección perezosa): queda una sola bandera y no hay ciclo. Se evalúa en D6 de `revision-docente.md` (propuesta: aceptar si los tests de arranque y parada siguen en verde).
+**A4 (bandera de marcha).** `ControlService` ya depende de `CoreAdapter`; derivar `habilitado` de `ControlService` a secas habría creado un ciclo. En `67fe9a9` se resolvió con un `BooleanSupplier` que `CoreAdapter` recibe vía `ObjectProvider<ControlService>` en `CoreConfig` (inyección perezosa): queda una sola bandera, pero el ciclo queda escondido. Por eso D6 de `revision-docente.md` la mueve a `CoreAdapter` (`iniciar()` / `detener()` / `enMarcha()`), `ControlService` le delega y desaparecen el `ObjectProvider` y el `BooleanSupplier` (tarjeta T7b).
 
 **A5 (`ts` en tiempo acelerado).** El `ts` del termostato llega en tiempo real y se lleva a tiempo de control escalándolo con el factor. Ojo: **no** se multiplica el epoch por el factor (daría una fecha absurda); se escala el **tiempo transcurrido desde INICIAR**:
 
