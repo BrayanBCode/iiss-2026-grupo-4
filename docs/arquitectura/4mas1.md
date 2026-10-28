@@ -352,7 +352,7 @@ sequenceDiagram
     participant Sw as Switch (REST)
 
     Eng->>Inv: cargarGuardado() (si hay inventario persistido)
-    Eng->>Env: POST /controladores {etiqueta, baseUrl, apiKey}<br/>(reintenta 2, 4, 8 … 30 s; espera la respuesta hasta 30 s)
+    Eng->>Env: POST /controladores {etiqueta, baseUrl, apiKey}<br/>(reintenta 2, 4, 8 … 30 s, espera la respuesta hasta 30 s)
     Note over Env: antes de responder, el entorno configura y arranca al controlador
     Env->>Inv: PUT /sitio (inventario §1)
     Inv->>Inv: validar → grabar (atómico) → en uso
@@ -398,7 +398,7 @@ sequenceDiagram
     else EN_EJECUCION
         Ctl->>Ctl: instante = relojControl.instanteDeLectura(ts) (sin ts, futuro o ya vencido ⇒ ahora)
         Ctl->>Ad: 4. procesar(NuevaLectura("room1", 19.3, instante))
-        Ad->>Ad: descarta si es inválida (core.lecturaValida) o fuera de orden;<br/>guarda temperatura e instante; arma la situación
+        Ad->>Ad: descarta si es inválida (core.lecturaValida) o fuera de orden,<br/>guarda temperatura e instante y arma la situación
         Ad->>Core: 5. decidir(sitio, habitaciones, estados, ahora, factor)
         Core-->>Ad: [room1 ON CALEFACCIONANDO, room2 OFF SIN_POTENCIA_DISPONIBLE]
         Ad-->>Ctl: vuelve (los comandos salen en el hilo switches)
