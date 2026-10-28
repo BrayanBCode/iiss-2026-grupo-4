@@ -26,7 +26,7 @@ Hay que tomarlas antes de pasar las tarjetas a "Listo":
 |---|---|---|---|
 | D1 | ¿El core queda sin estado? | **Sí**: solo `decidir` y el modelo (sugerencia del docente) | **Sí** (aplicada en `67fe9a9`) |
 | D2 | ¿`Estimulo` se borra (A) o queda como modelo, procesado en el engine (B)? | **B**: es lo que pide la letra de la iteración 4 ("modelo de los estímulos") | **B** (aplicada en `67fe9a9`) |
-| D3 | ¿El `ts` del termostato es el instante de la lectura? | **Sí**. Está en tiempo simulado, en la misma escala que el reloj del control, y se toma tal cual (sin conversión; ver la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones)). Si falta o queda en el futuro respecto de `ahora`, se usa `ahora` | **Sí**, con la regla nueva (actualizada: `ts` simulado, se toma tal cual) |
+| D3 | ¿El `ts` del termostato es el instante de la lectura? | **Sí**. Llega en hora real y se convierte a la hora del control con `fechaHora + (ts − iniciadoEn) × factorTiempo`: la multiplicación es sobre el tiempo transcurrido desde el INICIAR, no sobre la hora entera (ver la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones)). Si falta o, ya convertido, queda en el futuro respecto de `ahora`, se usa `ahora` | **Sí**, con la regla nueva (actualizada: `ts` en hora real, se convierte a la hora del control) |
 | D4 | ¿Zona horaria fija del sitio? | **Sí**, `America/Montevideo`, configurable. Hay que confirmarlo con el contrato del simulador nuevo | **Sí**. Uruguay es obligatorio para el equipo |
 | D5 | ¿Una rama por tarjeta, con PR a `implementacion5`? | **Sí**, así cada tarjeta se revisa por separado | **Sí**. Recordatorio: se incumplió en `67fe9a9` (un solo commit); se aplica desde ahora |
 | D6 | ¿Qué clase administra el estado de ejecución (en ejecución / detenido)? | `CoreAdapter` administra el estado de ejecución (`iniciar()` / `detener()` / `enEjecucion()`, protegida por su propio `synchronized`); `ControlService` le delega y `enEjecucion()` devuelve `adaptador.enEjecucion()`. Se eliminan el `ObjectProvider` y el `BooleanSupplier` de `CoreConfig`: eran un parche para esquivar el ciclo y no son intuitivos | Decidido (Sí), implementado en T7b (rama `revision/t7b-estado-ejecucion`) |
@@ -69,11 +69,11 @@ Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 | T7 | Una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT | **Hecho** | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de ejecución. Una lectura recorre 5 pasos. Hecho con `BooleanSupplier` vía `ObjectProvider<ControlService>` y `alRecibirLectura` `synchronized`; ese parche se reemplaza en T7b (ver D6) |
 | T7b | CoreAdapter administra el estado de ejecución | **Hecho** | A | T7 | S | (a) `grep -rE "ObjectProvider\|BooleanSupplier" modules/engine/src/main` no devuelve nada; (b) `CoreAdapterTest` sin `AtomicBoolean`, con un test nuevo: después de `adaptador.detener()` una lectura que provocaría ON no comanda ningún switch, y después de `iniciar()` sí; (c) siguen en verde `ArranqueParadaTest` y el test asíncrono de `CoreAdapterTest`; (d) `mvn -B verify` en verde; (e) comentario en `ControlService` que diga que el `reloj` solo da la hora y NO indica si está detenido (para no reintroducir dos banderas) |
 | T8 | `ts` del termostato como instante de la lectura | **Parcial** | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj). Hecho: parseo exacto con `BigDecimal`, `RelojControl.instanteDeLectura`/`aTiempoDeControl`, descarte de `ts` anterior al último. Falta: ver T8b y T8c |
-| T8b | `ts` en tiempo simulado y regla del `ts` viejo | **Pendiente** | A | T7b | S | Se eliminan la propiedad `termostato.ts-tiempo-real`, la variable `TERMOSTATO_TS_TIEMPO_REAL` y la conversión del `ts`; el `ts` se toma tal cual en la hora del control. `ts` ausente o en el futuro → se usa `ahora`; `ts` anterior a la última lectura o más viejo que la vigencia → la lectura se descarta y se cuenta en `/diagnostico`. Tests: `ts` futuro, `ts` viejo dentro de la vigencia, `ts` viejo fuera de la vigencia (descartada) y `ts` anterior a la última Actualizar `4mas1.md` (§2.2 párrafo del `ts`). |
+| T8b | `ts` en hora real convertido a la hora del control y regla del `ts` viejo | **Pendiente** | A | T7b | S | La conversión del `ts` se aplica siempre: se elimina la propiedad `termostato.ts-tiempo-real` (y `TERMOSTATO_TS_TIEMPO_REAL`) y la rama que toma el `ts` sin convertir. `ts` ausente o, ya convertido, en el futuro → `ahora`; `ts` anterior a la última lectura o más viejo que la vigencia → se descarta y se cuenta en `/diagnostico` (D8). Tests: conversión con factor 2 (INICIAR 13:00, ts 13:05 ⇒ 13:10), `ts` futuro, `ts` viejo dentro de la vigencia, `ts` viejo fuera de la vigencia (descartada) y `ts` anterior a la última. Actualizar `4mas1.md` (§2.2 párrafo del `ts`). |
 | T8c | Vigencia en tiempo simulado | **Pendiente** | A | T8b | S | `Core.vencida` deja de multiplicar la vigencia por el factor y `factorTiempo` sale de `Core.decidir`; javadoc de `ParametrosControl` corregido. Test: con factor 30, una lectura de hace 601 s de tiempo de control está vencida Actualizar `4mas1.md` (§1.3, §2.2 y §3.1, vigencia). |
 | T9 | Zona horaria fija del sitio | **Pendiente** | A | T8, D4 | M | No se usa `ZoneId.systemDefault()` (hoy en `ControlService.java:175` y `ControlController.java:66`). `CONTROL_ZONA_HORARIA` con valor en `application.properties` y `docker-compose.yml`; sin parámetro `zonaDeFechaHora`; `TZ` en el contenedor; `Sitio.ZONA_URUGUAY` como default. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta (`TARIFA_PUNTA`) de las 18:00 de Montevideo |
 | T10 | Simplificar streams, ternarios y `::` en el engine | **Parcial** | A | T9, T2 | M | Se cumplen las reglas de T2. Los tests no cambian y siguen en verde. Hecho solo en `CoreAdapter` |
-| T11a | 4+1 al día con el diseño actual (tras T4, T5, T7 y T7b) | **Hecho** | B | T7b | S | Vistas lógica, de escenarios, de procesos y de desarrollo sin `CoreClient`, `Core.procesar` ni `habilitar()`; el core contiene el modelo y la función pura `decidir`, y el estado lo guarda `CoreAdapter`. El párrafo del `ts` refleja que es tiempo simulado y lo que queda pendiente para T8b y T8c |
+| T11a | 4+1 al día con el diseño actual (tras T4, T5, T7 y T7b) | **Hecho** | B | T7b | S | Vistas lógica, de escenarios, de procesos y de desarrollo sin `CoreClient`, `Core.procesar` ni `habilitar()`; el core contiene el modelo y la función pura `decidir`, y el estado lo guarda `CoreAdapter`. El párrafo del `ts` refleja que llega en hora real, que hoy la conversión depende de una propiedad en `false` y lo que queda pendiente para T8b y T8c |
 | T11 | Documentación final: 4+1, cobertura y resultados | **Pendiente** | B | T10 | M | Revisión final del `4mas1.md` contra el código del tag `version5`, vista por vista y diagrama por diagrama, para que no quede ninguna discrepancia (clases, firmas, escenarios, hilos, paquetes, reglas del tiempo). Vista física agregada. `docs/calidad/cobertura/` regenerado. `resultados.md` con los conteos de la última corrida. Diagramas Mermaid sin `;` en los textos |
 | T12 | Tick escalado con el factor | **Pendiente** | A | T9 | S | Período del tick = `max(10 ms, tickMs / factor)` (hoy `scheduleWithFixedDelay(tickMs)` en `ControlService.java:251`). Error máximo documentado en `4mas1.md`; error máximo del corte de la franja ≤ un tick en tiempo simulado. Test con factor alto que corte la punta en menos de 1 s real |
 | T13 | Corrida contra el simulador con evidencia | **Pendiente** | B | T9, T12 | M | Según B2 de `cambios-excelencia-iter5.md`: script de integración, corridas (carga no limitante y limitante, cruce de franja acelerado, broker caído, switch caído) y tabla esperado/observado en `resultados.md` |
@@ -109,10 +109,10 @@ Hay tres relojes y cada uno tiene un único trabajo:
         |  ÚNICA fuente de "qué hora es" para decidir (tarifa, vencimiento, ticks)
         ^
 (c) ts del termostato   solo fecha la medición; nunca mueve la hora del control
-                        (tiempo simulado, misma escala que (b); se toma tal cual)
+                        (hora real del simulador; se convierte a la escala de (b))
 ```
 
-**Llegada en tiempo real, hora tomada del contexto.** El tiempo del sistema es simulado: el simulador genera las lecturas y, en algún momento, pasa a modo acelerado enviando el factor (por ejemplo, 10 min de ejecución emulan 5 h, factor 30). Los mensajes MQTT llegan y se procesan en tiempo real, pero los intervalos entre ellos son inconsistentes, porque el simulador provoca a propósito switches caídos, un shelly desincronizado, lecturas atrasadas y velocidad acelerada. Por eso el controlador **no** se basa en la hora de la máquina donde corre, sino en el contexto que recibe: el reloj del control (`fechaHora` + tiempo transcurrido × factor) y el `ts` de cada lectura, que viene en esa misma escala simulada. El reloj del sistema solo se usa para medir cuánto tiempo pasó desde el INICIAR.
+**Llegada en tiempo real, hora tomada del contexto.** El tiempo del sistema es simulado: el simulador genera las lecturas y, en algún momento, pasa a modo acelerado enviando el factor (por ejemplo, 10 min de ejecución emulan 5 h, factor 30). Los mensajes MQTT llegan y se procesan en tiempo real, pero los intervalos entre ellos son inconsistentes, porque el simulador provoca a propósito switches caídos, un shelly desincronizado, lecturas atrasadas y velocidad acelerada. Por eso el controlador **no** se basa en la hora de la máquina donde corre, sino en el contexto que recibe: el reloj del control (`fechaHora` + tiempo transcurrido × factor) y el `ts` de cada lectura, que llega en hora real y se convierte a la hora del control con esa misma fórmula (ver la regla del `ts`). El reloj del sistema solo se usa para medir cuánto tiempo pasó desde el INICIAR.
 
 **Fórmula** (estándar v2 §5.2), válida desde el INICIAR:
 
@@ -123,13 +123,21 @@ tiempoRealTranscurrido = Duration.between(iniciadoEn, relojReal.instant())
 
 `iniciadoEn` es la hora del sistema en el momento en que llega el INICIAR. Un INICIAR repetido re-sincroniza: se vuelve a fijar `fechaHora`, `factorTiempo` e `iniciadoEn`.
 
-**Regla del `ts`.** El `ts` está en tiempo simulado, en la misma escala que el reloj del control, y se toma tal cual: no se convierte ni se multiplica por el factor.
+**Regla del `ts`.** El simulador envía el `ts` en **hora real** (epoch del reloj real de su máquina). El controlador lo lleva a la hora del control con la misma fórmula del §5.2:
+
+```
+tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo
+```
+
+donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación se aplica al **tiempo transcurrido**, no a la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min transcurridos × 2 = 10 min, así que su hora del control es 13:10. Si `fechaHora` fuera 08:00, daría 08:10.
+
 
 - Si el `ts` falta o queda en el futuro respecto de `ahora`, se usa `ahora`. La temperatura nunca se descarta por eso.
 - Un termostato adelantado no puede adelantar el sistema: el `ts` no toca el reloj del control.
 - Las lecturas con `ts` anterior a la última guardada se descartan (T8).
 - Una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b, D8: decisión del equipo pendiente).
-- La vigencia se mide en tiempo simulado, sin escalarla por el factor (T8c).
+- La vigencia se mide en tiempo de control (simulado), sin escalarla por el factor (T8c). El `ts` no se escala para esto: primero se convierte y luego se compara con `ahora`.
+- Hoy el código ya tiene la conversión (`RelojControl.aTiempoDeControl`), pero está detrás de la propiedad `termostato.ts-tiempo-real`, que vale `false`: por defecto el `ts` se toma sin convertir, lo cual es incorrecto. T8b la deja siempre activa.
 
 ### Qué dice la letra y qué decidimos nosotros
 
@@ -144,7 +152,7 @@ La letra son los PDF de las iteraciones 1 a 5 y `docs/api/interop-v2.md`. Lo que
 | Tarifa punta | Por hora y día de semana, en "hora local" (it.1–5) | Igual que la letra | — |
 | Corte y restitución | Cortar al entrar en punta y restituir al salir (it.1–5) | Igual que la letra | — |
 | Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
-| Escala del `ts` | No la define (§2) | Tiempo simulado: se toma tal cual | Respuesta del docente (pedirla por escrito) |
+| Escala del `ts` | No la define (§2) | Hora real del simulador; se convierte a la hora del control con la fórmula del §5.2 | Confirmado por el equipo con el docente; ejemplo 13:00 + 5 min × 2 = 13:10 |
 | Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente |
 | Vigencia de lecturas | No la define | 600 s simulados, sin escalar por el factor (T8c) | Un solo reloj; con escalado y factor 30 ninguna lectura vence en 5 h simuladas |
 | Frecuencia de publicación | Depende del escenario del simulador (docente) | No se asume ninguna; la vigencia se valida en T13 | El simulador provoca atrasos y caídas a propósito |
@@ -155,11 +163,12 @@ La letra son los PDF de las iteraciones 1 a 5 y `docs/api/interop-v2.md`. Lo que
 ### Preguntas abiertas al docente
 - ~~Zona horaria~~: respondida (Uruguay, `America/Montevideo`).
 - ~~Frecuencia de publicación~~: respondida (la define el simulador según el escenario).
-- ~~Escala del `ts`~~: respondida de palabra (tiempo simulado); pedirla por escrito.
+- ~~Escala del `ts`~~: respondida (hora real; se convierte a la hora del control).
 - **Abierta:** ¿el paso a modo acelerado llega como un nuevo INICIAR con `factorTiempo`?
 
 ### Riesgos y hallazgos (T13)
-- Si el simulador acelera sin enviar un INICIAR, todos los `ts` quedan en el futuro respecto del reloj del control y la tarifa se calcula con un reloj equivocado.
+- Si el simulador acelera sin enviar un INICIAR, el reloj del control sigue con el factor anterior y la tarifa se calcula con un reloj equivocado.
+- La conversión del `ts` supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase entre máquinas se multiplica por el factor: 2 s de desfase con factor 30 son 1 min simulado. Se verifica en T13.
 - Los hallazgos de hoy que corrigen T8b, T8c y D7: `Core.vencida` multiplica la vigencia por el factor (con factor 30 y 600 s son 5 h simuladas y ninguna lectura vence en toda la corrida); un `ts` más viejo que la vigencia se registra con `ahora` (una lectura de 19:00 que llega a las 21:00 sostiene la calefacción con un dato de 2 h); y cada INICIAR sella las lecturas guardadas con la hora nueva, así que un dato viejo revive.
 
 ---
@@ -177,24 +186,25 @@ No hay cambios de código. Al terminar T5 se revisa que siga valiendo, porque el
 En `.github/workflows/maven.yml` los dos pasos (`mvn clean test` y `mvn package -DskipTests`) se reemplazan por uno solo: `mvn -B verify`. Así quedan incluidos los tests, Spotless y la cobertura.
 
 ## A3. Timestamp del termostato — T8, T8b y T8c
-**Estado:** el parseo exacto y el descarte de `ts` anterior al último están hechos en `67fe9a9`. `67fe9a9` también dejó una conversión del `ts` (`RelojControl.instanteDeLectura` y `aTiempoDeControl`) que ya no aplica: T8b la elimina junto con `termostato.ts-tiempo-real` y la regla del `ts` viejo; T8c corrige la vigencia.
+**Estado:** el parseo exacto y el descarte de `ts` anterior al último están hechos en `67fe9a9`. `67fe9a9` también dejó la conversión del `ts` (`RelojControl.instanteDeLectura` y `aTiempoDeControl`), pero detrás de la propiedad `termostato.ts-tiempo-real`, hoy en `false`: por defecto el `ts` se toma sin convertir, y eso es incorrecto. T8b deja la conversión siempre activa, elimina la propiedad y agrega la regla del `ts` viejo; T8c corrige la vigencia.
 
 - **`PayloadTermostato`** (`engine/mqtt`):
   - parsear `ts` exacto con `BigDecimal` → `Instant.ofEpochSecond(seg, nanos)`, sin pasar por `double × 1000`;
   - el campo es `Instant ts` (null si falta).
-- **Escala del `ts`:** está en **tiempo simulado**, en la misma escala que el reloj del control (respuesta del docente; pedirla por escrito), y se toma **tal cual**: sin conversión y sin multiplicar por el factor. Los mensajes llegan en tiempo real con intervalos inconsistentes, pero la hora sale del contexto (reloj del control y `ts`), nunca de la máquina. Ver la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones).
-- **`ControlService.alRecibirLectura`**: el instante de la lectura es el `ts`. Si `ts` es null o queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`.
+- **Escala del `ts`:** llega en **hora real** (epoch del reloj real del simulador) y se convierte a la hora del control con `fechaHora + (ts − iniciadoEn) × factorTiempo`, la misma fórmula del §5.2, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; `ts = 13:05` reales ⇒ 5 min × 2 = 10 min ⇒ hora del control 13:10 (con `fechaHora = 08:00` daría 08:10). Los mensajes llegan en tiempo real con intervalos inconsistentes, pero la hora sale del contexto (reloj del control y `ts` convertido), nunca de la máquina. Riesgo: la conversión supone que el reloj real del simulador y el del controlador coinciden; un desfase se multiplica por el factor (se verifica en T13). Ver la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones).
+- **`ControlService.alRecibirLectura`**: el instante de la lectura es el `ts` convertido a la hora del control (`reloj.aTiempoDeControl(ts)`). Si `ts` es null o, ya convertido, queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`.
   - **La temperatura nunca se descarta por esto**: solo se reemplaza el instante con que se guarda.
   - **Por qué**: un `ts` futuro solo puede salir de relojes desfasados entre el termostato o el simulador y el control. Si se guardara tal cual, pasarían dos cosas:
     - la lectura no vencería hasta que el reloj del control alcance ese `ts`, y con un reloj muy adelantado no vencería nunca: se calefacciona con un dato viejo;
     - las lecturas siguientes, con su `ts` correcto, parecerían "más viejas" y se descartarían como fuera de orden: el sensor queda bloqueado.
-  - **En el caso normal** el `ts` coincide con `ahora` o queda unos instantes antes (la latencia de la red) y se usa tal cual.
+  - **En el caso normal** el `ts` coincide con `ahora` o queda unos instantes antes (la latencia de la red) y se usa el valor convertido.
 - **Lecturas fuera de orden**: `CoreAdapter.registrarLectura` descarta las que tienen un `ts` anterior a la última (A4).
 - **`ts` más viejo que la vigencia (T8b, D8)**: hoy se reemplaza por `ahora` y la lectura entra como fresca: una lectura de 19:00 que llega a las 21:00 sostendría la calefacción con un dato de 2 h. La regla nueva la descarta y la cuenta en `/diagnostico`. Es una decisión del equipo, todavía pendiente.
 - **Vigencia (T8c)**: `Core.vencida` deja de multiplicar la vigencia por el factor. Con factor 30 y 600 s hoy son 5 h simuladas y ninguna lectura vence en toda la corrida; con la regla nueva, una lectura de hace 601 s de tiempo de control está vencida. `factorTiempo` sale de `Core.decidir`.
 - **Re-sincronización (D7)**: hoy cada INICIAR sella todas las lecturas guardadas con la hora nueva (`CoreAdapter.sincronizarReloj` o equivalente) y un dato viejo revive. Propuesta: conservar solo las que no estaban vencidas.
 - **Tests**:
   - `PayloadTermostatoTest`: el ts exacto, por ejemplo `.123` → 123 ms sin error de redondeo, y el caso sin ts;
+  - conversión con factor 2: INICIAR 13:00 con `fechaHora = 13:00`, `ts` 13:05 reales ⇒ 13:10;
   - lectura con `ts` futuro (se usa `ahora`), `ts` viejo dentro de la vigencia (se acepta), `ts` viejo fuera de la vigencia (descartada y contada) y `ts` anterior a la última (descartada);
   - con factor 30, una lectura de hace 601 s de tiempo de control está vencida (T8c).
 
@@ -334,7 +344,7 @@ Rama `revision/<id>` desde `implementacion5` y PR de vuelta a `implementacion5` 
 | T7 | `revision/t7-camino-lectura` | `engine: una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT` |
 | T7b | `revision/t7b-estado-ejecucion` | `engine: CoreAdapter administra el estado de ejecución y se elimina ObjectProvider` |
 | T8 | `revision/t8-ts` | `engine: usar el ts del termostato como instante de la lectura` |
-| T8b | `revision/t8b-ts-simulado` | `engine: ts en tiempo simulado y descarte de lecturas viejas` |
+| T8b | `revision/t8b-ts-hora-real` | `engine: ts en hora real convertido a la hora del control y descarte de lecturas viejas` |
 | T8c | `revision/t8c-vigencia-simulada` | `core: vigencia de las lecturas en tiempo simulado` |
 | T9 | `revision/t9-zona` | `engine: zona horaria fija del sitio` |
 | T10 | `revision/t10-legibilidad` | `estilo: loops e if en vez de streams y ternarios` |

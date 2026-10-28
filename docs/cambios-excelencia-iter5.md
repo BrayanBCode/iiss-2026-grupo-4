@@ -59,12 +59,12 @@ La idea que guía todo: hoy el proyecto funciona bien, pero la entrega afirma m�
 ### A5. Usar el `ts` del termostato
 - **Qué:** tarjeta T8.
   - Parsear el `ts` exacto con `decimalValue()` → `Instant.ofEpochSecond(seg, nanos)`, sin pasar por `double × 1000`.
-  - Usar ese `ts` como instante de la lectura. Si falta, o está en el futuro respecto del reloj del control, usar `reloj.ahora()`. Nunca se descarta la temperatura por este motivo.
+  - Usar ese `ts` como instante de la lectura. Si falta, o ya convertido está en el futuro respecto del reloj del control, usar `reloj.ahora()`. Nunca se descarta la temperatura por este motivo.
   - Descartar las lecturas con `ts` anterior a la última guardada.
 - **Por qué:**
   - hoy la regla "lectura fuera de orden" compara instantes de llegada, así que nunca se dispara;
   - el docente marcó que el `ts` se redondeaba o se perdía.
-- **Ojo con el tiempo acelerado:** el docente respondió de palabra que el `ts` viene en tiempo simulado, en la misma escala que el reloj del control. Entonces se toma tal cual, sin conversión. Pedir la confirmación por escrito y dejar la respuesta en el javadoc y en `4mas1.md`.
+- **Ojo con el tiempo acelerado:** el simulador envía el `ts` en hora real. Hay que convertirlo a la hora del control con `fechaHora + (ts − iniciadoEn) × factorTiempo` (la conversión ya existe en `RelojControl.aTiempoDeControl`; T8b la deja siempre activa). Dejar la regla en el javadoc y en `4mas1.md`.
 - **Hecho cuando:** existen tests de:
   - `ts` exacto (`.123` → 123 ms);
   - `ts` ausente;
@@ -108,9 +108,10 @@ La idea que guía todo: hoy el proyecto funciona bien, pero la entrega afirma m�
 
    En los dos casos, documentar en `4mas1.md` cuánto se atrasa como máximo el corte en tiempo simulado.
 2. **Vigencia de las lecturas.** Decidido: se mide en tiempo simulado, sin escalar por el factor (T8c).
-   - Hoy se escala con el factor: 600 s reales a ×60 son 10 horas simuladas calefaccionando con un dato viejo.
-   - Si el simulador acelera también la frecuencia de publicación de los termostatos (lo esperable), la vigencia debería medirse en tiempo simulado: comparar `ahora - ultimaLectura` contra una vigencia fija en minutos de control, sin multiplicar por el factor.
-   - Corregir la contradicción con el PDF interno, que dice lo contrario.
+   - **Hoy:** `Core.vencida` multiplica la vigencia por el factor. Con 600 s y factor 30, la vigencia queda en 5 h simuladas y ninguna lectura vence en toda una corrida de 10 min reales; un termostato caído sigue contando como reciente.
+   - **Decisión:** todo se mide con el reloj del control, que es simulado. Se compara `ahora - ultimaLectura` contra una vigencia fija de 600 s de tiempo de control, sin multiplicar por el factor.
+   - **Motivo:** los mensajes MQTT llegan en tiempo real y con intervalos inconsistentes (el simulador provoca atrasos, desincronizaciones y caídas a propósito), pero la hora del control sale del INICIAR (`fechaHora` + tiempo transcurrido × factor) y el `ts` real de cada lectura se convierte a esa misma hora; nunca se usa la hora de la máquina para decidir. Con un solo reloj, la tarifa, el `ts` y la vigencia quedan coherentes. La frecuencia de publicación la define el simulador; la vigencia se valida en T13.
+   - **Pendiente:** la guía `docs/tests/iter5-tests-integracion-persona2.pdf` dice que "la vigencia se mide en tiempo real: un factorTiempo alto no la acorta", que describe el comportamiento actual. Al cerrar T8c hay que regenerarla o dejar la aclaración en `docs/tests/resultados.md`.
 3. **Cómo llega el factor.** Verificar contra la versión nueva del simulador que el "parámetro al inicio" es el `factorTiempo` de INICIAR (§5.2) y no otra cosa, como un campo del registro §6 o una variable de entorno. Si llega por otro canal, soportarlo. Dejar el hallazgo en el README.
 4. **Re-sincronización.** Testear dos casos, verificando la tarifa y la vigencia después de cada uno:
    - INICIAR dos veces con distinto factor;
@@ -289,7 +290,7 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 | A2 JaCoCo `check` ≥ 85 % en líneas y ramas | Adoptar | La letra pide "asegurar" la cobertura; una regla en `verify` lo asegura. | Hecho en `67fe9a9` |
 | A3 Core sin estado | Adoptar | `Estimulo` queda en `core/model` y el `switch` pasa a `CoreAdapter.procesar`. Es el plan de las tarjetas T4/T5. | Hecho en `67fe9a9` (T4 y T5) |
 | A4 Una sola bandera de estado de ejecución | Ajustar | Se elimina el `try/catch` duplicado (queda solo el de `messageArrived`). `67fe9a9` dejó una sola bandera con `ObjectProvider` (inyección perezosa); el equipo lo considera un parche poco intuitivo. D6: el estado de ejecución pasó a `CoreAdapter` y `ControlService` le delega (tarjeta T7b, hecha). | Hecho (T7b) |
-| A5 Usar el `ts` del termostato | Adoptar | Con la regla de tiempo acelerado aclarada por el docente: el `ts` es simulado y se toma tal cual (ver notas). | Parcial → T8b / T8c |
+| A5 Usar el `ts` del termostato | Adoptar | Con la regla de tiempo acelerado aclarada por el docente: el `ts` llega en hora real y se convierte a la hora del control con la fórmula del §5.2 (ver notas). | Parcial → T8b / T8c |
 | A6 Zona horaria explícita | Adoptar | Requisito: la zona es Uruguay, sí o sí (ver notas). | Pendiente (T9) |
 | A7 `revision-docente.md` como registro | Adoptar | El repositorio no debe decir que las correcciones no están hechas cuando sí lo están. | Pendiente |
 | B1(a) Eventos en los bordes de franja | Descartar | Suma la complejidad que el docente marcó como sobrediseño. | — |
@@ -311,11 +312,11 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 
 **A4 (bandera de estado de ejecución).** `ControlService` ya depende de `CoreAdapter`; derivar `habilitado` de `ControlService` a secas habría creado un ciclo. En `67fe9a9` se resolvió con un `BooleanSupplier` que `CoreAdapter` recibe vía `ObjectProvider<ControlService>` en `CoreConfig` (inyección perezosa): queda una sola bandera, pero el ciclo queda escondido. Por eso D6 de `revision-docente.md` la movió a `CoreAdapter` (`iniciar()` / `detener()` / `enEjecucion()`), `ControlService` le delega y desaparecieron el `ObjectProvider` y el `BooleanSupplier` (tarjeta T7b, hecha).
 
-**A5 (`ts` en tiempo acelerado).** El tiempo del sistema es simulado. El `ts` del termostato viene en tiempo simulado, en la misma escala que el reloj del control (`fechaHora` + tiempo transcurrido × factor), así que **se toma tal cual**: no se convierte y no se aplica ninguna fórmula (la conversión `fechaHora + (tsReal − iniciadoEn) × factorTiempo` ya no aplica). Los mensajes MQTT llegan y se procesan en tiempo real, pero con intervalos inconsistentes, porque el simulador provoca a propósito atrasos, caídas y velocidad acelerada; por eso la hora sale del contexto recibido (reloj del control y `ts`) y nunca de la máquina donde corre el controlador.
+**A5 (`ts` en tiempo acelerado).** El tiempo del sistema es simulado. El simulador envía el `ts` del termostato en hora real (epoch del reloj real de su máquina) y el controlador lo convierte a la hora del control con la misma fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; `ts = 13:05` reales ⇒ 5 min × 2 = 10 min ⇒ 13:10 (con `fechaHora = 08:00` daría 08:10). Los mensajes MQTT llegan y se procesan en tiempo real, pero con intervalos inconsistentes, porque el simulador provoca a propósito atrasos, caídas y velocidad acelerada; por eso la hora sale del contexto recibido (INICIAR y `ts` convertido) y nunca de la máquina donde corre el controlador. Riesgo: la conversión supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj); un desfase entre máquinas se multiplica por el factor (2 s de desfase × 30 = 1 min simulado). Se verifica en T13.
 
-La conversión que dejó `67fe9a9` (`RelojControl.instanteDeLectura` y `aTiempoDeControl`) y la propiedad `termostato.ts-tiempo-real` se eliminan en T8b. Reglas:
+La conversión ya existe (`RelojControl.aTiempoDeControl`, que dejó `67fe9a9`), pero hoy está detrás de la propiedad `termostato.ts-tiempo-real`, que vale `false`: por defecto el `ts` se toma sin convertir, y eso es incorrecto. T8b deja la conversión siempre activa y elimina la propiedad (y `TERMOSTATO_TS_TIEMPO_REAL`). Reglas:
 
-- si falta el `ts`, o queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`;
+- si falta el `ts`, o ya convertido queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`;
 - las lecturas con `ts` anterior a la última guardada se descartan;
 - una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b; decisión del equipo pendiente, D8 de `revision-docente.md`). Hoy se registra con `ahora` y sostendría la calefacción con un dato viejo.
 
@@ -338,6 +339,6 @@ Esto resuelve también la duda de B1 sobre la vigencia: si todo está en tiempo 
 
 **C3 (enlace de Jira).** El enlace de Jira **no** es de otro grupo. El sitio de Atlassian se creó con un dominio mal nombrado (`estudiantes-grupo8-2026.atlassian.net`) y aloja tanto el espacio de PdeA como el de Ingeniería (esta materia); el espacio enlazado, G1234 "Grupo4_2026_Ing", es el del grupo 4. Acción: aclararlo en una línea en el README, junto al enlace.
 
-Pendiente de confirmar con el simulador nuevo: que el paso a modo acelerado llega como un nuevo INICIAR con `factorTiempo` (§5.2), que es el único canal del contrato (el yaml nuevo no agrega otro). Si el simulador acelera sin enviar INICIAR, los `ts` quedarían en el futuro y la tarifa se calcularía con un reloj equivocado.
+Pendiente de confirmar con el simulador nuevo: que el paso a modo acelerado llega como un nuevo INICIAR con `factorTiempo` (§5.2), que es el único canal del contrato (el yaml nuevo no agrega otro). Si el simulador acelera sin enviar INICIAR, el reloj del control seguiría con el factor anterior y la tarifa se calcularía con un reloj equivocado.
 
 El detalle de los tres relojes y qué es letra frente a decisión del equipo está en la sección 5 de [`revision-docente.md`](revision-docente.md).
