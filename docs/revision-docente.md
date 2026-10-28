@@ -29,7 +29,7 @@ Hay que tomarlas antes de pasar las tarjetas a "Listo":
 | D3 | ¿El `ts` del termostato es el instante de la lectura? | **Sí**. Llega en tiempo real y se lleva a tiempo de control con la fórmula de la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones). Si falta o queda en el futuro respecto de `ahora`, se usa `ahora` | **Sí**, con la regla nueva (actualizada) |
 | D4 | ¿Zona horaria fija del sitio? | **Sí**, `America/Montevideo`, configurable. Hay que confirmarlo con el contrato del simulador nuevo | **Sí**. Uruguay es obligatorio para el equipo |
 | D5 | ¿Una rama por tarjeta, con PR a `implementacion5`? | **Sí**, así cada tarjeta se revisa por separado | **Sí**. Recordatorio: se incumplió en `67fe9a9` (un solo commit); se aplica desde ahora |
-| D6 | ¿Dónde vive la marcha (en marcha / detenido)? | La marcha vive en `CoreAdapter` (`iniciar()` / `detener()` / `enMarcha()`, protegida por su propio `synchronized`); `ControlService` le delega y `enEjecucion()` devuelve `adaptador.enMarcha()`. Se eliminan el `ObjectProvider` y el `BooleanSupplier` de `CoreConfig`: eran un parche para esquivar el ciclo y no son intuitivos | Decidido (Sí), pendiente de implementar en T7b |
+| D6 | ¿Qué clase administra el estado de ejecución (en ejecución / detenido)? | `CoreAdapter` administra el estado de ejecución (`iniciar()` / `detener()` / `enEjecucion()`, protegida por su propio `synchronized`); `ControlService` le delega y `enEjecucion()` devuelve `adaptador.enEjecucion()`. Se eliminan el `ObjectProvider` y el `BooleanSupplier` de `CoreConfig`: eran un parche para esquivar el ciclo y no son intuitivos | Decidido (Sí), implementado en T7b (rama `revision/t7b-estado-ejecucion`) |
 
 ### Fuera de alcance de esta planificación
 La vista física del 4+1, el tag `version5` y el MCP opcional. Siguen en el backlog de la entrega.
@@ -64,8 +64,8 @@ Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 | T4 | El estado pasa a `CoreAdapter`, que llama a `core.decidir` | **Hecho** | A | D1, D2 | L | `CoreAdapter` guarda temperaturas, instantes, sitio y reloj; ya no usa `procesar` ni `estadoById`. Los 215 tests en verde |
 | T5 | `Core` queda solo con `decidir`; se migran los tests de `CoreTest` | **Hecho** | A | T4 | L | Ya no existen `procesar`, `CoreClient` ni `ICoreClient`. Los tests de decisión están en `DecidirTest` y los de estímulos en `CoreAdapterEstimulosTest`. Cobertura del core ≥ 85 % |
 | T3 | Verificar OFF antes que ON después del refactor | **Pendiente** | B | T5 | S | El test de `CoreAdapterTest` (OFF antes que ON) sigue en verde y no cambió |
-| T7 | Una sola bandera de "en marcha" y un solo try/catch en la lectura MQTT | **Hecho** | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de marcha. Una lectura recorre 5 pasos. Hecho con `BooleanSupplier` vía `ObjectProvider<ControlService>` y `alRecibirLectura` `synchronized`; ese parche se reemplaza en T7b (ver D6) |
-| T7b | La marcha la guarda el adaptador | **Pendiente** | A | T7 | S | (a) `grep -rE "ObjectProvider\|BooleanSupplier" modules/engine/src/main` no devuelve nada; (b) `CoreAdapterTest` sin `AtomicBoolean`, con un test nuevo: después de `adaptador.detener()` una lectura que provocaría ON no comanda ningún switch, y después de `iniciar()` sí; (c) siguen en verde `ArranqueParadaTest` y el test asíncrono de `CoreAdapterTest`; (d) `mvn -B verify` en verde; (e) comentario en `ControlService` que diga que el `reloj` solo da la hora y NO indica si está detenido (para no reintroducir dos banderas) |
+| T7 | Una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT | **Hecho** | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de ejecución. Una lectura recorre 5 pasos. Hecho con `BooleanSupplier` vía `ObjectProvider<ControlService>` y `alRecibirLectura` `synchronized`; ese parche se reemplaza en T7b (ver D6) |
+| T7b | CoreAdapter administra el estado de ejecución | **Hecho** | A | T7 | S | (a) `grep -rE "ObjectProvider\|BooleanSupplier" modules/engine/src/main` no devuelve nada; (b) `CoreAdapterTest` sin `AtomicBoolean`, con un test nuevo: después de `adaptador.detener()` una lectura que provocaría ON no comanda ningún switch, y después de `iniciar()` sí; (c) siguen en verde `ArranqueParadaTest` y el test asíncrono de `CoreAdapterTest`; (d) `mvn -B verify` en verde; (e) comentario en `ControlService` que diga que el `reloj` solo da la hora y NO indica si está detenido (para no reintroducir dos banderas) |
 | T8 | `ts` del termostato como instante de la lectura | **Parcial** | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj). Hecho: parseo exacto con `BigDecimal`, `RelojControl.instanteDeLectura`/`aTiempoDeControl`, descarte de `ts` anterior al último. Falta: ver T8b |
 | T8b | `ts` en tiempo real por defecto y regla del ts viejo | **Pendiente** | A | T7 | S | `termostato.ts-tiempo-real` en `true` por defecto (hoy `false`). Se decide y documenta qué pasa con un `ts` más viejo que la vigencia (hoy se reemplaza por `ahora` y la lectura entra como fresca; propuesta: descartarla). Tests de ambos casos |
 | T9 | Zona horaria fija del sitio | **Pendiente** | A | T8, D4 | M | No se usa `ZoneId.systemDefault()` (hoy en `ControlService.java:175` y `ControlController.java:66`). `CONTROL_ZONA_HORARIA` con valor en `application.properties` y `docker-compose.yml`; sin parámetro `zonaDeFechaHora`; `TZ` en el contenedor; `Sitio.ZONA_URUGUAY` como default. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta (`TARIFA_PUNTA`) de las 18:00 de Montevideo |
@@ -248,20 +248,20 @@ Después de decidir siguen `CoreAdapter.aplicar` → `programarPasada` → (hilo
 **Diagnóstico.** Sí sobran saltos:
 - **Del 6 al 9** son capas de paso o estado duplicado. Desaparecen con A4.
 - **Dos try/catch para lo mismo** (1 y 4). Queda solo el de `messageArrived`, que es obligatorio por Paho.
-- **Dos banderas de "en marcha"**: `ControlService.reloj != null` y `CoreAdapter.habilitado`. Pueden quedar desincronizadas. Queda una sola.
+- **Dos banderas de estado de ejecución**: `ControlService.reloj != null` y `CoreAdapter.habilitado`. Pueden quedar desincronizadas. Queda una sola.
 
 **Lo que se mantiene, y por qué:**
 - **1 y 2 separados:** 2 se prueba sin broker (`procesarMensaje` es package-private).
 - **3:** el parseo del payload está aislado y tiene sus tests.
-- **4:** `ControlService` es el dueño del reloj del control y de la marcha y parada.
+- **4:** `ControlService` es el dueño del reloj del control y de su inicio y parada.
 - **El evento de Spring `InventarioAplicado`** (`InventarioService` → `ControlService`/`LecturaMqttListener`). Es menos directo de leer, pero una llamada directa crearía una dependencia circular (`ControlService` ya usa `InventarioService`). Se documenta en el código.
 
 **Resultado:** queda `messageArrived → procesarMensaje → ControlService.alRecibirLectura → CoreAdapter.procesar(lectura) → core.decidir`, 5 pasos con una responsabilidad clara cada uno.
 
-### T7b. La marcha la guarda el adaptador
-**El problema.** Antes había dos banderas de marcha. `67fe9a9` las unió con inyección perezosa (`ObjectProvider<ControlService>` y un `BooleanSupplier` en `CoreConfig`), pero eso solo esconde un ciclo `ControlService` ↔ `CoreAdapter`: no se ve en el código y cuesta entenderlo.
+### T7b. CoreAdapter administra el estado de ejecución
+**El problema.** Antes había dos banderas de estado de ejecución. `67fe9a9` las unió con inyección perezosa (`ObjectProvider<ControlService>` y un `BooleanSupplier` en `CoreConfig`), pero eso solo esconde un ciclo `ControlService` ↔ `CoreAdapter`: no se ve en el código y cuesta entenderlo.
 
-**La solución.** La marcha vive en `CoreAdapter` y la dependencia va en un solo sentido:
+**La solución.** El estado de ejecución vive en `CoreAdapter` y la dependencia va en un solo sentido:
 
 ```
 ControlService ──usa──> CoreAdapter
@@ -269,14 +269,14 @@ ControlService ──usa──> CoreAdapter
 
 ```java
 // CoreAdapter
-private boolean enMarcha; // solo se toca con el candado de esta clase
-public synchronized void iniciar() { enMarcha = true; noReintentarAntesDe.clear(); programarPasada(true); }
-public synchronized void detener() { enMarcha = false; }
-public synchronized boolean enMarcha() { return enMarcha; }
+private boolean enEjecucion; // solo se toca con el candado de esta clase
+public synchronized void iniciar() { enEjecucion = true; noReintentarAntesDe.clear(); programarPasada(true); }
+public synchronized void detener() { enEjecucion = false; }
+public synchronized boolean enEjecucion() { return enEjecucion; }
 
 // ControlService
 public synchronized EstadoControl detener() { adaptador.detener(); pararTemporizador(); return estado(); }
-public boolean enEjecucion() { return adaptador.enMarcha(); }
+public boolean enEjecucion() { return adaptador.enEjecucion(); }
 
 // CoreConfig: new CoreAdapter(core, switches, relojReal, espera)  // sin ObjectProvider
 ```
@@ -284,10 +284,10 @@ public boolean enEjecucion() { return adaptador.enMarcha(); }
 **Deadlock.** Los candados se toman siempre en el mismo orden (`ControlService` y luego `CoreAdapter`), así que no hay deadlock.
 
 **Alternativas descartadas:**
-- clase compartida `MarchaControl`: es una variable global con nombre y mezcla reloj y bandera;
+- clase compartida `EstadoEjecucion`: es una variable global con nombre y mezcla reloj y bandera;
 - eventos de Spring: vuelve la copia del estado, o sea dos banderas otra vez;
 - fusionar las dos clases: quedarían unas 800 líneas;
-- pasar la marcha por parámetro: no sirve al hilo de switches.
+- pasar el estado de ejecución por parámetro: no sirve al hilo de switches.
 
 ## A7. Legibilidad para el equipo — T2 y T10
 **Objetivo:** que alguien que no domina Java moderno pueda seguir el código. Se hace después de A4, porque `Core` y `CoreAdapter` se reescriben igual.
@@ -317,8 +317,8 @@ Rama `revision/<id>` desde `implementacion5` y PR de vuelta a `implementacion5` 
 | T2 | `revision/t2-guia-java` | `docs: reglas de Java del proyecto y guía para el equipo` |
 | T4 | `revision/t4-estado-engine` | `engine: el adaptador guarda la situación y llama a decidir` |
 | T5 | `revision/t5-core-sin-estado` | `core: core sin estado, solo decidir y el modelo` |
-| T7 | `revision/t7-camino-lectura` | `engine: una sola bandera de marcha y un solo try/catch en la lectura MQTT` |
-| T7b | `revision/t7b-marcha-adaptador` | `engine: la marcha la guarda el adaptador, sin ObjectProvider` |
+| T7 | `revision/t7-camino-lectura` | `engine: una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT` |
+| T7b | `revision/t7b-estado-ejecucion` | `engine: CoreAdapter administra el estado de ejecución y se elimina ObjectProvider` |
 | T8 | `revision/t8-ts` | `engine: usar el ts del termostato como instante de la lectura` |
 | T8b | `revision/t8b-ts-real` | `engine: ts en tiempo real por defecto y regla del ts viejo` |
 | T9 | `revision/t9-zona` | `engine: zona horaria fija del sitio` |

@@ -47,9 +47,9 @@ La idea que guía todo: hoy el proyecto funciona bien, pero la entrega afirma m�
   - los 215 tests, o su equivalente migrado, están en verde;
   - la cobertura del core sigue ≥ 85 %.
 
-### A4. Una sola bandera de "en marcha" y un camino corto para la lectura
+### A4. Una sola bandera de estado de ejecución y un camino corto para la lectura
 - **Qué:** tarjeta T7.
-  - El estado de marcha vive en un solo lugar, `ControlService`. `CoreAdapter` no guarda `habilitado` por su cuenta: lo deriva de `ControlService`.
+  - El estado de ejecución vive en un solo lugar, `ControlService`. `CoreAdapter` no guarda `habilitado` por su cuenta: lo deriva de `ControlService`.
   - Queda un solo `try/catch`, el de `messageArrived`, que Paho exige.
 - **Por qué:** dos banderas pueden desincronizarse, por ejemplo con un DETENER concurrente con una lectura.
 - **Hecho cuando:**
@@ -148,7 +148,7 @@ La idea que guía todo: hoy el proyecto funciona bien, pero la entrega afirma m�
 
    En cualquier caso, el comportamiento elegido tiene que estar en el README, en el 4+1 (escenario de parada) y en un test.
 2. **Caída del contenedor.** Decidir qué pasa al reiniciar con `restart: unless-stopped`.
-   - **Opción 1:** persistir el último estado del control (en marcha, `fechaHora` de referencia, factor) junto al inventario y retomar solo, re-sincronizando el reloj con el tiempo real transcurrido. Al retomar, primero consultar los switches (§4) y reconciliar.
+   - **Opción 1:** persistir el último estado del control (en ejecución, `fechaHora` de referencia, factor) junto al inventario y retomar solo, re-sincronizando el reloj con el tiempo real transcurrido. Al retomar, primero consultar los switches (§4) y reconciliar.
    - **Opción 2:** arrancar DETENIDO y documentarlo como decisión, con el riesgo explícito: calefacción encendida sin control hasta el próximo INICIAR.
 
    Un test de integración que reinicie el contexto Spring a mitad de una corrida cubre ese caso.
@@ -219,7 +219,7 @@ Ya está muy bien resuelto (OFF antes que ON, retención del ON). Falta:
   - `listar_habitaciones`;
   - `ver_habitacion`;
   - `configurar_habitacion` (temperatura esperada, termostato, switch);
-  - `accionar_switch` (ON/OFF). La descripción tiene que advertir que, con el control en marcha, la reconciliación puede revertirlo;
+  - `accionar_switch` (ON/OFF). La descripción tiene que advertir que, con el control en ejecución, la reconciliación puede revertirlo;
   - `estado_controlador`;
   - `iniciar_control` y `detener_control`.
 - **Entregables:**
@@ -288,7 +288,7 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 | A1 CI con `mvn -B verify` + artefactos | Adoptar | Hoy ninguna máquina ejecuta lo que el estándar dice que falla en `verify`. | Hecho en `67fe9a9` |
 | A2 JaCoCo `check` ≥ 85 % en líneas y ramas | Adoptar | La letra pide "asegurar" la cobertura; una regla en `verify` lo asegura. | Hecho en `67fe9a9` |
 | A3 Core sin estado | Adoptar | `Estimulo` queda en `core/model` y el `switch` pasa a `CoreAdapter.procesar`. Es el plan de las tarjetas T4/T5. | Hecho en `67fe9a9` (T4 y T5) |
-| A4 Una sola bandera de marcha | Ajustar | Se elimina el `try/catch` duplicado (queda solo el de `messageArrived`). `67fe9a9` dejó una sola bandera con `ObjectProvider` (inyección perezosa); el equipo lo considera un parche poco intuitivo. D6: la marcha pasa a `CoreAdapter` y `ControlService` le delega (tarjeta T7b). | Parcial → T7b |
+| A4 Una sola bandera de estado de ejecución | Ajustar | Se elimina el `try/catch` duplicado (queda solo el de `messageArrived`). `67fe9a9` dejó una sola bandera con `ObjectProvider` (inyección perezosa); el equipo lo considera un parche poco intuitivo. D6: el estado de ejecución pasó a `CoreAdapter` y `ControlService` le delega (tarjeta T7b, hecha). | Hecho (T7b) |
 | A5 Usar el `ts` del termostato | Adoptar | Con la regla de tiempo acelerado aclarada por el docente (ver notas). | Parcial; falta T8b |
 | A6 Zona horaria explícita | Adoptar | Requisito: la zona es Uruguay, sí o sí (ver notas). | Pendiente (T9) |
 | A7 `revision-docente.md` como registro | Adoptar | El repositorio no debe decir que las correcciones no están hechas cuando sí lo están. | Pendiente |
@@ -309,7 +309,7 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 
 ### Notas
 
-**A4 (bandera de marcha).** `ControlService` ya depende de `CoreAdapter`; derivar `habilitado` de `ControlService` a secas habría creado un ciclo. En `67fe9a9` se resolvió con un `BooleanSupplier` que `CoreAdapter` recibe vía `ObjectProvider<ControlService>` en `CoreConfig` (inyección perezosa): queda una sola bandera, pero el ciclo queda escondido. Por eso D6 de `revision-docente.md` la mueve a `CoreAdapter` (`iniciar()` / `detener()` / `enMarcha()`), `ControlService` le delega y desaparecen el `ObjectProvider` y el `BooleanSupplier` (tarjeta T7b).
+**A4 (bandera de estado de ejecución).** `ControlService` ya depende de `CoreAdapter`; derivar `habilitado` de `ControlService` a secas habría creado un ciclo. En `67fe9a9` se resolvió con un `BooleanSupplier` que `CoreAdapter` recibe vía `ObjectProvider<ControlService>` en `CoreConfig` (inyección perezosa): queda una sola bandera, pero el ciclo queda escondido. Por eso D6 de `revision-docente.md` la movió a `CoreAdapter` (`iniciar()` / `detener()` / `enEjecucion()`), `ControlService` le delega y desaparecieron el `ObjectProvider` y el `BooleanSupplier` (tarjeta T7b, hecha).
 
 **A5 (`ts` en tiempo acelerado).** El `ts` del termostato llega en tiempo real y se lleva a tiempo de control escalándolo con el factor. Ojo: **no** se multiplica el epoch por el factor (daría una fecha absurda); se escala el **tiempo transcurrido desde INICIAR**:
 
@@ -336,7 +336,7 @@ Esto responde también la duda de B1 sobre la vigencia: si todo se compara en ti
 
 **B1 (tiempo acelerado).** Se descarta programar eventos en los bordes de franja (a). El tiempo acelerado se resuelve con la regla de A5 (escalar con el factor), y la granularidad del tick con la opción (b): período del tick = `max(10 ms, tickMs / factor)`. El error máximo de corte de franja se documenta en `4mas1.md`.
 
-**B3 (DETENER y reinicio).** `DETENER` mantiene `DEJAR` porque el §5.2 del estándar no exige apagar; el análisis de riesgos (sobrecalentamiento, consumo en punta, potencia si alguien enciende a mano) queda documentado y cubierto por un test. Un reinicio del contenedor arranca DETENIDO, y se documenta. No se persiste el estado de marcha.
+**B3 (DETENER y reinicio).** `DETENER` mantiene `DEJAR` porque el §5.2 del estándar no exige apagar; el análisis de riesgos (sobrecalentamiento, consumo en punta, potencia si alguien enciende a mano) queda documentado y cubierto por un test. Un reinicio del contenedor arranca DETENIDO, y se documenta. No se persiste el estado de ejecución.
 
 **B5 (peor caso).** Timeouts de 2 s de conexión + 3 s de lectura implican hasta 5 s por switch, con pasadas secuenciales. Se mide y documenta ese peor caso; no se paraleliza.
 

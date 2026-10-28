@@ -337,7 +337,7 @@ Decisiones de diseño relevantes:
 
 ## 2. Escenarios (+1): secuencias del manejo de eventos
 
-### 2.1 Arranque, registro y puesta en marcha (§6, §5.1, §5.2)
+### 2.1 Arranque, registro e inicio del control (§6, §5.1, §5.2)
 
 ```mermaid
 sequenceDiagram
@@ -393,7 +393,7 @@ sequenceDiagram
     B->>Mq: 1. messageArrived(topic, payload) — único try/catch (Paho corta la conexión si el callback lanza)
     Mq->>Mq: 2. procesarMensaje: habitación = mapa[topic] (nunca por el id del payload),<br/>PayloadTermostato.parsear → tC y ts exacto (sin tC ⇒ se descarta)
     Mq->>Ctl: 3. alRecibirLectura("room1", 19.3, ts)
-    alt control DETENIDO (reloj == null, la única bandera de marcha)
+    alt control DETENIDO (adaptador.enEjecucion() == false, único estado de ejecución)
         Ctl-->>Mq: se ignora
     else EN_EJECUCION
         Ctl->>Ctl: instante = relojControl.instanteDeLectura(ts) (sin ts, futuro o ya vencido ⇒ ahora)
@@ -414,7 +414,7 @@ sequenceDiagram
     end
 ```
 
-Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageArrived`, callback de Paho con el único try/catch; (2) `procesarMensaje`, que resuelve la habitación por el topic y parsea el payload (se prueba sin broker); (3) `ControlService.alRecibirLectura`, dueño del reloj y de la marcha; (4) `CoreAdapter.procesar`, dueño del estado; (5) `Core.decidir`, la función pura. Antes eran 10: `CoreClient` y el `procesar` del core, que guardaba un estado duplicado, se eliminaron (tarjetas T4, T5 y T7).
+Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageArrived`, callback de Paho con el único try/catch; (2) `procesarMensaje`, que resuelve la habitación por el topic y parsea el payload (se prueba sin broker); (3) `ControlService.alRecibirLectura`, dueño del reloj del control; (4) `CoreAdapter.procesar`, dueño del estado y del estado de ejecución (T7b); (5) `Core.decidir`, la función pura. Antes eran 10: `CoreClient` y el `procesar` del core, que guardaba un estado duplicado, se eliminaron (tarjetas T4, T5 y T7).
 
 **Instante de la lectura (`ts`, tarjeta T8).** La lectura se guarda con el instante que informa el termostato (`ts`, epoch con 3 decimales, §2), leído exacto con `BigDecimal`. Ese instante es el que se compara para descartar las lecturas que llegan fuera de orden (`ts` anterior a la última guardada) y el que se usa para el vencimiento. Si falta, está en el futuro o es tan viejo que llegaría ya vencido, no puede ser una medición recién hecha (reloj desfasado o en otra escala) y se usa la hora del control al recibirla; la temperatura nunca se descarta por eso. **Pendiente de confirmar con el docente:** el estándar no dice si, con tiempo acelerado, el simulador escribe el `ts` en tiempo simulado o real. Por defecto se toma como hora del control (`termostato.ts-tiempo-real=false`); si es real, con `true` se convierte con el `RelojControl` (`fechaHora + (ts − iniciadoEn) × factor`). Con cualquiera de las dos suposiciones, si resulta equivocada, el peor caso es el comportamiento sin `ts`.
 

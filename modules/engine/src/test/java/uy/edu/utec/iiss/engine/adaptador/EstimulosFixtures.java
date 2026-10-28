@@ -60,8 +60,7 @@ final class EstimulosFixtures {
 
     /** Adaptador sin configurar, con el core dado. Detenido: decide, pero no toca switches. */
     static CoreAdapter adaptadorCon(Core core) {
-        return new CoreAdapter(
-                core, SIN_SWITCHES, Clock.systemUTC(), Duration.ZERO, () -> false, Runnable::run);
+        return new CoreAdapter(core, SIN_SWITCHES, Clock.systemUTC(), Duration.ZERO, Runnable::run);
     }
 
     /** Adaptador con el core por defecto y la configuración dada. */

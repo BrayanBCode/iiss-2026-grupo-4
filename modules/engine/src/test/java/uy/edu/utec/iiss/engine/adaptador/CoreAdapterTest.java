@@ -2,6 +2,7 @@ package uy.edu.utec.iiss.engine.adaptador;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,7 +20,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -112,9 +112,7 @@ class CoreAdapterTest {
 
     private final SwitchesFalsos switches = new SwitchesFalsos();
     private final RelojManual relojReal = new RelojManual();
-    // Hace de ControlService.enEjecucion(): el control arranca detenido.
-    private final AtomicBoolean marcha = new AtomicBoolean();
-    private CoreAdapter adaptador;
+    private CoreAdapter adaptador; // arranca detenido, como el control
 
     @BeforeEach
     void setUp() {
@@ -124,14 +122,12 @@ class CoreAdapterTest {
                         switches,
                         relojReal,
                         Duration.ZERO,
-                        marcha::get,
                         Runnable::run);
     }
 
-    /** Lo que hace ControlService.iniciar con el adaptador: pasa a "en marcha" y avisa. */
+    /** Lo que hace ControlService.iniciar con el adaptador: lo pone en ejecución. */
     private void iniciarControl() {
-        marcha.set(true);
-        adaptador.alIniciar();
+        adaptador.iniciar();
     }
 
     private void leer(String idHabitacion, double temperaturaC, Instant ahora) {
@@ -178,7 +174,7 @@ class CoreAdapterTest {
         leer("living", 15.0, lunes(10, 0));
         assertEquals(List.of("sw-living:ON"), switches.comandos);
 
-        marcha.set(false); // lo único que hace ControlService.detener con el adaptador
+        adaptador.detener(); // lo único que hace ControlService.detener con el adaptador
         switches.comandos.clear();
         leer("living", 25.0, lunes(10, 5));
         adaptador.reconciliar();
@@ -186,6 +182,28 @@ class CoreAdapterTest {
         assertTrue(switches.comandos.isEmpty(), "comandó detenido: " + switches.comandos);
         assertTrue(switches.consultas.isEmpty(), "consultó detenido: " + switches.consultas);
         assertEquals(Accion.OFF, adaptador.estados().get(0).decision());
+    }
+
+    @Test
+    @DisplayName(
+            "Detenido no comanda: tras detener(), una lectura que pediría ON no toca ningún switch;"
+                    + " tras iniciar(), sí")
+    void detener_noComanda_iniciar_si() {
+        configurarEIniciar();
+        assertTrue(adaptador.enEjecucion());
+
+        adaptador.detener();
+        assertFalse(adaptador.enEjecucion());
+        leer("living", 15.0, lunes(10, 0)); // bajo los 21 °C: pediría ON
+
+        assertEquals(Accion.ON, adaptador.estados().get(0).decision(), "detenido sigue decidiendo");
+        assertTrue(switches.comandos.isEmpty(), "comandó detenido: " + switches.comandos);
+        assertTrue(switches.consultas.isEmpty(), "consultó detenido: " + switches.consultas);
+
+        adaptador.iniciar();
+
+        assertTrue(adaptador.enEjecucion());
+        assertEquals(List.of("sw-living:ON"), switches.comandos);
     }
 
     @Test
@@ -333,7 +351,6 @@ class CoreAdapterTest {
                         switches,
                         relojReal,
                         Duration.ofSeconds(5),
-                        marcha::get,
                         Runnable::run);
         switches.caidos.add("sw-living");
         adaptador.configurar(sitio(3.7), List.of(LIVING));
@@ -376,18 +393,13 @@ class CoreAdapterTest {
                 };
         try (CoreAdapter asincrono =
                 new CoreAdapter(
-                        new Core(new MayorDeficitPrimero()),
-                        lento,
-                        relojReal,
-                        Duration.ZERO,
-                        marcha::get)) {
+                        new Core(new MayorDeficitPrimero()), lento, relojReal, Duration.ZERO)) {
             asincrono.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
 
             assertTimeoutPreemptively(
                     Duration.ofSeconds(1),
                     () -> {
-                        marcha.set(true);
-                        asincrono.alIniciar();
+                        asincrono.iniciar();
                         asincrono.procesar(new Estimulo.NuevaLectura("living", 15.0, lunes(10, 0)));
                         assertEquals(Accion.ON, asincrono.estados().get(0).decision());
                     });
