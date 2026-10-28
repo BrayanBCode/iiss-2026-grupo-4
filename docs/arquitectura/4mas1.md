@@ -250,7 +250,8 @@ classDiagram
 
     class ControlService {
       -RelojControl reloj
-      +iniciar(fechaHora, zona, factor) EstadoControl
+      +iniciar(fechaHora, factor) EstadoControl
+      +zona() ZoneId
       +detener() EstadoControl
       +estado() EstadoControl
       +enEjecucion() boolean
@@ -417,8 +418,8 @@ sequenceDiagram
     Note over Ad: detenido: guarda la decisión pero no comanda switches
     Inv-->>Mq: evento InventarioAplicado → anota los topics
     Env->>Ctl: POST /control/comandos {INICIAR, fechaHora, factorTiempo}
-    Ctl->>Ctl: nuevo RelojControl(fechaHora, factor, ahoraReal, zona)
-    Ctl->>Ad: configurar(sitio, habitaciones) (si hay inventario, con la zona del INICIAR)
+    Ctl->>Ctl: nuevo RelojControl(fechaHora, factor, ahoraReal, zona del sitio = America/Montevideo)
+    Ctl->>Ad: configurar(sitio, habitaciones) (si hay inventario, con la zona del sitio)
     Ctl->>Ad: procesar(Sincronizacion(fechaHora, factor))
     Ad->>Core: decidir(situación)
     Ctl->>Ad: iniciar() → en ejecución, pide una pasada con consulta al hilo switches

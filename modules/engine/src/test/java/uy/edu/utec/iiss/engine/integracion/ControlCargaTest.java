@@ -144,13 +144,28 @@ class ControlCargaTest extends IntegracionBase {
     }
 
     @Test
-    @DisplayName("En la franja punta no se calefacciona aunque sobre potencia")
+    @DisplayName(
+            "En la franja punta no se calefacciona aunque sobre potencia: INICIAR a las 21:00Z son"
+                    + " las 18:00 en Montevideo (T9)")
     void franjaPunta() throws Exception {
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
-        iniciar("2026-10-01T18:00:00Z", 1); // jueves 18:00, dentro de 17:00–23:00
+        iniciar("2026-10-01T21:00:00Z", 1); // jueves 18:00 en Uruguay, dentro de 17:00–23:00
 
         temperatura("living", 15.0);
         esperarMotivo("living", "TARIFA_PUNTA");
         assertSwitch("living", "OFF");
+    }
+
+    @Test
+    @DisplayName(
+            "18:00Z no es punta: son las 15:00 en Montevideo (antes, con la zona del offset, se"
+                    + " cortaba 3 horas antes de tiempo)")
+    void dieciochoUtc_noEsPunta() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar("2026-10-01T18:00:00Z", 1);
+
+        temperatura("living", 15.0);
+        esperarSwitch("living", "ON");
+        assertEquals("CALEFACCIONANDO", motivo("living"));
     }
 }

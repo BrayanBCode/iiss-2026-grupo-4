@@ -41,10 +41,10 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
- * de zona". La zona sale de {@code control.zona-horaria}, que por defecto es America/Montevideo.
- * Solo si esa propiedad está vacía se toma la zona en que viene expresada la {@code fechaHora} de
- * INICIAR ({@code ...Z} ⇒ UTC, {@code ...-03:00} ⇒ UTC-3); ese caso y {@code
- * ZoneId.systemDefault()} se eliminan en la tarjeta T9.
+ * de zona". El sitio es de Uruguay: la zona es siempre la de {@code control.zona-horaria}
+ * (America/Montevideo por defecto, y también si la propiedad viene vacía). No depende del offset
+ * con que llegue la {@code fechaHora} de INICIAR ni de la zona del contenedor (que en Docker suele
+ * ser UTC): con {@code 21:00Z} son las 18:00 en Montevideo y es punta (T9).
  *
  * <p><b>Tiempo.</b> La hora del control es {@code fechaHora + (real − iniciadoEn) × factor} y es la
  * única fuente de "qué hora es"; el reloj del sistema solo mide duraciones. Por eso el {@code ts}
@@ -59,7 +59,7 @@ public class ControlService {
     private final CoreAdapter adaptador;
     private final InventarioService inventarioService;
     private final Clock relojReal;
-    private final Optional<ZoneId> zonaFija;
+    private final ZoneId zona; // zona del sitio, fija (T9)
     private final long tickMs;
     private final long reconciliacionSegundos;
     private final Duration vigenciaLectura;
@@ -74,17 +74,14 @@ public class ControlService {
             CoreAdapter adaptador,
             InventarioService inventarioService,
             Clock relojReal,
-            @Value("${control.zona-horaria:}") String zonaFija,
+            @Value("${control.zona-horaria:America/Montevideo}") String zona,
             @Value("${control.tick-ms:1000}") long tickMs,
             @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos,
             @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
         this.relojReal = relojReal;
-        this.zonaFija =
-                zonaFija == null || zonaFija.isBlank()
-                        ? Optional.empty()
-                        : Optional.of(ZoneId.of(zonaFija.trim()));
+        this.zona = zona == null || zona.isBlank() ? Sitio.ZONA_URUGUAY : ZoneId.of(zona.trim());
         this.tickMs = tickMs;
         this.reconciliacionSegundos = reconciliacionSegundos;
         this.vigenciaLectura = Duration.ofSeconds(vigenciaSegundos);
@@ -95,23 +92,17 @@ public class ControlService {
     // ------------------------------------------------------------------
 
     /**
-     * INICIAR. {@code zonaDeFechaHora} es la zona/offset en que vino escrita la fechaHora; solo se
-     * usa para la tarifa si no hay zona configurada ({@code control.zona-horaria}); T9 la elimina.
+     * INICIAR. {@code fechaHora} ya es un instante: el offset con que vino escrita no cambia la
+     * zona de la tarifa, que es siempre la del sitio ({@link #zona()}).
      */
-    public synchronized EstadoControl iniciar(
-            Instant fechaHora, ZoneId zonaDeFechaHora, double factorTiempo) {
+    public synchronized EstadoControl iniciar(Instant fechaHora, double factorTiempo) {
         boolean resincroniza = enEjecucion();
-        RelojControl nuevo =
-                new RelojControl(
-                        fechaHora,
-                        factorTiempo,
-                        relojReal.instant(),
-                        zonaFija.orElse(zonaDeFechaHora));
+        RelojControl nuevo = new RelojControl(fechaHora, factorTiempo, relojReal.instant(), zona);
         // Primero se configura y se sincroniza, y recién después se marca "en ejecución": así la
         // primera pasada de switches es la que consulta su estado real (§4) antes de comandar.
-        Optional<Inventario> inventario = inventarioService.actual(); // la zona pudo cambiar
+        Optional<Inventario> inventario = inventarioService.actual();
         if (inventario.isPresent()) {
-            configurarCore(inventario.get(), nuevo.zona());
+            configurarCore(inventario.get());
         }
         adaptador.procesar(new Estimulo.Sincronizacion(nuevo.fechaHora(), nuevo.factorTiempo()));
         reloj = nuevo;
@@ -183,16 +174,15 @@ public class ControlService {
     /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */
     @EventListener
     public synchronized void aplicarInventario(InventarioAplicado evento) {
-        // Detenido no se usa la zona del reloj aunque quede el del último INICIAR: se toma la zona
-        // configurada; el próximo INICIAR vuelve a configurar con la suya.
-        ZoneId zona = zonaFija.orElse(ZoneId.systemDefault());
-        if (enEjecucion()) {
-            zona = reloj.zona();
-        }
-        configurarCore(evento.inventario(), zona);
+        configurarCore(evento.inventario());
     }
 
-    private void configurarCore(Inventario inv, ZoneId zona) {
+    /** La zona del sitio para leer la tarifa: siempre la misma, esté o no en ejecución. */
+    public ZoneId zona() {
+        return zona;
+    }
+
+    private void configurarCore(Inventario inv) {
         adaptador.configurar(sitioDelCore(inv, zona), habitacionesDelCore(inv));
     }
 

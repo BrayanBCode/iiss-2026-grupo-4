@@ -45,13 +45,14 @@ import uy.edu.utec.iiss.engine.inventario.Inventario;
  *   <li>Cada test arranca un engine nuevo; el broker y los switches se comparten y se limpian.
  * </ul>
  *
- * Por defecto el control arranca el jueves 2026-10-01 a las 09:00 UTC, fuera de la franja punta.
+ * Corre en la zona real del sitio (America/Montevideo, la de {@code application.properties}). Por
+ * defecto el control arranca el jueves 2026-10-01 a las 09:00 UTC, que son las 06:00 en Montevideo,
+ * fuera de la franja punta.
  */
 @SpringBootTest(
         properties = {
             "api.security.api-key=" + IntegracionBase.CLAVE,
             "entorno.url=",
-            "control.zona-horaria=UTC",
             "control.tick-ms=100",
             "control.reconciliacion-segundos=1",
             "switch.espera-reintento-segundos=1",

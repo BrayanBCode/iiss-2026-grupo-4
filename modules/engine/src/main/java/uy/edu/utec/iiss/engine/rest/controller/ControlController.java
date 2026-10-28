@@ -1,9 +1,9 @@
 package uy.edu.utec.iiss.engine.rest.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,7 +23,7 @@ import uy.edu.utec.iiss.engine.util.Instantes;
  *
  * <p>El cuerpo se valida a mano (JsonNode) para dar un 400 claro en cada caso: acción desconocida,
  * falta fechaHora, fechaHora no ISO-8601, factorTiempo no &gt; 0. Una fechaHora sin offset se toma
- * en la zona del sistema (T9 lo elimina).
+ * en la zona del sitio (Uruguay), nunca en la del contenedor (T9).
  */
 @RestController
 @RequestMapping("/control")
@@ -60,15 +60,13 @@ public class ControlController {
         double factor = factorTiempo(cuerpo.get("factorTiempo"));
         try {
             OffsetDateTime f = OffsetDateTime.parse(fecha.asText());
-            return cuerpo(control.iniciar(f.toInstant(), f.getOffset(), factor));
+            return cuerpo(control.iniciar(f.toInstant(), factor));
         } catch (DateTimeParseException conZona) {
             try {
-                ZoneId zona = ZoneId.systemDefault();
-                return cuerpo(
-                        control.iniciar(
-                                LocalDateTime.parse(fecha.asText()).atZone(zona).toInstant(),
-                                zona,
-                                factor));
+                // Sin offset: es hora local del sitio (Uruguay), no la del contenedor (T9).
+                Instant instante =
+                        LocalDateTime.parse(fecha.asText()).atZone(control.zona()).toInstant();
+                return cuerpo(control.iniciar(instante, factor));
             } catch (DateTimeParseException sinZona) {
                 throw new SolicitudInvalidaException("fechaHora no es ISO-8601: " + fecha.asText());
             }

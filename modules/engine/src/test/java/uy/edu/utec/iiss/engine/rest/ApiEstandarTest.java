@@ -299,6 +299,19 @@ class ApiEstandarTest {
 
     @Test
     @DisplayName(
+            "INICIAR con fechaHora sin offset: es hora de Montevideo, no la del contenedor (18:00"
+                    + " locales = 21:00Z, T9)")
+    void iniciarSinOffset_esHoraDeMontevideo() throws Exception {
+        mvc.perform(
+                        conClave(post("/control/comandos"))
+                                .content(
+                                        "{\"accion\":\"INICIAR\",\"fechaHora\":\"2026-10-01T18:00:00\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fechaHora", startsWith("2026-10-01T21:00:0")));
+    }
+
+    @Test
+    @DisplayName(
             "Comandos inválidos -> 400: acción desconocida, sin fechaHora, fechaHora no ISO, factor"
                     + " <= 0 o no numérico")
     void comandosInvalidos_400() throws Exception {
