@@ -173,7 +173,7 @@ public abstract class IntegracionBase {
 
     /**
      * Publica la lectura cuando el engine ya está suscrito al topic y, con el control en ejecución,
-     * espera a que el core la registre.
+     * espera a que el adaptador la registre.
      */
     protected void temperatura(String idHabitacion, double temperaturaC) {
         esperar(

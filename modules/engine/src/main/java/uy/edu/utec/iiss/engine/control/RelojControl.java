@@ -11,8 +11,8 @@ import java.util.Objects;
  *
  * <pre>ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)</pre>
  *
- * y no el reloj del sistema. {@code zona} es la zona en la que se interpreta la franja tarifaria
- * (hora local, sin conversión: ver {@link ControlService}).
+ * y no el reloj del sistema, que solo mide duraciones. {@code zona} es la zona en la que se
+ * interpreta la franja tarifaria (hora local, sin conversión: ver {@link ControlService}).
  */
 public record RelojControl(
         Instant fechaHora, double factorTiempo, Instant iniciadoEn, ZoneId zona) {
@@ -43,10 +43,10 @@ public record RelojControl(
      *
      * <ul>
      *   <li>Sin {@code ts}: la hora del control al recibirla.
-     *   <li>Con {@code ts}: ese instante, convertido a hora del control si el termostato escribe en
-     *       tiempo real ({@code tsEnTiempoReal}). El estándar (§2) no dice si con tiempo acelerado
-     *       el simulador escribe el {@code ts} en tiempo simulado o real: queda configurable
-     *       ({@code termostato.ts-tiempo-real}) hasta confirmarlo.
+     *   <li>Con {@code ts}: el simulador lo escribe en hora real, así que se convierte a hora del
+     *       control con {@link #aTiempoDeControl}. {@code tsEnTiempoReal} ({@code
+     *       termostato.ts-tiempo-real}, {@code true} por defecto) se elimina en la tarjeta T8b, que
+     *       deja la conversión fija.
      *   <li>Un {@code ts} en el futuro, o tan viejo que la lectura llegaría ya vencida, no puede
      *       ser la medición recién hecha de un sensor sano: es un reloj desfasado (o un {@code ts}
      *       en otra escala). Se usa la hora del control. La temperatura nunca se descarta por esto.
@@ -55,8 +55,8 @@ public record RelojControl(
      * Así, el peor caso de una suposición equivocada sobre el {@code ts} es el comportamiento sin
      * {@code ts}: guardar la lectura con la hora de llegada.
      *
-     * @param vigencia vigencia de una lectura en tiempo real (se escala con el factor, igual que en
-     *     el core)
+     * @param vigencia vigencia de una lectura en tiempo de control, sin escalar (igual que en el
+     *     core)
      */
     public Instant instanteDeLectura(
             Instant ts, boolean tsEnTiempoReal, Duration vigencia, Clock real) {
@@ -65,14 +65,9 @@ public record RelojControl(
             return ahora;
         }
         Instant medido = tsEnTiempoReal ? aTiempoDeControl(ts) : ts;
-        if (medido.isAfter(ahora) || medido.isBefore(ahora.minus(escalar(vigencia)))) {
+        if (medido.isAfter(ahora) || medido.isBefore(ahora.minus(vigencia))) {
             return ahora;
         }
         return medido;
-    }
-
-    /** Convierte una duración REAL a duración en tiempo de control. */
-    public Duration escalar(Duration real) {
-        return Duration.ofNanos(Math.round(real.toNanos() * factorTiempo));
     }
 }

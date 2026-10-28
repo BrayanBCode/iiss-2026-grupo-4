@@ -93,7 +93,6 @@ public class CoreAdapter implements AutoCloseable {
     private final Map<String, Double> temperaturas = new HashMap<>();
     private final Map<String, Instant> instanteLectura = new HashMap<>();
     private Instant ahora; // reloj del control según los estímulos (null = aún ninguno)
-    private double factorTiempo = 1; // aceleración vigente (escala la vigencia de las lecturas)
 
     // Switches
     private final Map<String, HabitacionControlada> habitaciones = new LinkedHashMap<>();
@@ -246,7 +245,6 @@ public class CoreAdapter implements AutoCloseable {
      */
     private void sincronizarReloj(Estimulo.Sincronizacion s) {
         ahora = s.ahora();
-        factorTiempo = s.factorTiempo();
         instanteLectura.replaceAll((id, ts) -> s.ahora());
     }
 
@@ -259,7 +257,7 @@ public class CoreAdapter implements AutoCloseable {
         for (ConfiguracionHabitacion h : configuracion) {
             estados.put(h.id(), estadoDe(h.id()));
         }
-        return core.decidir(sitio, configuracion, estados, ahora, factorTiempo);
+        return core.decidir(sitio, configuracion, estados, ahora);
     }
 
     private boolean estaConfigurada(String idHabitacion) {

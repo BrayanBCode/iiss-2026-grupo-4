@@ -74,15 +74,14 @@ public class Core {
      *     está encendida ahora. Una habitación sin entrada (o con temperatura null) se toma como
      *     sin lectura y apagada
      * @param ahora hora del control (null = todavía no se conoce: no hay punta ni vencimientos)
-     * @param factorTiempo aceleración vigente (escala la vigencia de las lecturas)
-     * @return una decisión por habitación, en el orden de {@code habitaciones}
+     * @return una decisión por habitación, en el orden de {@code habitaciones} según el {@link
+     *     CriterioPrioridad}
      */
     public List<Decision> decidir(
             Sitio sitio,
             List<ConfiguracionHabitacion> habitaciones,
             Map<String, EstadoHabitacion> estados,
-            Instant ahora,
-            double factorTiempo) {
+            Instant ahora) {
         Objects.requireNonNull(sitio, "sitio");
         Objects.requireNonNull(habitaciones, "habitaciones");
         Objects.requireNonNull(estados, "estados");
@@ -94,8 +93,7 @@ public class Core {
 
         for (ConfiguracionHabitacion h : habitaciones) {
             potencias.put(h.id(), h.potenciaKW());
-            Motivo sinDeficit =
-                    motivoSinDeficit(h, estados.get(h.id()), sitio, ahora, factorTiempo);
+            Motivo sinDeficit = motivoSinDeficit(h, estados.get(h.id()), sitio, ahora);
             if (sinDeficit != null) {
                 motivos.put(h.id(), sinDeficit);
             } else {
@@ -134,15 +132,11 @@ public class Core {
 
     /** Por qué la habitación NO necesita energía, o null si tiene déficit y podría recibirla. */
     private Motivo motivoSinDeficit(
-            ConfiguracionHabitacion h,
-            EstadoHabitacion e,
-            Sitio sitio,
-            Instant ahora,
-            double factorTiempo) {
+            ConfiguracionHabitacion h, EstadoHabitacion e, Sitio sitio, Instant ahora) {
         if (e == null || e.temperaturaActual() == null) {
             return Motivo.SIN_LECTURA;
         }
-        if (vencida(e.ultimaLectura(), ahora, factorTiempo)) {
+        if (vencida(e.ultimaLectura(), ahora)) {
             return Motivo.LECTURA_VENCIDA;
         }
         // Histéresis: encendida sigue hasta la esperada; apagada arranca recién debajo de la banda.
@@ -159,12 +153,12 @@ public class Core {
         return null;
     }
 
-    private boolean vencida(Instant instante, Instant ahora, double factorTiempo) {
+    /** La vigencia se mide en tiempo del control (simulado), sin multiplicar por el factor. */
+    private boolean vencida(Instant instante, Instant ahora) {
         if (ahora == null || instante == null) {
             return false;
         }
-        long vigenciaMs = Math.round(parametros.vigenciaLectura().toMillis() * factorTiempo);
-        return Duration.between(instante, ahora).toMillis() > vigenciaMs;
+        return Duration.between(instante, ahora).compareTo(parametros.vigenciaLectura()) > 0;
     }
 
     private static boolean enPunta(Sitio sitio, Instant ahora) {

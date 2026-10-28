@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -126,18 +127,25 @@ class PerdidaMensajesTest extends IntegracionBase {
         iniciar();
         esperar(() -> BROKER.haySuscriptor(topic("living")), () -> "no se suscribió");
         Instant inicio = Instant.parse(FECHA_INICIO);
-
-        // ts exacto, en la hora del control: es el instante con que se guarda (no el de llegada)
-        BROKER.publicar(
-                topic("living"), payload(16.0, "%d.250".formatted(inicio.getEpochSecond())));
+        // El ts llega en hora real: se convierte con fechaHora + (ts - iniciadoEn) x factor (factor
+        // 1).
+        Instant iniciadoEn = control.estado().iniciadoEn();
         esperar(
-                () -> inicio.plusMillis(250).equals(estado("living").ultimaLectura()),
+                () -> Instant.now().isAfter(iniciadoEn.plusMillis(300)),
+                () -> "el reloj real no avanzó");
+
+        // ts exacto: 250 ms reales después del INICIAR son 250 ms de control (no la hora de
+        // llegada)
+        Instant medido = iniciadoEn.plusMillis(250).truncatedTo(ChronoUnit.MILLIS);
+        Instant esperado = inicio.plus(Duration.between(iniciadoEn, medido));
+        BROKER.publicar(topic("living"), payload(16.0, tsReal(medido)));
+        esperar(
+                () -> esperado.equals(estado("living").ultimaLectura()),
                 () -> "no se guardó el ts exacto: " + estado("living").ultimaLectura());
         esperarSwitch("living", "ON");
 
         // un minuto más vieja que la última: llegó fuera de orden, se descarta
-        BROKER.publicar(
-                topic("living"), payload(25.0, String.valueOf(inicio.getEpochSecond() - 60)));
+        BROKER.publicar(topic("living"), payload(25.0, tsReal(iniciadoEn.minusSeconds(60))));
         seMantiene(
                 Duration.ofMillis(700),
                 () -> estado("living").temperaturaActual() == 16.0,
@@ -146,7 +154,12 @@ class PerdidaMensajesTest extends IntegracionBase {
         // sin ts: vale igual, con la hora de llegada
         BROKER.publicar(topic("living"), "{\"id\":0,\"tC\":25.0}");
         esperarSwitch("living", "OFF");
-        assertTrue(estado("living").ultimaLectura().isAfter(inicio.plusMillis(250)));
+        assertTrue(estado("living").ultimaLectura().isAfter(esperado));
+    }
+
+    /** Instante real como el ts del termostato: epoch en segundos con 3 decimales. */
+    private static String tsReal(Instant instante) {
+        return "%d.%03d".formatted(instante.getEpochSecond(), instante.getNano() / 1_000_000);
     }
 
     private static String payload(double temperaturaC, String ts) {

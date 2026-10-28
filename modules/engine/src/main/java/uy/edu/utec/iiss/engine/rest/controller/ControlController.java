@@ -23,7 +23,7 @@ import uy.edu.utec.iiss.engine.util.Instantes;
  *
  * <p>El cuerpo se valida a mano (JsonNode) para dar un 400 claro en cada caso: acción desconocida,
  * falta fechaHora, fechaHora no ISO-8601, factorTiempo no &gt; 0. Una fechaHora sin offset se toma
- * en la zona del sistema.
+ * en la zona del sistema (T9 lo elimina).
  */
 @RestController
 @RequestMapping("/control")

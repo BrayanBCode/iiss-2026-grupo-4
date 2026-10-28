@@ -107,19 +107,15 @@ class TermostatoCaidoTest extends IntegracionBase {
 
     @Test
     @DisplayName(
-            "Con tiempo acelerado (×10) la vigencia sigue midiéndose en tiempo real: no vence"
-                    + " antes")
+            "Con tiempo acelerado (×10) la vigencia se mide en tiempo de control: vence antes en"
+                    + " tiempo real")
     void tiempoAcelerado() throws Exception {
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
         iniciar(FECHA_INICIO, 10);
         temperatura("living", 16.0);
         esperarSwitch("living", "ON");
 
-        // 1 s real = 10 s de control: con 2 s de vigencia sin escalar ya habría vencido
-        seMantiene(
-                Duration.ofSeconds(1),
-                () -> SWITCHES.estado("sw-living").equals("ON"),
-                () -> "venció antes de tiempo con factor 10: " + motivo("living"));
+        // 2 s de vigencia de control = 0,2 s reales con factor 10
         esperarSwitch("living", "OFF");
         assertEquals("LECTURA_VENCIDA", motivo("living"));
     }

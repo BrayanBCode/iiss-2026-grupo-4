@@ -36,7 +36,10 @@ final class EstimulosFixtures {
     static final FranjaHoraria PUNTA =
             new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
 
-    /** Nunca se llama: el adaptador de estos tests no se habilita, así que no comanda switches. */
+    /**
+     * Nunca se llama: el adaptador de estos tests nunca se pone en ejecución, así que no comanda
+     * switches.
+     */
     private static final ClienteSwitch SIN_SWITCHES =
             new ClienteSwitch() {
                 @Override

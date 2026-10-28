@@ -104,14 +104,18 @@ class RelojControlTest {
 
     @Test
     @DisplayName(
-            "Con factor 60 la vigencia se escala: un ts de hace 1 h de control todavía es"
-                    + " plausible")
-    void vigenciaEscalada_conFactor() {
+            "Con factor 60 la vigencia no se escala: un ts de hace más que la vigencia de"
+                    + " control es un reloj desfasado")
+    void vigenciaSinEscalar_conFactor() {
         RelojControl r = new RelojControl(FECHA, 60, INICIO_REAL, ZoneOffset.UTC);
         Instant ahora = FECHA.plusSeconds(60 * 60 * 2); // 2 min reales = 2 h de control
         Instant haceUnaHora = ahora.minusSeconds(3600);
+        Instant dentroDeLaVigencia = ahora.minus(VIGENCIA);
 
-        assertEquals(haceUnaHora, r.instanteDeLectura(haceUnaHora, false, VIGENCIA, realEn(120)));
+        assertEquals(ahora, r.instanteDeLectura(haceUnaHora, false, VIGENCIA, realEn(120)));
+        assertEquals(
+                dentroDeLaVigencia,
+                r.instanteDeLectura(dentroDeLaVigencia, false, VIGENCIA, realEn(120)));
     }
 
     @Test

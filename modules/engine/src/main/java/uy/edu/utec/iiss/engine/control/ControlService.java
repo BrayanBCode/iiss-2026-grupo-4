@@ -30,9 +30,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  * El recurso "control" del estándar v2 (§5.2) y los eventos temporales del engine.
  *
  * <ul>
- *   <li>{@link #iniciar}: sincroniza el reloj del control, carga el sitio en el core, consulta los
- *       switches y empieza a comandarlos. Sobre un control ya en ejecución re-sincroniza (no es
- *       error).
+ *   <li>{@link #iniciar}: sincroniza el reloj del control, configura el sitio en el adaptador,
+ *       consulta los switches y empieza a comandarlos. Sobre un control ya en ejecución
+ *       re-sincroniza (no es error).
  *   <li>{@link #detener}: deja de comandar switches. Idempotente.
  *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} reales (cortar/restituir en
  *       los cambios de franja, vencer lecturas) y reconcilia los switches cada {@code
@@ -40,9 +40,15 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
- * de zona". Se toma la zona en la que viene expresada la {@code fechaHora} de INICIAR ({@code ...Z}
- * ⇒ UTC, {@code ...-03:00} ⇒ UTC-3), así controlador y entorno leen la misma hora en el mismo
- * instante. Se puede fijar otra con {@code control.zona-horaria} (p. ej. America/Montevideo).
+ * de zona". La zona sale de {@code control.zona-horaria}, que por defecto es America/Montevideo.
+ * Solo si esa propiedad está vacía se toma la zona en que viene expresada la {@code fechaHora} de
+ * INICIAR ({@code ...Z} ⇒ UTC, {@code ...-03:00} ⇒ UTC-3); ese caso y {@code
+ * ZoneId.systemDefault()} se eliminan en la tarjeta T9.
+ *
+ * <p><b>Tiempo.</b> La hora del control es {@code fechaHora + (real − iniciadoEn) × factor} y es la
+ * única fuente de "qué hora es"; el reloj del sistema solo mide duraciones. Por eso el {@code ts}
+ * de las lecturas (en hora real) se convierte con {@link RelojControl#aTiempoDeControl}, y la
+ * vigencia de una lectura se mide en tiempo de control, sin escalar por el factor.
  */
 @Service
 public class ControlService {
@@ -58,10 +64,9 @@ public class ControlService {
     private final Duration vigenciaLectura;
     private final boolean tsEnTiempoReal;
 
-    // `reloj` solo da la hora (fechaHora, factor, zona) y NO dice si el control está detenido: si
-    // está en ejecución lo dice adaptador.enEjecucion(). Queda con el último INICIAR después de
-    // DETENER y
-    // es null antes del primero; así hay una sola bandera de estado de ejecución.
+    // `reloj` solo da la hora (fechaHora, factor, zona) y NO dice si el control está detenido: eso
+    // lo dice adaptador.enEjecucion(), así hay una sola bandera de estado de ejecución. Queda con
+    // el último INICIAR después de DETENER y es null antes del primero.
     private volatile RelojControl reloj;
     private ScheduledExecutorService temporizador;
 
@@ -73,7 +78,7 @@ public class ControlService {
             @Value("${control.tick-ms:1000}") long tickMs,
             @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos,
             @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos,
-            @Value("${termostato.ts-tiempo-real:false}") boolean tsEnTiempoReal) {
+            @Value("${termostato.ts-tiempo-real:true}") boolean tsEnTiempoReal) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
         this.relojReal = relojReal;
@@ -92,8 +97,8 @@ public class ControlService {
     // ------------------------------------------------------------------
 
     /**
-     * INICIAR. {@code zonaDeFechaHora} es la zona/offset en que vino escrita la fechaHora; se usa
-     * para la tarifa salvo que haya una zona fija configurada.
+     * INICIAR. {@code zonaDeFechaHora} es la zona/offset en que vino escrita la fechaHora; solo se
+     * usa para la tarifa si no hay zona configurada ({@code control.zona-horaria}); T9 la elimina.
      */
     public synchronized EstadoControl iniciar(
             Instant fechaHora, ZoneId zonaDeFechaHora, double factorTiempo) {
@@ -134,8 +139,7 @@ public class ControlService {
 
     public EstadoControl estado() {
         // iniciar() fija el reloj antes de poner en ejecución al adaptador, así que en ejecución
-        // implica
-        // reloj != null; el chequeo de r solo evita un NPE, no decide si está detenido.
+        // implica reloj != null; el chequeo de r solo evita un NPE, no decide si está detenido.
         RelojControl r = reloj;
         if (!enEjecucion() || r == null) {
             return EstadoControl.detenido();
@@ -154,10 +158,11 @@ public class ControlService {
 
     /**
      * Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. Se guarda con
-     * el instante que dice el termostato ({@code ts}, puede ser null), con las salvedades de {@link
-     * RelojControl#instanteDeLectura}; el adaptador descarta la que es más vieja que la última. Un
-     * error se propaga: lo atrapa {@code LecturaMqttListener.messageArrived}, el único try/catch
-     * del camino (Paho cierra la conexión si el callback lanza).
+     * el instante que dice el termostato ({@code ts}, en hora real, puede ser null) convertido a la
+     * hora del control, con las salvedades de {@link RelojControl#instanteDeLectura}; el adaptador
+     * descarta la que es más vieja que la última. Un error se propaga: lo atrapa {@code
+     * LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la conexión
+     * si el callback lanza).
      *
      * <p>{@code synchronized} como {@link #iniciar}: así una lectura sellada con el reloj viejo no
      * se procesa después de que INICIAR re-sincronizó el reloj (lo dejaría en la línea de tiempo
@@ -175,8 +180,8 @@ public class ControlService {
     /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */
     @EventListener
     public synchronized void aplicarInventario(InventarioAplicado evento) {
-        // Detenido se usa la zona fija aunque quede el reloj del último INICIAR (como antes);
-        // el próximo INICIAR vuelve a configurar con su zona.
+        // Detenido no se usa la zona del reloj aunque quede el del último INICIAR: se toma la zona
+        // configurada; el próximo INICIAR vuelve a configurar con la suya.
         ZoneId zona = zonaFija.orElse(ZoneId.systemDefault());
         if (enEjecucion()) {
             zona = reloj.zona();
