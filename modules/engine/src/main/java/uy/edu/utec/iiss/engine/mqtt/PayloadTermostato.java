@@ -12,9 +12,10 @@ import java.util.Optional;
  * Mensaje del termostato (estándar v2, §2): {@code
  * {"id":0,"tC":21.4,"tF":70.5,"ts":1786840680.123}}.
  *
- * <p>{@code ts} es el instante de la medición, en epoch con 3 decimales; se guarda exacto (null si
- * no vino o no es un número). Qué instante se le asigna a la lectura lo decide {@code
- * RelojControl.instanteDeLectura}. La habitación sale del topic, nunca del {@code id}.
+ * <p>{@code ts} es el instante de la medición en HORA REAL (epoch con 3 decimales); se guarda
+ * exacto (null si no vino o no es un número). Qué instante de la hora del control se le asigna a la
+ * lectura lo decide {@code RelojControl.instanteDeLectura}. La habitación sale del topic, nunca del
+ * {@code id}.
  */
 public record PayloadTermostato(double temperaturaC, Instant ts) {
 

@@ -71,11 +71,10 @@ class DecidirTest {
     }
 
     private List<Decision> decidir(double contratadaKW, Instant ahora, Hab... habitaciones) {
-        return decidir(new Sitio("sitio-test", contratadaKW, PUNTA), ahora, 1, habitaciones);
+        return decidir(new Sitio("sitio-test", contratadaKW, PUNTA), ahora, habitaciones);
     }
 
-    private List<Decision> decidir(
-            Sitio sitio, Instant ahora, double factorTiempo, Hab... habitaciones) {
+    private List<Decision> decidir(Sitio sitio, Instant ahora, Hab... habitaciones) {
         List<ConfiguracionHabitacion> config =
                 Arrays.stream(habitaciones)
                         .map(
@@ -88,7 +87,7 @@ class DecidirTest {
             estados.put(
                     h.id(), new EstadoHabitacion(h.id(), h.actual(), h.lectura(), h.encendida()));
         }
-        return core.decidir(sitio, config, estados, ahora, factorTiempo);
+        return core.decidir(sitio, config, estados, ahora);
     }
 
     private static List<String> prendidas(List<Decision> decisiones) {
@@ -522,8 +521,7 @@ class DecidirTest {
                                     LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.TODOS));
 
             assertEquals(
-                    List.of(),
-                    prendidas(decidir(todos, sabado(18, 0), 1, leidasEn(sabado(18, 0)))));
+                    List.of(), prendidas(decidir(todos, sabado(18, 0), leidasEn(sabado(18, 0)))));
         }
 
         @Test
@@ -535,8 +533,8 @@ class DecidirTest {
             Sitio enUtc = new Sitio("s", 10.0, PUNTA, ZoneOffset.UTC);
             Sitio enUruguay = new Sitio("s", 10.0, PUNTA);
 
-            assertEquals(List.of(), prendidas(decidir(enUtc, instante, 1, leidasEn(instante))));
-            assertEquals(3, prendidas(decidir(enUruguay, instante, 1, leidasEn(instante))).size());
+            assertEquals(List.of(), prendidas(decidir(enUtc, instante, leidasEn(instante))));
+            assertEquals(3, prendidas(decidir(enUruguay, instante, leidasEn(instante))).size());
         }
 
         @Test
@@ -588,27 +586,33 @@ class DecidirTest {
 
         @Test
         @DisplayName(
-                "Con tiempo acelerado x60 la vigencia es 10 h de control: hace 9 h vale, hace 11 h"
-                        + " vence")
-        void conTiempoAcelerado_laVigenciaSeEscala() {
-            Sitio sitio = new Sitio("s", 3.7, PUNTA);
-            Instant ahora = lunes(23, 30);
+                "La vigencia se mide en tiempo de control: con factor 30, una lectura de hace 601 s"
+                        + " de control está vencida")
+        void vigenciaEnTiempoDeControl_hace601sVencida() {
+            // El core ya no recibe el factor: ahora y la lectura vienen en hora del control.
+            Instant ahora = lunes(10, 0);
 
-            List<Decision> hace9h =
+            List<Decision> d =
                     decidir(
-                            sitio,
+                            3.7,
                             ahora,
-                            60,
-                            apagada("living", 21.5, 1.2, 15.0).leidaEn(lunes(14, 30)));
-            List<Decision> hace11h =
-                    decidir(
-                            sitio,
-                            ahora,
-                            60,
-                            apagada("living", 21.5, 1.2, 15.0).leidaEn(lunes(12, 30)));
+                            apagada("living", 21.5, 1.2, 15.0).leidaEn(ahora.minusSeconds(601)));
 
-            assertEquals(Accion.ON, accionDe(hace9h, "living"));
-            assertEquals(Motivo.LECTURA_VENCIDA, motivoDe(hace11h, "living"));
+            assertEquals(Motivo.LECTURA_VENCIDA, motivoDe(d, "living"));
+        }
+
+        @Test
+        @DisplayName("La vigencia se mide en tiempo de control: una lectura de hace 599 s no vence")
+        void vigenciaEnTiempoDeControl_hace599sVale() {
+            Instant ahora = lunes(10, 0);
+
+            List<Decision> d =
+                    decidir(
+                            3.7,
+                            ahora,
+                            apagada("living", 21.5, 1.2, 15.0).leidaEn(ahora.minusSeconds(599)));
+
+            assertEquals(Accion.ON, accionDe(d, "living"));
         }
     }
 
@@ -687,8 +691,7 @@ class DecidirTest {
                             new Sitio("sitio-test", 3.7, PUNTA),
                             List.of(hab("living", 21.5, 1.2)),
                             Map.of(),
-                            AHORA,
-                            1);
+                            AHORA);
 
             assertEquals(Motivo.SIN_LECTURA, motivoDe(d, "living"));
         }

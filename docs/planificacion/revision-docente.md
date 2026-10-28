@@ -30,8 +30,8 @@ Hay que tomarlas antes de pasar las tarjetas a "Listo":
 | D4 | ¿Zona horaria fija del sitio? | **Sí**, `America/Montevideo`, configurable. Hay que confirmarlo con el contrato del simulador nuevo | **Sí**. Uruguay es obligatorio para el equipo |
 | D5 | ¿Una rama por tarjeta, con PR a `implementacion5`? | **Sí**, así cada tarjeta se revisa por separado | **Sí**. Recordatorio: se incumplió en `67fe9a9` (un solo commit); se aplica desde ahora |
 | D6 | ¿Qué clase administra el estado de ejecución (en ejecución / detenido)? | `CoreAdapter` administra el estado de ejecución (`iniciar()` / `detener()` / `enEjecucion()`, protegida por su propio `synchronized`); `ControlService` le delega y `enEjecucion()` devuelve `adaptador.enEjecucion()`. Se eliminan el `ObjectProvider` y el `BooleanSupplier` de `CoreConfig`: eran un parche para esquivar el ciclo y no son intuitivos | Decidido (Sí), implementado en T7b (rama `revision/t7b-estado-ejecucion`) |
-| D7 | ¿Qué hacer con las lecturas guardadas al re-sincronizar (INICIAR)? | Conservar solo las que no estaban vencidas. Hoy todas se sellan con la nueva hora y un dato viejo vuelve a contar como reciente | **Pendiente** (decisión del equipo) |
-| D8 | ¿Una lectura con `ts` más viejo que la vigencia se descarta? | **Sí** (se implementa en T8b); la lectura se cuenta en `/diagnostico` | **Pendiente** (decisión del equipo) |
+| D7 | ¿Qué hacer con las lecturas guardadas al re-sincronizar (INICIAR)? | Conservar solo las que no estaban vencidas. Antes todas se sellaban con la nueva hora y un dato viejo volvía a contar como reciente | **Sí**: se conservan solo las lecturas no vencidas y las vencidas se olvidan. Decidido, implementado en `83dbc1b` (rama `revision/d7-resincronizar`): `ControlService.iniciar` manda primero un Tick con la hora del reloj anterior (cuenta el tiempo detenido) y después la Sincronización; `CoreAdapter.sincronizarReloj` deja la habitación en `SIN_LECTURA` si la lectura está vencida (`Core.lecturaVencida`, edad > vigencia, sin escalar) y marca las vigentes con la hora nueva |
+| D8 | ¿Una lectura con `ts` más viejo que la vigencia se descarta? | **Sí** (se implementa en T8b); la lectura se cuenta en `/diagnostico` | **Sí**. Decidido, implementado en `5283b55` (T8b, rama `revision/d7-resincronizar`): la lectura se descarta y se cuenta en `/diagnostico` |
 
 ### Fuera de alcance de esta planificación
 La vista física del 4+1, el tag `version5` y el MCP opcional. Siguen en el backlog de la entrega.
@@ -59,6 +59,8 @@ Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 
 **Estado al 2026-10-28 (commit `67fe9a9`).** Ese commit (lucas-811, "Implementacion codigo, test y 4+1", 68 archivos) cerró varias tarjetas de una vez, sin rama por tarjeta (incumple D5) y sin actualizar el tablero. Lo de la tabla está verificado contra el código; `mvn -B verify` sobre `67fe9a9` todavía no lo corrimos nosotros.
 
+**Estado en `revision/d7-resincronizar` (`83dbc1b`).** T8b, T9, T12 y D7 están hechas y entregadas juntas en esa rama (ver la nota de A8). `mvn verify` en verde: core 54 tests, engine 181.
+
 | ID | Tarjeta | Estado | Carril | Depende de | Tamaño | Criterio de aceptación |
 |---|---|---|---|---|---|---|
 | T1 | CI con `mvn verify`, sin `-DskipTests` | **Hecho** | B | — | S | El workflow corre un solo `mvn -B verify` y pasa en el PR. Hecho: un solo `verify`, artefactos, dispara en `implementacion*` y tags `version*` (cubre también A1 y A2 de excelencia: JaCoCo `check` ≥ 0.85 en líneas y ramas) |
@@ -69,26 +71,27 @@ Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 | T3 | Verificar OFF antes que ON después del refactor | **Pendiente** | B | T5 | S | El test de `CoreAdapterTest` (OFF antes que ON) sigue en verde y no cambió |
 | T7 | Una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT | **Hecho** | A | T5 | S | `ControlService` y `CoreAdapter` no duplican el estado de ejecución. Una lectura recorre 5 pasos. Hecho con `BooleanSupplier` vía `ObjectProvider<ControlService>` y `alRecibirLectura` `synchronized`; ese parche se reemplaza en T7b (ver D6) |
 | T7b | CoreAdapter administra el estado de ejecución | **Hecho** | A | T7 | S | (a) `grep -rE "ObjectProvider\|BooleanSupplier" modules/engine/src/main` no devuelve nada; (b) `CoreAdapterTest` sin `AtomicBoolean`, con un test nuevo: después de `adaptador.detener()` una lectura que provocaría ON no comanda ningún switch, y después de `iniciar()` sí; (c) siguen en verde `ArranqueParadaTest` y el test asíncrono de `CoreAdapterTest`; (d) `mvn -B verify` en verde; (e) comentario en `ControlService` que diga que el `reloj` solo da la hora y NO indica si está detenido (para no reintroducir dos banderas) |
-| T8 | `ts` del termostato como instante de la lectura | **Parcial** | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj). Hecho: parseo exacto con `BigDecimal`, `RelojControl.instanteDeLectura`/`aTiempoDeControl`, descarte de `ts` anterior al último. Falta: ver T8b y T8c |
-| T8b | `ts` en hora real convertido a la hora del control y regla del `ts` viejo | **Pendiente** | A | T7b | S | La conversión del `ts` se aplica siempre: se elimina la propiedad `termostato.ts-tiempo-real` (y `TERMOSTATO_TS_TIEMPO_REAL`) y la rama que toma el `ts` sin convertir. `ts` ausente o, ya convertido, en el futuro → `ahora`; `ts` anterior a la última lectura o más viejo que la vigencia → se descarta y se cuenta en `/diagnostico` (D8). Tests: conversión con factor 2 (INICIAR 13:00, ts 13:05 ⇒ 13:10), `ts` futuro, `ts` viejo dentro de la vigencia, `ts` viejo fuera de la vigencia (descartada) y `ts` anterior a la última. Actualizar `4mas1.md` (§2.2 párrafo del `ts`). |
-| T8c | Vigencia en tiempo simulado | **Pendiente** | A | T8b | S | `Core.vencida` deja de multiplicar la vigencia por el factor y `factorTiempo` sale de `Core.decidir`; javadoc de `ParametrosControl` corregido. Test: con factor 30, una lectura de hace 601 s de tiempo de control está vencida Actualizar `4mas1.md` (§1.3, §2.2 y §3.1, vigencia). |
-| T9 | Zona horaria fija del sitio | **Pendiente** | A | T8, D4 | M | No se usa `ZoneId.systemDefault()` (hoy en `ControlService.java:175` y `ControlController.java:66`). `CONTROL_ZONA_HORARIA` con valor en `application.properties` y `docker-compose.yml`; sin parámetro `zonaDeFechaHora`; `TZ` en el contenedor; `Sitio.ZONA_URUGUAY` como default. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta (`TARIFA_PUNTA`) de las 18:00 de Montevideo |
+| T8 | `ts` del termostato como instante de la lectura | **Hecho** | A | T7 | M | El `ts` se parsea exacto. Hay tests de `ts` exacto, `ts` viejo (descartada) y `ts` futuro (se usa el reloj). Hecho: parseo exacto con `BigDecimal`, `RelojControl.instanteDeLectura`/`aTiempoDeControl`, descarte de `ts` anterior al último. Completada por T8b y T8c |
+| T8b | `ts` en hora real convertido a la hora del control y regla del `ts` viejo | **Hecho** (rama `revision/d7-resincronizar`, commit `5283b55`): conversión siempre activa, propiedad eliminada, `ts` vencido descartado y contado por motivo en `/diagnostico` (`TS_VENCIDO`, `FUERA_DE_ORDEN`), tests de los cinco casos más desfase de ±2 s a ×30 | A | T7b | S | La conversión del `ts` se aplica siempre: se elimina la propiedad `termostato.ts-tiempo-real` (y `TERMOSTATO_TS_TIEMPO_REAL`) y la rama que toma el `ts` sin convertir. `ts` ausente o, ya convertido, en el futuro → `ahora`; `ts` anterior a la última lectura o más viejo que la vigencia → se descarta y se cuenta en `/diagnostico` (D8). Tests: conversión con factor 2 (INICIAR 13:00, ts 13:05 ⇒ 13:10), `ts` futuro, `ts` viejo dentro de la vigencia, `ts` viejo fuera de la vigencia (descartada) y `ts` anterior a la última. Actualizar `4mas1.md` (§2.2 párrafo del `ts`). |
+| T8c | Vigencia en tiempo simulado | **Hecho** (rama `revision/preparacion-simulador`, ya integrada en `revision/d7-resincronizar`) | A | T8b | S | `Core.vencida` deja de multiplicar la vigencia por el factor y `factorTiempo` sale de `Core.decidir`; javadoc de `ParametrosControl` corregido. Test: con factor 30, una lectura de hace 601 s de tiempo de control está vencida Actualizar `4mas1.md` (§1.3, §2.2 y §3.1, vigencia). |
+| T9 | Zona horaria fija del sitio | **Hecho** (rama `revision/d7-resincronizar`, commit `89aba3d`): sin `systemDefault()` ni `zonaDeFechaHora`; zona fija del sitio (`Sitio.ZONA_URUGUAY` si la propiedad viene vacía); `fechaHora` sin offset en hora de Montevideo; los tests de integración corren en Montevideo; tests de 21:00Z (punta), 18:00Z (no punta) y sin offset | A | T8, D4 | M | No se usa `ZoneId.systemDefault()` (antes en `ControlService.java:175` y `ControlController.java:66`). `CONTROL_ZONA_HORARIA` con valor en `application.properties` y `docker-compose.yml`; sin parámetro `zonaDeFechaHora`; `TZ` en el contenedor; `Sitio.ZONA_URUGUAY` como default. Un test de INICIAR `...Z` a las 21:00 UTC aplica la punta (`TARIFA_PUNTA`) de las 18:00 de Montevideo |
 | T10 | Simplificar streams, ternarios y `::` en el engine | **Parcial** | A | T9, T2 | M | Se cumplen las reglas de T2. Los tests no cambian y siguen en verde. Hecho solo en `CoreAdapter` |
-| T11a | 4+1 al día con el diseño actual (tras T4, T5, T7 y T7b) | **Hecho** | B | T7b | S | Vistas lógica, de escenarios, de procesos y de desarrollo sin `CoreClient`, `Core.procesar` ni `habilitar()`; el core contiene el modelo y la función pura `decidir`, y el estado lo guarda `CoreAdapter`. El párrafo del `ts` refleja que llega en hora real, que hoy la conversión depende de una propiedad en `false` y lo que queda pendiente para T8b y T8c |
+| T11a | 4+1 al día con el diseño actual (tras T4, T5, T7 y T7b) | **Hecho** | B | T7b | S | Vistas lógica, de escenarios, de procesos y de desarrollo sin `CoreClient`, `Core.procesar` ni `habilitar()`; el core contiene el modelo y la función pura `decidir`, y el estado lo guarda `CoreAdapter`. El párrafo del `ts` refleja que llega en hora real, que la conversión del `ts` es fija (sin propiedad, T8b) y que la vigencia se mide en tiempo de control (T8c) |
 | T11 | Documentación final: 4+1, cobertura y resultados | **Pendiente** | B | T10 | M | Revisión final del `4mas1.md` contra el código del tag `version5`, vista por vista y diagrama por diagrama, para que no quede ninguna discrepancia (clases, firmas, escenarios, hilos, paquetes, reglas del tiempo). Vista física agregada. `docs/calidad/cobertura/` regenerado. `resultados.md` con los conteos de la última corrida. Diagramas Mermaid sin `;` en los textos |
-| T12 | Tick escalado con el factor | **Pendiente** | A | T9 | S | Período del tick = `max(10 ms, tickMs / factor)` (hoy `scheduleWithFixedDelay(tickMs)` en `ControlService.java:251`). Error máximo documentado en `4mas1.md`; error máximo del corte de la franja ≤ un tick en tiempo simulado. Test con factor alto que corte la punta en menos de 1 s real |
-| T13 | Corrida contra el simulador con evidencia | **Pendiente** | B | T9, T12 | M | Según B2 de `cambios-excelencia-iter5.md`: script de integración, corridas (carga no limitante y limitante, cruce de franja acelerado, broker caído, switch caído) y tabla esperado/observado en `resultados.md` |
+| T12 | Tick escalado con el factor | **Hecho** (rama `revision/d7-resincronizar`, commit `bfd8495`): `ControlService.periodoTickMs`, temporizador rearmado en cada INICIAR, tabla de atraso máximo en `4mas1.md` §2.3, `ControlServiceTest` y `TiempoAceleradoTest` (corte y restitución a ×600 en menos de 1 s real; fallan sin T12) | A | T9 | S | Período del tick = `max(10 ms, tickMs / factor)` (antes `scheduleWithFixedDelay(tickMs)` en `ControlService.java:251`). Error máximo documentado en `4mas1.md`; error máximo del corte de la franja ≤ un tick en tiempo simulado. Test con factor alto que corte la punta en menos de 1 s real |
+| T13 | Corrida contra el simulador con evidencia | **Parcial** (script `scripts/captura-simulador.sh` y checklist `docs/tests/corrida-simulador/README.md` listos; falta la corrida) | B | T9, T12 | M | Según B2 de `cambios-excelencia-iter5.md`: script de integración, corridas (carga no limitante y limitante, cruce de franja acelerado, broker caído, switch caído) y tabla esperado/observado en `resultados.md`. Tests que faltan (D7): re-INICIAR con otro factor de tiempo, y re-INICIAR hacia atrás con lecturas vencidas y vigentes mezcladas (las vencidas se olvidan, las vigentes se marcan con la hora nueva) |
 | T14 | Documentar decisiones sobre el tiempo | **Pendiente** | B | — | S | Sección en `4mas1.md` con los 3 relojes y la tabla letra vs decisión (la de la [sección 5](#5-tiempo-del-sistema-letra-y-decisiones)) |
 
 ### Orden y paralelismo
 ```
 Hecho (67fe9a9):              T1, T4, T5, T7
 Hecho (T7b):                  T7b
-Carril A restante (de a uno): T8b → T8c → T9 → T12 → T10 (resto)
+Hecho (d7-resincronizar):     T8b, T8c, T9, T12, D7
+Carril A restante (de a uno): T10 (resto)
 Carril B (en paralelo):       T2, T3, T14 ya
                               T13 tras T12 · T11 al final (revisión completa del 4+1)
 ```
-T8b, T8c, T9 y T12 van en serie porque tocan los mismos métodos de `ControlService`, `CoreAdapter` y `Core`.
+T8b, T8c, T9 y T12 iban en serie porque tocan los mismos métodos de `ControlService`, `CoreAdapter` y `Core`.
 
 Con 3 o 4 integrantes: una persona lleva el carril A, otra toma T1 y T2 y después revisa los PR del carril A, y el resto avanza con la vista física del 4+1 (fuera de esta lista).
 
@@ -136,9 +139,10 @@ donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación 
 - Si el `ts` falta o queda en el futuro respecto de `ahora`, se usa `ahora`. La temperatura nunca se descarta por eso.
 - Un termostato adelantado no puede adelantar el sistema: el `ts` no toca el reloj del control.
 - Las lecturas con `ts` anterior a la última guardada se descartan (T8).
-- Una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b, D8: decisión del equipo pendiente).
+- Una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b, D8: decidido e implementado en `5283b55`).
 - La vigencia se mide en tiempo de control (simulado), sin escalarla por el factor (T8c). El `ts` no se escala para esto: primero se convierte y luego se compara con `ahora`.
-- Hoy el código ya tiene la conversión (`RelojControl.aTiempoDeControl`), pero está detrás de la propiedad `termostato.ts-tiempo-real`, que vale `false`: por defecto el `ts` se toma sin convertir, lo cual es incorrecto. T8b la deja siempre activa.
+- La conversión (`RelojControl.aTiempoDeControl`) es fija: T8b eliminó la propiedad `termostato.ts-tiempo-real`, así que el `ts` siempre se convierte a la hora del control.
+- Un INICIAR repetido re-sincroniza el reloj y aplica D7: primero se cuenta el tiempo detenido con un Tick con la hora del reloj anterior, las lecturas vencidas se olvidan (la habitación queda en `SIN_LECTURA`) y las vigentes se marcan con la hora nueva (`83dbc1b`).
 
 ### Qué dice la letra y qué decidimos nosotros
 
@@ -170,7 +174,10 @@ La letra son los PDF de las iteraciones 1 a 5 y `docs/api/interop-v2.md`. Lo que
 ### Riesgos y hallazgos (T13)
 - Si el simulador acelera sin enviar un INICIAR, el reloj del control sigue con el factor anterior y la tarifa se calcula con un reloj equivocado.
 - La conversión del `ts` supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase entre máquinas se multiplica por el factor: 2 s de desfase con factor 30 son 1 min simulado. Se verifica en T13.
-- Los hallazgos de hoy que corrigen T8b, T8c y D7: `Core.vencida` multiplica la vigencia por el factor (con factor 30 y 600 s son 5 h simuladas y ninguna lectura vence en toda la corrida); un `ts` más viejo que la vigencia se registra con `ahora` (una lectura de 19:00 que llega a las 21:00 sostiene la calefacción con un dato de 2 h); y cada INICIAR sella las lecturas guardadas con la hora nueva, así que un dato viejo revive.
+- Hallazgos que corrigieron T8b, T8c y D7 (ya implementados): `Core.vencida` multiplicaba la vigencia por el factor (con factor 30 y 600 s son 5 h simuladas y ninguna lectura vencía en toda la corrida); un `ts` más viejo que la vigencia se registraba con `ahora` (una lectura de 19:00 que llega a las 21:00 sostenía la calefacción con un dato de 2 h); y cada INICIAR sellaba las lecturas guardadas con la hora nueva, así que un dato viejo revivía.
+- **Vigencia recuperada al re-sincronizar (D7).** Al marcar una lectura vigente con la hora nueva, recupera la vigencia completa: un dato de 9:59 min vuelve a valer 10 min. Alternativa evaluada: conservar su antigüedad (`nuevo − (ahoraViejo − instante)`). Queda como mejora posible; la regla vigente es la implementada.
+- **Re-INICIAR con el control en ejecución.** Son tres pasos separados (configurar, Tick, Sincronización). Entre ellos el hilo de switches podría enviar un comando decidido con el reloj anterior que se revierte enseguida. Riesgo bajo, preexistente.
+- **Lectura medida justo antes del INICIAR.** Puede descartarse como `FUERA_DE_ORDEN` o `TS_VENCIDO` (con factor alto la latencia se multiplica). No afecta: la siguiente lectura entra bien. Queda contada en `/diagnostico`.
 
 ---
 
@@ -187,7 +194,7 @@ No hay cambios de código. Al terminar T5 se revisa que siga valiendo, porque el
 En `.github/workflows/maven.yml` los dos pasos (`mvn clean test` y `mvn package -DskipTests`) se reemplazan por uno solo: `mvn -B verify`. Así quedan incluidos los tests, Spotless y la cobertura.
 
 ## A3. Timestamp del termostato — T8, T8b y T8c
-**Estado:** el parseo exacto y el descarte de `ts` anterior al último están hechos en `67fe9a9`. `67fe9a9` también dejó la conversión del `ts` (`RelojControl.instanteDeLectura` y `aTiempoDeControl`), pero detrás de la propiedad `termostato.ts-tiempo-real`, hoy en `false`: por defecto el `ts` se toma sin convertir, y eso es incorrecto. T8b deja la conversión siempre activa, elimina la propiedad y agrega la regla del `ts` viejo; T8c corrige la vigencia.
+**Estado:** hecho. El parseo exacto y el descarte de `ts` anterior al último están en `67fe9a9`. `67fe9a9` también dejó la conversión del `ts` (`RelojControl.instanteDeLectura` y `aTiempoDeControl`), pero detrás de la propiedad `termostato.ts-tiempo-real` (en `false`). T8b (`5283b55`) dejó la conversión siempre activa, eliminó la propiedad y agregó la regla del `ts` viejo; T8c corrigió la vigencia.
 
 - **`PayloadTermostato`** (`engine/mqtt`):
   - parsear `ts` exacto con `BigDecimal` → `Instant.ofEpochSecond(seg, nanos)`, sin pasar por `double × 1000`;
@@ -200,9 +207,9 @@ En `.github/workflows/maven.yml` los dos pasos (`mvn clean test` y `mvn package 
     - las lecturas siguientes, con su `ts` correcto, parecerían "más viejas" y se descartarían como fuera de orden: el sensor queda bloqueado.
   - **En el caso normal** el `ts` coincide con `ahora` o queda unos instantes antes (la latencia de la red) y se usa el valor convertido.
 - **Lecturas fuera de orden**: `CoreAdapter.registrarLectura` descarta las que tienen un `ts` anterior a la última (A4).
-- **`ts` más viejo que la vigencia (T8b, D8)**: hoy se reemplaza por `ahora` y la lectura entra como fresca: una lectura de 19:00 que llega a las 21:00 sostendría la calefacción con un dato de 2 h. La regla nueva la descarta y la cuenta en `/diagnostico`. Es una decisión del equipo, todavía pendiente.
+- **`ts` más viejo que la vigencia (T8b, D8)**: antes se reemplazaba por `ahora` y la lectura entraba como fresca: una lectura de 19:00 que llega a las 21:00 sostendría la calefacción con un dato de 2 h. Con T8b se descarta y se cuenta en `/diagnostico` (`TS_VENCIDO`). Además evita que la próxima lectura buena parezca fuera de orden. D8 está decidida e implementada en `5283b55`.
 - **Vigencia (T8c)**: `Core.vencida` deja de multiplicar la vigencia por el factor. Con factor 30 y 600 s hoy son 5 h simuladas y ninguna lectura vence en toda la corrida; con la regla nueva, una lectura de hace 601 s de tiempo de control está vencida. `factorTiempo` sale de `Core.decidir`.
-- **Re-sincronización (D7)**: hoy cada INICIAR sella todas las lecturas guardadas con la hora nueva (`CoreAdapter.sincronizarReloj` o equivalente) y un dato viejo revive. Propuesta: conservar solo las que no estaban vencidas.
+- **Re-sincronización (D7, `83dbc1b`)**: antes cada INICIAR sellaba todas las lecturas guardadas con la hora nueva y un dato viejo revivía. Ahora `ControlService.iniciar` manda primero un Tick con la hora del reloj anterior y después la Sincronización; `CoreAdapter.sincronizarReloj` olvida las lecturas vencidas (`Core.lecturaVencida`, habitación a `SIN_LECTURA`) y marca las vigentes con la hora nueva. Pendiente: tests de re-INICIAR con otro factor y hacia atrás con lecturas mezcladas (T13).
 - **Tests**:
   - `PayloadTermostatoTest`: el ts exacto, por ejemplo `.123` → 123 ms sin error de redondeo, y el caso sin ts;
   - conversión con factor 2: INICIAR 13:00 con `fechaHora = 13:00`, `ts` 13:05 reales ⇒ 13:10;
@@ -233,7 +240,7 @@ En `.github/workflows/maven.yml` los dos pasos (`mvn clean test` y `mvn package 
 - "Encendida" sale de `deseado` (la última decisión ON), así que desaparece el `encendidas` duplicado del core.
 - Métodos:
   - `configurar`, `alLlegarLectura`, `alTick` y `sincronizar` actualizan su estado y llaman a un único `decidirYAplicar()`. Ese método arma el `Map<String, EstadoHabitacion>` y llama a `core.decidir(...)`.
-  - `sincronizar` mantiene la regla actual: las lecturas conocidas se toman como medidas en el nuevo instante.
+  - `sincronizar` aplica D7: las lecturas vencidas se olvidan y las vigentes se toman como medidas en el nuevo instante.
   - `estados()` (diagnóstico) lee del estado propio, sin `core.estadoById`.
 - `CoreConfig` crea un bean `Core` en vez de `ICoreClient`.
 
@@ -346,15 +353,18 @@ Rama `revision/<id>` desde `implementacion5` y PR de vuelta a `implementacion5` 
 | T7 | `revision/t7-camino-lectura` | `engine: una sola bandera de estado de ejecución y un solo try/catch en la lectura MQTT` |
 | T7b | `revision/t7b-estado-ejecucion` | `engine: CoreAdapter administra el estado de ejecución y se elimina ObjectProvider` |
 | T8 | `revision/t8-ts` | `engine: usar el ts del termostato como instante de la lectura` |
-| T8b | `revision/t8b-ts-hora-real` | `engine: ts en hora real convertido a la hora del control y descarte de lecturas viejas` |
+| T8b | `revision/t8b-ts-hora-real` (entregada en `revision/d7-resincronizar`) | `engine: ts en hora real convertido a la hora del control y descarte de lecturas viejas` |
 | T8c | `revision/t8c-vigencia-simulada` | `core: vigencia de las lecturas en tiempo simulado` |
-| T9 | `revision/t9-zona` | `engine: zona horaria fija del sitio` |
+| T9 | `revision/t9-zona` (entregada en `revision/d7-resincronizar`) | `engine: zona horaria fija del sitio` |
 | T10 | `revision/t10-legibilidad` | `estilo: loops e if en vez de streams y ternarios` |
 | T11a | `revision/t11a-4mas1-diseno-actual` | `docs: 4+1 actualizado al diseño actual del core y del engine` |
 | T11 | `revision/t11-docs` | `docs: 4+1, cobertura y resultados tras la revisión` |
-| T12 | `revision/t12-tick` | `engine: tick escalado con el factor de tiempo` |
+| T12 | `revision/t12-tick` (entregada en `revision/d7-resincronizar`) | `engine: tick escalado con el factor de tiempo` |
+| D7 | `revision/d7-resincronizar` | `engine: INICIAR no revive lecturas vencidas (D7)` |
 | T13 | `revision/t13-simulador` | `test: corrida contra el simulador con evidencia` |
 | T14 | `revision/t14-doc-tiempo` | `docs: relojes y decisiones sobre el tiempo` |
+
+**Excepción a D5.** T8b, T9, T12 y D7 se entregan juntas en `revision/d7-resincronizar` (commits `5283b55`, `89aba3d`, `bfd8495` y `83dbc1b`, más `3ad22bb` de T13) porque la prueba contra el simulador necesita las cuatro a la vez; las ramas por tarjeta de la tabla quedan sin usar.
 
 T3 no genera commit, salvo que la verificación encuentre algo. T1, T4, T5 y T7 ya entraron juntas en `67fe9a9`, sin rama propia: desde ahora cada tarjeta va en su rama.
 

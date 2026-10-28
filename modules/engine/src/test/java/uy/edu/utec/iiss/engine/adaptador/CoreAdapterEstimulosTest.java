@@ -33,7 +33,7 @@ import uy.edu.utec.iiss.core.model.Sitio;
 
 /**
  * Tests del procesamiento de estímulos: la secuencia lectura / tick / configuración / INICIAR, el
- * estado que se va acumulando y las decisiones que salen. Hasta la iteración 5 era {@code CoreTest}
+ * estado que se va acumulando y las decisiones que salen. Hasta la iteración 4 era {@code CoreTest}
  * y probaba {@code Core.procesar}; con el core sin estado ese manejo pasó a {@link
  * CoreAdapter#procesar}, y los tests se mudaron con él sin cambiar lo que verifican (las decisiones
  * las sigue tomando {@link Core#decidir}). Las validaciones de configuración inválida pasaron a
@@ -773,25 +773,26 @@ class CoreAdapterEstimulosTest {
 
         @Test
         @DisplayName(
-                "Con tiempo acelerado x60, la vigencia se escala: 5 min de control son 5 s reales y"
-                        + " no vencen")
-        void conTiempoAcelerado_laVigenciaSeEscala() {
+                "Con tiempo acelerado x60, la vigencia no se escala: 5 min de control no vencen"
+                        + " (vigencia 10 min de control)")
+        void conTiempoAcelerado_laVigenciaNoSeEscala() {
             adaptador.procesar(sincronizar(lunes(10, 0), 60));
             adaptador.procesar(lectura(ROOM1, 15.0, lunes(10, 0)));
 
-            List<Decision> d = adaptador.procesar(tick(lunes(10, 30))); // 30 s reales
+            List<Decision> d = adaptador.procesar(tick(lunes(10, 5)));
 
             assertEquals(Accion.ON, accionDe(d, ROOM1));
         }
 
         @Test
         @DisplayName(
-                "Con tiempo acelerado x60, 10 min reales sin lecturas (10 h de control) sí vencen")
-        void conTiempoAcelerado_tambienVence() {
+                "Con tiempo acelerado x60, pasados 10 min de control sin lecturas (10 s reales)"
+                        + " vencen")
+        void conTiempoAcelerado_vencePorTiempoDeControl() {
             adaptador.procesar(sincronizar(lunes(1, 0), 60));
             adaptador.procesar(lectura(ROOM1, 15.0, lunes(1, 0)));
 
-            List<Decision> d = adaptador.procesar(tick(lunes(11, 1)));
+            List<Decision> d = adaptador.procesar(tick(lunes(1, 11)));
 
             assertEquals(Motivo.LECTURA_VENCIDA, motivoDe(d, ROOM1));
         }
@@ -839,6 +840,23 @@ class CoreAdapterEstimulosTest {
                     adaptador.procesar(sincronizar(lunes(10, 0).plus(Duration.ofDays(30)), 1));
 
             assertEquals(Accion.ON, accionDe(d, ROOM1));
+        }
+
+        @Test
+        @DisplayName(
+                "Re-sincronizar no revive una lectura que ya estaba vencida con el reloj anterior"
+                        + " (D7); la vigente se conserva")
+        void resincronizar_noReviveLecturasVencidas() {
+            adaptador.procesar(lectura(ROOM1, 15.0, lunes(10, 0))); // vencerá
+            adaptador.procesar(lectura(ROOM2, 15.0, lunes(10, 8))); // sigue vigente
+            adaptador.procesar(tick(lunes(10, 11))); // room1 tiene 11 min: vencida
+
+            List<Decision> d = adaptador.procesar(sincronizar(lunes(14, 0), 1));
+
+            assertEquals(Motivo.SIN_LECTURA, motivoDe(d, ROOM1));
+            assertNull(adaptador.estadoDe(ROOM1).temperaturaActual());
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+            assertEquals(lunes(14, 0), adaptador.estadoDe(ROOM2).ultimaLectura());
         }
 
         @Test

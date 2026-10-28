@@ -107,7 +107,7 @@ class ArranqueParadaTest extends IntegracionBase {
     void iniciarEnFranjaPunta() throws Exception {
         SWITCHES.fijar("sw-living", "ON");
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
-        iniciar("2026-10-01T20:00:00Z", 1);
+        iniciar("2026-10-01T23:00:00Z", 1); // jueves 20:00 en Montevideo
         temperatura("living", 15.0);
 
         esperarMotivo("living", "TARIFA_PUNTA");

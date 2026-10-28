@@ -282,7 +282,7 @@ Ya está muy bien resuelto (OFF antes que ON, retención del ON). Falta:
 
 ## Postura del equipo
 
-Este documento está escrito desde el punto de vista del docente. Esta sección registra qué decidió el equipo sobre cada cambio. El plan del equipo para tocar Core y Engine (`docs/revision-docente.md`, tarjetas T4 y T5) se considera el mejor camino.
+Este documento está escrito desde el punto de vista del docente. Esta sección registra qué decidió el equipo sobre cada cambio. El plan del equipo para tocar Core y Engine (`docs/planificacion/revision-docente.md`, tarjetas T4 y T5) se considera el mejor camino.
 
 | Cambio | Decisión | Motivo | Estado (commit `67fe9a9`) |
 |---|---|---|---|
@@ -314,11 +314,11 @@ Este documento está escrito desde el punto de vista del docente. Esta sección 
 
 **A5 (`ts` en tiempo acelerado).** El tiempo del sistema es simulado. El simulador envía el `ts` del termostato en hora real (epoch del reloj real de su máquina) y el controlador lo convierte a la hora del control con la misma fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; `ts = 13:05` reales ⇒ 5 min × 2 = 10 min ⇒ 13:10 (con `fechaHora = 08:00` daría 08:10). Los mensajes MQTT llegan y se procesan en tiempo real, pero con intervalos inconsistentes, porque el simulador provoca a propósito atrasos, caídas y velocidad acelerada; por eso la hora sale del contexto recibido (INICIAR y `ts` convertido) y nunca de la máquina donde corre el controlador. Riesgo: la conversión supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj); un desfase entre máquinas se multiplica por el factor (2 s de desfase × 30 = 1 min simulado). Se verifica en T13.
 
-La conversión ya existe (`RelojControl.aTiempoDeControl`, que dejó `67fe9a9`), pero hoy está detrás de la propiedad `termostato.ts-tiempo-real`, que vale `false`: por defecto el `ts` se toma sin convertir, y eso es incorrecto. T8b deja la conversión siempre activa y elimina la propiedad (y `TERMOSTATO_TS_TIEMPO_REAL`). Reglas:
+La conversión (`RelojControl.aTiempoDeControl`, que dejó `67fe9a9`) estaba detrás de la propiedad `termostato.ts-tiempo-real`, en `false`. T8b (`5283b55`) la dejó siempre activa y eliminó la propiedad (y `TERMOSTATO_TS_TIEMPO_REAL`). Reglas:
 
 - si falta el `ts`, o ya convertido queda en el futuro respecto de `reloj.ahora()`, se usa `reloj.ahora()`;
 - las lecturas con `ts` anterior a la última guardada se descartan;
-- una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b; decisión del equipo pendiente, D8 de `revision-docente.md`). Hoy se registra con `ahora` y sostendría la calefacción con un dato viejo.
+- una lectura con `ts` más viejo que la vigencia se descarta y se cuenta en `/diagnostico` (T8b, `5283b55`; D8 de `revision-docente.md`, decidida). Antes se registraba con `ahora` y sostenía la calefacción con un dato viejo.
 
 Esto resuelve también la duda de B1 sobre la vigencia: si todo está en tiempo de control, la vigencia se mide en tiempo de control. Hoy `Core.vencida` calcula `vigenciaMs = vigenciaLectura × factorTiempo`: con factor 30 y 600 s son 5 h simuladas y ninguna lectura vence en toda la corrida. T8c quita esa multiplicación y saca `factorTiempo` de `Core.decidir`.
 

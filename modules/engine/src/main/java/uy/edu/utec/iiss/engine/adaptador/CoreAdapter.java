@@ -4,8 +4,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +79,8 @@ public class CoreAdapter implements AutoCloseable {
             Accion decision,
             String motivo,
             EstadoSwitch estadoSwitch,
-            String idSwitch) {}
+            String idSwitch,
+            Map<MotivoDescarte, Integer> lecturasDescartadas) {}
 
     private final Core core;
     private final ClienteSwitch switches;
@@ -92,8 +95,9 @@ public class CoreAdapter implements AutoCloseable {
     private List<ConfiguracionHabitacion> configuracion = List.of();
     private final Map<String, Double> temperaturas = new HashMap<>();
     private final Map<String, Instant> instanteLectura = new HashMap<>();
+    // Lecturas descartadas por habitación y motivo, para /diagnostico (D8).
+    private final Map<String, Map<MotivoDescarte, Integer>> descartes = new HashMap<>();
     private Instant ahora; // reloj del control según los estímulos (null = aún ninguno)
-    private double factorTiempo = 1; // aceleración vigente (escala la vigencia de las lecturas)
 
     // Switches
     private final Map<String, HabitacionControlada> habitaciones = new LinkedHashMap<>();
@@ -201,6 +205,24 @@ public class CoreAdapter implements AutoCloseable {
         return decisiones;
     }
 
+    /**
+     * Una lectura que no llegó a ser estímulo porque se descartó antes (por ejemplo, su {@code ts}
+     * es más viejo que la vigencia): solo se cuenta para {@code /diagnostico}. No cambia ninguna
+     * decisión.
+     */
+    public synchronized void descartarLectura(String idHabitacion, MotivoDescarte motivo) {
+        if (estaConfigurada(idHabitacion)) {
+            contarDescarte(idHabitacion, motivo);
+        }
+    }
+
+    private void contarDescarte(String idHabitacion, MotivoDescarte motivo) {
+        descartes
+                .computeIfAbsent(idHabitacion, id -> new EnumMap<>(MotivoDescarte.class))
+                .merge(motivo, 1, Integer::sum);
+        log.debug("Lectura de '{}' descartada: {}", idHabitacion, motivo);
+    }
+
     private void registrarLectura(Estimulo.NuevaLectura l) {
         String id = l.idHabitacion();
         if (!estaConfigurada(id)) {
@@ -211,7 +233,8 @@ public class CoreAdapter implements AutoCloseable {
         }
         Instant anterior = instanteLectura.get(id);
         if (anterior != null && l.ts().isBefore(anterior)) {
-            return; // llegó fuera de orden: hay un dato más nuevo
+            contarDescarte(id, MotivoDescarte.FUERA_DE_ORDEN); // hay un dato más nuevo
+            return;
         }
         temperaturas.put(id, l.temperaturaC());
         instanteLectura.put(id, l.ts());
@@ -236,18 +259,36 @@ public class CoreAdapter implements AutoCloseable {
         temperaturas.keySet().retainAll(ids);
         instanteLectura.keySet().retainAll(ids);
         deseado.keySet().retainAll(ids);
+        descartes.keySet().retainAll(ids);
     }
 
     /**
-     * INICIAR (re)sincroniza el reloj: puede ir hacia atrás. Las temperaturas conocidas se
-     * conservan y se toman como medidas en el nuevo instante, así no se apaga todo hasta que llegue
-     * la próxima lectura, ni se descartan como "fuera de orden" las lecturas que vengan después de
-     * un salto hacia atrás.
+     * INICIAR (re)sincroniza el reloj: puede ir hacia atrás.
+     *
+     * <ul>
+     *   <li>Una lectura que, con el reloj <b>anterior</b>, ya estaba vencida se olvida: la
+     *       habitación queda sin lectura hasta que llegue una nueva (D7). Si no, al sellarla con la
+     *       hora nueva un dato viejo volvería a contar como reciente.
+     *   <li>Las vigentes se conservan y se toman como medidas en el nuevo instante, así no se apaga
+     *       todo hasta la próxima lectura, ni se descartan como "fuera de orden" las que lleguen
+     *       después de un salto hacia atrás.
+     * </ul>
+     *
+     * El reloj anterior es {@code ahora}: {@code ControlService} manda un Tick con la hora actual
+     * del reloj viejo justo antes, para que cuente también el tiempo que estuvo detenido.
      */
     private void sincronizarReloj(Estimulo.Sincronizacion s) {
+        Iterator<Map.Entry<String, Instant>> lecturas = instanteLectura.entrySet().iterator();
+        while (lecturas.hasNext()) {
+            Map.Entry<String, Instant> lectura = lecturas.next();
+            if (core.lecturaVencida(lectura.getValue(), ahora)) {
+                temperaturas.remove(lectura.getKey());
+                lecturas.remove();
+            } else {
+                lectura.setValue(s.ahora());
+            }
+        }
         ahora = s.ahora();
-        factorTiempo = s.factorTiempo();
-        instanteLectura.replaceAll((id, ts) -> s.ahora());
     }
 
     /** Arma la situación con el estado propio y le pide al core que decida. */
@@ -259,7 +300,7 @@ public class CoreAdapter implements AutoCloseable {
         for (ConfiguracionHabitacion h : configuracion) {
             estados.put(h.id(), estadoDe(h.id()));
         }
-        return core.decidir(sitio, configuracion, estados, ahora, factorTiempo);
+        return core.decidir(sitio, configuracion, estados, ahora);
     }
 
     private boolean estaConfigurada(String idHabitacion) {
@@ -554,7 +595,8 @@ public class CoreAdapter implements AutoCloseable {
                             d == null ? null : d.accion(),
                             d == null ? null : d.motivo().name(),
                             estadoConocido.getOrDefault(h.id(), EstadoSwitch.DESCONOCIDO),
-                            h.idSwitch()));
+                            h.idSwitch(),
+                            Map.copyOf(descartes.getOrDefault(h.id(), Map.of()))));
         }
         return salida;
     }
