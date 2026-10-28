@@ -1,6 +1,6 @@
 # Grupo 4 — Iteración 5: cambios para llegar a un proyecto excelente
 
-Este documento complementa `evaluacion-1-iter5.md` y la planificación de [`revision-docente.md`](revision-docente.md). Cada cambio dice **qué** hacer, **por qué** (qué requisito o qué observación atiende) y **cuándo** se considera hecho. Están ordenados por prioridad:
+Este documento complementa la planificación de [`revision-docente.md`](revision-docente.md). Cada cambio dice **qué** hacer, **por qué** (qué requisito o qué observación atiende) y **cuándo** se considera hecho. Están ordenados por prioridad:
 
 - **Bloque A:** obligatorios para que la entrega sea coherente.
 - **Bloque B:** hacen que la entrega quede sólida.
