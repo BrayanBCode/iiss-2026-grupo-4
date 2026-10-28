@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Lo que el engine le puede mandar al core, ya traducido a su modelo (el core no sabe de MQTT ni
- * REST). Es {@code sealed} para que el {@code switch} de {@code Core.procesar} sea exhaustivo.
+ * Modelo de los estímulos a los que reacciona el controlador, ya traducidos (sin MQTT ni REST). El
+ * engine los procesa en {@code CoreAdapter.procesar}: actualiza la situación y le pide al {@link
+ * uy.edu.utec.iiss.core.Core} que decida. Es {@code sealed} para que ese {@code switch} sea
+ * exhaustivo.
  *
  * <p>Los instantes son del reloj del control (§5.2), no del sistema.
  */

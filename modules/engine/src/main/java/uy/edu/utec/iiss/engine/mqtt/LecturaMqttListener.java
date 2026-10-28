@@ -302,7 +302,7 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                                     topic,
                                     idHabitacion,
                                     p.temperaturaC());
-                            controlService.alRecibirLectura(idHabitacion, p.temperaturaC());
+                            controlService.alRecibirLectura(idHabitacion, p.temperaturaC(), p.ts());
                         },
                         () ->
                                 log.warn(

@@ -257,7 +257,7 @@ class ApiEstandarTest {
                                         "{\"accion\":\"INICIAR\",\"fechaHora\":\"2026-10-01T09:15:03.120Z\"}"))
                 .andExpect(status().isOk());
 
-        control.alRecibirLectura("room1", 18.0);
+        control.alRecibirLectura("room1", 18.0, null);
 
         comando("http://switches:8081", "sw-sim-room1", Accion.ON);
         mvc.perform(conClave(get("/diagnostico")))
@@ -275,7 +275,7 @@ class ApiEstandarTest {
         mvc.perform(conClave(post("/control/comandos")).content("{\"accion\":\"DETENER\"}"))
                 .andExpect(status().isOk());
 
-        control.alRecibirLectura("room1", 10.0);
+        control.alRecibirLectura("room1", 10.0, null);
 
         assertTrue(switches.comandos.isEmpty(), "comandó estando detenido: " + switches.comandos);
     }

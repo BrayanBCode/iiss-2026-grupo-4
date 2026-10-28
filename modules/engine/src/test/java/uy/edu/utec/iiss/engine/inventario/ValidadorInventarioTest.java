@@ -130,6 +130,24 @@ class ValidadorInventarioTest {
     }
 
     @Test
+    @DisplayName(
+            "Id vacío, temperatura no numérica y contratada NaN se rechazan (antes los rechazaba"
+                    + " también el core)")
+    void loQueAntesValidabaElCore() {
+        assertEquals(
+                1, ValidadorInventario.validar(conHabitaciones(habitacion(" ", 20, 1))).size());
+        assertEquals(
+                1,
+                ValidadorInventario.validar(conHabitaciones(habitacion("a", Double.NaN, 1)))
+                        .size());
+        assertEquals(
+                1,
+                ValidadorInventario.validar(
+                                conSitio(sitio(Double.NaN, "17:00", "23:00", "HABILES")))
+                        .size());
+    }
+
+    @Test
     @DisplayName("Inventario nulo o sin partes se rechaza sin excepciones")
     void incompleto() {
         assertEquals(1, ValidadorInventario.validar(null).size());

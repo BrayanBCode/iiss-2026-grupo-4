@@ -1,32 +1,48 @@
 name: IISS2026
 
+# Corre en master, en las ramas de cada iteración (implementacion*), en los tags de entrega
+# (version*) y en los PR hacia esas ramas.
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "implementacion*" ]
+    tags: [ "version*" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "implementacion*" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Descarga el código fuente del repositorio
       - name: Descargar código
         uses: actions/checkout@v4
 
-      #  Configura el entorno de Java (JDK) y la caché de Maven
       - name: Configurar JDK 25
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
-          cache: 'maven' # Optimiza la descarga de dependencias de Maven
+          cache: 'maven'
 
-      #  Compila y ejecuta las pruebas unitarias
-      - name: Compilar y Probar con Maven
-        run: mvn -B clean test
+      # Un solo paso que verifica todo: formato (Spotless), compilación, tests unitarios y de
+      # integración, umbral de cobertura del core (JaCoCo check) y empaquetado. Si algo no
+      # cumple, la corrida falla.
+      - name: Verificar (mvn verify)
+        run: mvn -B verify
 
-      # Genera el paquete (.jar o .war) sin volver a ejecutar tests
-      - name: Empaquetar proyecto
-        run: mvn -B package -DskipTests
+      # Los reportes se suben aunque la verificación falle, para poder ver qué falló.
+      - name: Subir reporte de cobertura del core
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-core-jacoco
+          path: modules/core/target/site/jacoco/
+          if-no-files-found: ignore
+
+      - name: Subir reportes de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-tests
+          path: modules/*/target/surefire-reports/
+          if-no-files-found: ignore

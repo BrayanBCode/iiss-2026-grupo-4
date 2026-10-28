@@ -1,8 +1,10 @@
 package uy.edu.utec.iiss.engine.integracion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -113,5 +115,41 @@ class PerdidaMensajesTest extends IntegracionBase {
                 () -> "el engine no volvió a suscribirse");
         temperatura("living", 25.0); // la siguiente lectura sí llega
         esperarSwitch("living", "OFF");
+    }
+
+    @Test
+    @DisplayName(
+            "Se usa el ts del termostato: exacto como instante de la lectura, una más vieja que la"
+                    + " última se descarta, y sin ts se usa la hora de llegada")
+    void tsDelTermostato() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar();
+        esperar(() -> BROKER.haySuscriptor(topic("living")), () -> "no se suscribió");
+        Instant inicio = Instant.parse(FECHA_INICIO);
+
+        // ts exacto, en la hora del control: es el instante con que se guarda (no el de llegada)
+        BROKER.publicar(
+                topic("living"), payload(16.0, "%d.250".formatted(inicio.getEpochSecond())));
+        esperar(
+                () -> inicio.plusMillis(250).equals(estado("living").ultimaLectura()),
+                () -> "no se guardó el ts exacto: " + estado("living").ultimaLectura());
+        esperarSwitch("living", "ON");
+
+        // un minuto más vieja que la última: llegó fuera de orden, se descarta
+        BROKER.publicar(
+                topic("living"), payload(25.0, String.valueOf(inicio.getEpochSecond() - 60)));
+        seMantiene(
+                Duration.ofMillis(700),
+                () -> estado("living").temperaturaActual() == 16.0,
+                () -> "se usó una lectura fuera de orden: " + estado("living"));
+
+        // sin ts: vale igual, con la hora de llegada
+        BROKER.publicar(topic("living"), "{\"id\":0,\"tC\":25.0}");
+        esperarSwitch("living", "OFF");
+        assertTrue(estado("living").ultimaLectura().isAfter(inicio.plusMillis(250)));
+    }
+
+    private static String payload(double temperaturaC, String ts) {
+        return "{\"id\":0,\"tC\":%s,\"ts\":%s}".formatted(temperaturaC, ts);
     }
 }

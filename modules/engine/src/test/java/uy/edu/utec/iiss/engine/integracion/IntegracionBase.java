@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.EstadoControlado;
+import uy.edu.utec.iiss.engine.control.ControlService;
 import uy.edu.utec.iiss.engine.inventario.Inventario;
 
 /**
@@ -79,6 +80,7 @@ public abstract class IntegracionBase {
 
     @Autowired protected MockMvc mvc;
     @Autowired protected CoreAdapter adaptador;
+    @Autowired protected ControlService control;
     @Autowired protected ObjectMapper json;
 
     @BeforeEach
@@ -178,7 +180,7 @@ public abstract class IntegracionBase {
                 () -> BROKER.haySuscriptor(topic(idHabitacion)),
                 () -> "el engine no se suscribió a " + topic(idHabitacion));
         BROKER.publicarTemperatura(topic(idHabitacion), temperaturaC);
-        if (adaptador.habilitado()) {
+        if (control.enEjecucion()) {
             esperar(
                     () -> Objects.equals(estado(idHabitacion).temperaturaActual(), temperaturaC),
                     () -> "el core no registró " + temperaturaC + " °C en " + idHabitacion);

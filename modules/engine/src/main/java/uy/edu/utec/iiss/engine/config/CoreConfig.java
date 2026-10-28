@@ -2,14 +2,15 @@ package uy.edu.utec.iiss.engine.config;
 
 import java.time.Clock;
 import java.time.Duration;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import uy.edu.utec.iiss.core.Core;
 import uy.edu.utec.iiss.core.MayorDeficitPrimero;
-import uy.edu.utec.iiss.core.cliente.CoreClient;
-import uy.edu.utec.iiss.core.cliente.ICoreClient;
 import uy.edu.utec.iiss.core.model.ParametrosControl;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
+import uy.edu.utec.iiss.engine.control.ControlService;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
 
 /**
@@ -26,7 +27,7 @@ public class CoreConfig {
     }
 
     @Bean
-    public ICoreClient coreClient(
+    public Core core(
             @Value("${control.histeresis-c:0.3}") double histeresisC,
             @Value("${control.margen-intercambio-c:0.5}") double margenIntercambioC,
             @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos) {
@@ -36,15 +37,26 @@ public class CoreConfig {
                         Duration.ofSeconds(vigenciaSegundos),
                         ParametrosControl.PREDETERMINADOS.temperaturaMinimaValida(),
                         ParametrosControl.PREDETERMINADOS.temperaturaMaximaValida());
-        return new CoreClient(new MayorDeficitPrimero(margenIntercambioC), parametros);
+        return new Core(new MayorDeficitPrimero(margenIntercambioC), parametros);
     }
 
+    /**
+     * El adaptador pregunta si el control está en marcha a {@link ControlService}, el único que lo
+     * sabe. Se busca recién cuando se pregunta ({@code ObjectProvider}) porque {@code
+     * ControlService} a su vez usa el adaptador: inyectarlo directo sería una dependencia circular.
+     */
     @Bean
     public CoreAdapter coreAdapter(
-            ICoreClient core,
+            Core core,
             ClienteSwitch switches,
             Clock relojReal,
-            @Value("${switch.espera-reintento-segundos:5}") long esperaReintento) {
-        return new CoreAdapter(core, switches, relojReal, Duration.ofSeconds(esperaReintento));
+            @Value("${switch.espera-reintento-segundos:5}") long esperaReintento,
+            ObjectProvider<ControlService> control) {
+        return new CoreAdapter(
+                core,
+                switches,
+                relojReal,
+                Duration.ofSeconds(esperaReintento),
+                () -> control.getObject().enEjecucion());
     }
 }

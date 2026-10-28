@@ -4,30 +4,27 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import uy.edu.utec.iiss.core.model.Accion;
 import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 import uy.edu.utec.iiss.core.model.Decision;
 import uy.edu.utec.iiss.core.model.EstadoHabitacion;
-import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.ParametrosControl;
 import uy.edu.utec.iiss.core.model.Sitio;
 
 /**
- * Lógica de decisión del controlador: recibe {@link Estimulo}s y devuelve, para cada habitación del
- * inventario, si debe recibir energía y por qué.
+ * Lógica de decisión del controlador, sin estado: dada una situación (sitio, habitaciones, lo que
+ * se sabe de cada una y la hora del control) dice qué habitación recibe energía y por qué.
  *
- * <p>Java puro y determinista (sin reloj del sistema, red ni azar): la misma secuencia de estímulos
- * da siempre las mismas decisiones. No es thread-safe; el engine serializa las llamadas.
+ * <p>Java puro y determinista (sin reloj del sistema, red ni azar): la misma situación da siempre
+ * las mismas decisiones. No guarda nada entre llamadas; el estado (lecturas, reloj, última
+ * decisión) lo lleva el engine ({@code CoreAdapter}). Solo tiene campos finales, así que se puede
+ * compartir entre hilos.
  *
- * <p>{@link #procesar} actualiza el estado con el estímulo y llama a {@link #decidir}, que recibe
- * toda la situación por parámetro y decide en tres pasos:
+ * <p>{@link #decidir} decide en tres pasos:
  *
  * <ol>
  *   <li><b>Necesidad</b> de cada habitación: sin lectura, lectura vencida, satisfecha (con
@@ -46,14 +43,6 @@ public class Core {
     private final CriterioPrioridad criterioPrioridad;
     private final ParametrosControl parametros;
 
-    private Sitio sitio;
-    private final Map<String, ConfiguracionHabitacion> habitaciones = new LinkedHashMap<>();
-    private final Map<String, Double> temperaturas = new HashMap<>();
-    private final Map<String, Instant> instanteLectura = new HashMap<>();
-    private final Set<String> encendidas = new HashSet<>();
-    private Instant ahora; // reloj del control según los estímulos (null = aún ninguno)
-    private double factorTiempo = 1; // aceleración vigente (escala la vigencia de las lecturas)
-
     public Core(CriterioPrioridad criterioPrioridad) {
         this(criterioPrioridad, ParametrosControl.PREDETERMINADOS);
     }
@@ -64,133 +53,20 @@ public class Core {
     }
 
     /**
-     * Procesa un estímulo y devuelve una decisión por habitación configurada, en el orden del
-     * inventario (lista vacía si todavía no hay sitio).
-     *
-     * @throws IllegalArgumentException si es una configuración inválida; en ese caso el estado
-     *     queda exactamente como estaba.
+     * Si una temperatura puede venir de un sensor sano: finita y dentro del rango físico del sensor
+     * ({@link ParametrosControl#temperaturaMinimaValida()} a {@link
+     * ParametrosControl#temperaturaMaximaValida()}). Una que no lo es se descarta y se conserva el
+     * último dato bueno.
      */
-    public List<Decision> procesar(Estimulo estimulo) {
-        switch (estimulo) {
-            case Estimulo.NuevaLectura l -> registrarLectura(l);
-            case Estimulo.Tick t -> avanzarReloj(t.ts());
-            case Estimulo.ConfiguracionActualizada c -> configurar(c);
-            case Estimulo.Sincronizacion s -> sincronizar(s);
-        }
-        return decidirConEstadoActual();
-    }
-
-    // ------------------------------------------------------------------
-    // Estímulos
-    // ------------------------------------------------------------------
-
-    private void registrarLectura(Estimulo.NuevaLectura l) {
-        String id = l.idHabitacion();
-        if (!habitaciones.containsKey(id)) {
-            return; // habitación desconocida: no se guarda nada
-        }
-        double t = l.temperaturaC();
-        if (!Double.isFinite(t)
-                || t < parametros.temperaturaMinimaValida()
-                || t > parametros.temperaturaMaximaValida()) {
-            return; // sensor defectuoso: se conserva el último dato bueno
-        }
-        Instant anterior = instanteLectura.get(id);
-        if (anterior != null && l.ts().isBefore(anterior)) {
-            return; // llegó fuera de orden: hay un dato más nuevo
-        }
-        temperaturas.put(id, t);
-        instanteLectura.put(id, l.ts());
-        avanzarReloj(l.ts());
-    }
-
-    /** El reloj solo avanza con lecturas y ticks: un estímulo atrasado no lo hace retroceder. */
-    private void avanzarReloj(Instant ts) {
-        if (ahora == null || ts.isAfter(ahora)) {
-            ahora = ts;
-        }
-    }
-
-    private void configurar(Estimulo.ConfiguracionActualizada c) {
-        validar(c); // si falla, no se tocó nada
-        sitio = c.sitio();
-        habitaciones.clear();
-        for (ConfiguracionHabitacion h : c.habitaciones()) {
-            habitaciones.put(h.id(), h);
-        }
-        temperaturas.keySet().retainAll(habitaciones.keySet());
-        instanteLectura.keySet().retainAll(habitaciones.keySet());
-        encendidas.retainAll(habitaciones.keySet());
-    }
-
-    private static void validar(Estimulo.ConfiguracionActualizada c) {
-        double contratada = c.sitio().potenciaContratadaKW();
-        if (!(contratada > 0) || Double.isInfinite(contratada)) {
-            throw new IllegalArgumentException(
-                    "potenciaContratadaKW debe ser > 0 (es " + contratada + ")");
-        }
-        Set<String> ids = new HashSet<>();
-        for (ConfiguracionHabitacion h : c.habitaciones()) {
-            if (h == null || h.id() == null || h.id().isBlank()) {
-                throw new IllegalArgumentException("Hay una habitación sin id");
-            }
-            if (!ids.add(h.id())) {
-                throw new IllegalArgumentException("id de habitación duplicado: '" + h.id() + "'");
-            }
-            if (!(h.potenciaKW() > 0) || Double.isInfinite(h.potenciaKW())) {
-                throw new IllegalArgumentException(
-                        "habitación '" + h.id() + "': potenciaKW debe ser > 0");
-            }
-            if (!Double.isFinite(h.temperaturaEsperada())) {
-                throw new IllegalArgumentException(
-                        "habitación '" + h.id() + "': temperaturaEsperada inválida");
-            }
-        }
+    public boolean lecturaValida(double temperaturaC) {
+        return Double.isFinite(temperaturaC)
+                && temperaturaC >= parametros.temperaturaMinimaValida()
+                && temperaturaC <= parametros.temperaturaMaximaValida();
     }
 
     /**
-     * INICIAR (re)sincroniza el reloj: puede ir hacia atrás. Las temperaturas conocidas se
-     * conservan y se toman como medidas en el nuevo instante, así no se apaga todo hasta que llegue
-     * la próxima lectura, ni se descartan como "fuera de orden" las lecturas que vengan después de
-     * un salto hacia atrás.
-     */
-    private void sincronizar(Estimulo.Sincronizacion s) {
-        ahora = s.ahora();
-        factorTiempo = s.factorTiempo();
-        instanteLectura.replaceAll((id, ts) -> s.ahora());
-    }
-
-    // ------------------------------------------------------------------
-    // Función de decisión
-    // ------------------------------------------------------------------
-
-    /**
-     * Arma la situación actual con el estado interno, decide, y recuerda cuáles quedaron
-     * encendidas.
-     */
-    private List<Decision> decidirConEstadoActual() {
-        if (sitio == null) {
-            return List.of();
-        }
-        Map<String, EstadoHabitacion> estados = new HashMap<>();
-        for (String id : habitaciones.keySet()) {
-            estados.put(id, estadoDe(id));
-        }
-        List<Decision> decisiones =
-                decidir(sitio, List.copyOf(habitaciones.values()), estados, ahora, factorTiempo);
-        encendidas.clear();
-        for (Decision d : decisiones) {
-            if (d.accion() == Accion.ON) {
-                encendidas.add(d.idHabitacion());
-            }
-        }
-        return decisiones;
-    }
-
-    /**
-     * La función de decisión: dada una situación, qué habitaciones reciben energía y por qué.
-     * Aparte del criterio y los parámetros de control, todo llega por parámetro: no lee ni modifica
-     * el estado del core.
+     * La función de decisión: dada una situación, qué habitaciones reciben energía y por qué. Todo
+     * llega por parámetro, salvo el criterio y los parámetros de control.
      *
      * @param sitio potencia contratada, franja punta y zona horaria
      * @param habitaciones configuración de cada habitación; las decisiones salen en este orden
@@ -297,28 +173,5 @@ public class Core {
         }
         var local = ahora.atZone(sitio.zona());
         return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());
-    }
-
-    // ------------------------------------------------------------------
-    // Consultas
-    // ------------------------------------------------------------------
-
-    /** Estado interno de una habitación, o null si no está en el inventario. */
-    public EstadoHabitacion estadoDe(String idHabitacion) {
-        if (!habitaciones.containsKey(idHabitacion)) {
-            return null;
-        }
-        return new EstadoHabitacion(
-                idHabitacion,
-                temperaturas.get(idHabitacion),
-                instanteLectura.get(idHabitacion),
-                encendidas.contains(idHabitacion));
-    }
-
-    /**
-     * Reloj del control según el último estímulo (null si todavía no llegó ninguno con instante).
-     */
-    public Instant ahora() {
-        return ahora;
     }
 }

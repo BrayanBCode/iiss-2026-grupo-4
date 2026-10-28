@@ -1,6 +1,7 @@
 package uy.edu.utec.iiss.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static uy.edu.utec.iiss.core.CoreTestFixtures.*;
 
@@ -637,6 +638,59 @@ class DecidirTest {
             }
             assertTrue(usada <= 4.5 + 1e-9, "se encendieron " + usada + " kW");
             assertTrue(usada > 0);
+        }
+    }
+
+    // =================================================================
+    @Nested
+    @DisplayName("Lectura válida y situaciones incompletas")
+    class LecturaValidaYSituacionIncompleta {
+
+        @Test
+        @DisplayName("Una temperatura del sensor vale entre -40 y 85 °C, bordes incluidos")
+        void lecturaValida_rangoDelSensor() {
+            assertTrue(core.lecturaValida(21.5));
+            assertTrue(core.lecturaValida(-40.0));
+            assertTrue(core.lecturaValida(85.0));
+            assertFalse(core.lecturaValida(-40.1));
+            assertFalse(core.lecturaValida(85.1));
+            assertFalse(core.lecturaValida(Double.NaN));
+            assertFalse(core.lecturaValida(Double.POSITIVE_INFINITY));
+        }
+
+        @Test
+        @DisplayName(
+                "Sin hora del control (antes del primer estímulo) no hay punta ni vencimientos")
+        void sinHora_noHayPuntaNiVencimiento() {
+            Hab vieja = apagada("living", 21.5, 1.2, 15.0).leidaEn(lunes(0, 0));
+
+            List<Decision> d = decidir(3.7, null, vieja);
+
+            assertEquals(Motivo.CALEFACCIONANDO, motivoDe(d, "living"));
+        }
+
+        @Test
+        @DisplayName("Con lectura pero sin instante, la lectura no vence")
+        void lecturaSinInstante_noVence() {
+            Hab sinInstante = apagada("living", 21.5, 1.2, 15.0).leidaEn(null);
+
+            List<Decision> d = decidir(3.7, AHORA, sinInstante);
+
+            assertEquals(Motivo.CALEFACCIONANDO, motivoDe(d, "living"));
+        }
+
+        @Test
+        @DisplayName("Una habitación sin entrada en los estados se toma como sin lectura")
+        void sinEstado_esSinLectura() {
+            List<Decision> d =
+                    core.decidir(
+                            new Sitio("sitio-test", 3.7, PUNTA),
+                            List.of(hab("living", 21.5, 1.2)),
+                            Map.of(),
+                            AHORA,
+                            1);
+
+            assertEquals(Motivo.SIN_LECTURA, motivoDe(d, "living"));
         }
     }
 }

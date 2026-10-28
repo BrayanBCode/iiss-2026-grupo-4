@@ -8,13 +8,13 @@ import uy.edu.utec.iiss.core.model.Accion;
 import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 import uy.edu.utec.iiss.core.model.Decision;
 import uy.edu.utec.iiss.core.model.DiasTarifa;
-import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.Sitio;
 
 /**
- * Utilitarios compartidos por los tests del core (no es un test en sí).
+ * Utilitarios compartidos por los tests del core ({@code DecidirTest}, {@code
+ * MayorDeficitPrimeroTest}; no es un test en sí).
  *
  * <p>Calendario usado: octubre de 2026, hora de Uruguay (UTC-3). lunes 5, martes 6, miércoles 7,
  * jueves 8, viernes 9, sábado 10, domingo 11.
@@ -31,40 +31,10 @@ final class CoreTestFixtures {
 
     private CoreTestFixtures() {}
 
-    // ---------- construcción de core / configuración ----------
+    // ---------- configuración ----------
 
     static ConfiguracionHabitacion hab(String id, double temperaturaEsperada, double potenciaKW) {
         return new ConfiguracionHabitacion(id, id, temperaturaEsperada, potenciaKW);
-    }
-
-    static Core nuevoCore(double potenciaContratadaKW, ConfiguracionHabitacion... habitaciones) {
-        Core core = new Core(new MayorDeficitPrimero());
-        core.procesar(config(potenciaContratadaKW, habitaciones));
-        return core;
-    }
-
-    static Estimulo.ConfiguracionActualizada config(
-            double potenciaContratadaKW, ConfiguracionHabitacion... habitaciones) {
-        return config(new Sitio("sitio-test", potenciaContratadaKW, PUNTA), habitaciones);
-    }
-
-    static Estimulo.ConfiguracionActualizada config(
-            Sitio sitio, ConfiguracionHabitacion... habitaciones) {
-        return new Estimulo.ConfiguracionActualizada(sitio, List.of(habitaciones));
-    }
-
-    // ---------- estímulos ----------
-
-    static Estimulo.NuevaLectura lectura(String idHabitacion, double temperaturaC, Instant ts) {
-        return new Estimulo.NuevaLectura(idHabitacion, temperaturaC, ts);
-    }
-
-    static Estimulo.Tick tick(Instant ts) {
-        return new Estimulo.Tick(ts);
-    }
-
-    static Estimulo.Sincronizacion sincronizar(Instant ahora, double factorTiempo) {
-        return new Estimulo.Sincronizacion(ahora, factorTiempo);
     }
 
     // ---------- tiempo ----------
@@ -107,24 +77,5 @@ final class CoreTestFixtures {
 
     static Motivo motivoDe(List<Decision> decisiones, String idHabitacion) {
         return decisionDe(decisiones, idHabitacion).motivo();
-    }
-
-    static long cantidadEncendidas(List<Decision> decisiones) {
-        return decisiones.stream().filter(d -> d.accion() == Accion.ON).count();
-    }
-
-    /** Suma de potencia (kW) de las habitaciones que quedaron en ON. */
-    static double potenciaEncendida(
-            List<Decision> decisiones, List<ConfiguracionHabitacion> habitaciones) {
-        return decisiones.stream()
-                .filter(d -> d.accion() == Accion.ON)
-                .mapToDouble(
-                        d ->
-                                habitaciones.stream()
-                                        .filter(h -> h.id().equals(d.idHabitacion()))
-                                        .mapToDouble(ConfiguracionHabitacion::potenciaKW)
-                                        .findFirst()
-                                        .orElse(0.0))
-                .sum();
     }
 }

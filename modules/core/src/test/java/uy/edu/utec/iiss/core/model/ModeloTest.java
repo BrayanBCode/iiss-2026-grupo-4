@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +52,52 @@ class ModeloTest {
                 () ->
                         new FranjaHoraria(
                                 LocalTime.of(17, 0), LocalTime.of(17, 0), DiasTarifa.TODOS));
+    }
+
+    @Test
+    @DisplayName(
+            "Sincronizacion (INICIAR): un factor de tiempo no positivo, NaN o infinito se rechaza")
+    void sincronizacionFactorInvalido() {
+        Instant ahora = Instant.parse("2026-10-05T13:00:00Z");
+        assertThrows(IllegalArgumentException.class, () -> new Estimulo.Sincronizacion(ahora, 0));
+        assertThrows(IllegalArgumentException.class, () -> new Estimulo.Sincronizacion(ahora, -2));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Estimulo.Sincronizacion(ahora, Double.NaN));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Estimulo.Sincronizacion(ahora, Double.POSITIVE_INFINITY));
+        assertEquals(60.0, new Estimulo.Sincronizacion(ahora, 60).factorTiempo());
+    }
+
+    @Test
+    @DisplayName(
+            "Estímulos: los campos obligatorios no pueden ser null y la configuración no se puede"
+                    + " modificar desde afuera")
+    void estimulosCamposObligatorios() {
+        Instant ts = Instant.parse("2026-10-05T13:00:00Z");
+        FranjaHoraria f =
+                new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
+        Sitio sitio = new Sitio("s", 3.7, f);
+
+        assertThrows(NullPointerException.class, () -> new Estimulo.NuevaLectura(null, 20, ts));
+        assertThrows(NullPointerException.class, () -> new Estimulo.NuevaLectura("a", 20, null));
+        assertThrows(NullPointerException.class, () -> new Estimulo.Tick(null));
+        assertThrows(
+                NullPointerException.class,
+                () -> new Estimulo.ConfiguracionActualizada(null, List.of()));
+        assertThrows(
+                NullPointerException.class,
+                () -> new Estimulo.ConfiguracionActualizada(sitio, null));
+
+        List<ConfiguracionHabitacion> original = new ArrayList<>();
+        original.add(new ConfiguracionHabitacion("a", "A", 21, 1));
+        Estimulo.ConfiguracionActualizada c =
+                new Estimulo.ConfiguracionActualizada(sitio, original);
+        original.clear();
+        assertEquals(1, c.habitaciones().size()); // guardó una copia
+        assertEquals(ts, new Estimulo.Tick(ts).ts());
+        assertEquals(20.0, new Estimulo.NuevaLectura("a", 20, ts).temperaturaC());
     }
 
     @Test

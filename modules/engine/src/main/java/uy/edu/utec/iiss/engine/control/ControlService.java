@@ -2,6 +2,7 @@ package uy.edu.utec.iiss.engine.control;
 
 import jakarta.annotation.PreDestroy;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import uy.edu.utec.iiss.core.model.DiasTarifa;
+import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Sitio;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter;
@@ -53,8 +55,12 @@ public class ControlService {
     private final Optional<ZoneId> zonaFija;
     private final long tickMs;
     private final long reconciliacionSegundos;
+    private final Duration vigenciaLectura;
+    private final boolean tsEnTiempoReal;
 
-    private volatile RelojControl reloj; // null = DETENIDO
+    // Único lugar donde vive el estado de marcha: null = DETENIDO. CoreAdapter lo consulta con
+    // enEjecucion() en vez de guardar una bandera propia.
+    private volatile RelojControl reloj;
     private ScheduledExecutorService temporizador;
 
     public ControlService(
@@ -63,7 +69,9 @@ public class ControlService {
             Clock relojReal,
             @Value("${control.zona-horaria:}") String zonaFija,
             @Value("${control.tick-ms:1000}") long tickMs,
-            @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos) {
+            @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos,
+            @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos,
+            @Value("${termostato.ts-tiempo-real:false}") boolean tsEnTiempoReal) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
         this.relojReal = relojReal;
@@ -73,6 +81,8 @@ public class ControlService {
                         : Optional.of(ZoneId.of(zonaFija.trim()));
         this.tickMs = tickMs;
         this.reconciliacionSegundos = reconciliacionSegundos;
+        this.vigenciaLectura = Duration.ofSeconds(vigenciaSegundos);
+        this.tsEnTiempoReal = tsEnTiempoReal;
     }
 
     // ------------------------------------------------------------------
@@ -92,10 +102,15 @@ public class ControlService {
                         factorTiempo,
                         relojReal.instant(),
                         zonaFija.orElse(zonaDeFechaHora));
+        // Primero se configura y se sincroniza, y recién después se marca "en marcha": así la
+        // primera pasada de switches es la que consulta su estado real (§4) antes de comandar.
+        Optional<Inventario> inventario = inventarioService.actual(); // la zona pudo cambiar
+        if (inventario.isPresent()) {
+            configurarCore(inventario.get(), nuevo.zona());
+        }
+        adaptador.procesar(new Estimulo.Sincronizacion(nuevo.fechaHora(), nuevo.factorTiempo()));
         reloj = nuevo;
-        inventarioService.actual().ifPresent(this::configurarCore); // la zona pudo cambiar
-        adaptador.sincronizar(nuevo.fechaHora(), nuevo.factorTiempo());
-        adaptador.habilitar();
+        adaptador.alIniciar();
         arrancarTemporizador();
         log.info(
                 "Control {}: fechaHora={} factorTiempo={} zona={}",
@@ -108,8 +123,7 @@ public class ControlService {
 
     public synchronized EstadoControl detener() {
         if (reloj != null) {
-            reloj = null;
-            adaptador.deshabilitar();
+            reloj = null; // desde acá el adaptador no comanda más switches
             pararTemporizador();
             log.info("Control DETENIDO: no se comandan más switches.");
         }
@@ -133,27 +147,36 @@ public class ControlService {
     // Estímulos del entorno
     // ------------------------------------------------------------------
 
-    /** Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. */
-    public void alRecibirLectura(String idHabitacion, double temperaturaC) {
+    /**
+     * Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. Se guarda con
+     * el instante que dice el termostato ({@code ts}, puede ser null), con las salvedades de {@link
+     * RelojControl#instanteDeLectura}; el adaptador descarta la que es más vieja que la última. Un
+     * error se propaga: lo atrapa {@code LecturaMqttListener.messageArrived}, el único try/catch
+     * del camino (Paho cierra la conexión si el callback lanza).
+     *
+     * <p>{@code synchronized} como {@link #iniciar}: así una lectura sellada con el reloj viejo no
+     * se procesa después de que INICIAR re-sincronizó el reloj (lo dejaría en la línea de tiempo
+     * vieja). No hay riesgo de deadlock: el adaptador nunca toma el candado de esta clase.
+     */
+    public synchronized void alRecibirLectura(
+            String idHabitacion, double temperaturaC, Instant ts) {
         RelojControl r = reloj;
         if (r == null) {
             return;
         }
-        try {
-            adaptador.alLlegarLectura(idHabitacion, temperaturaC, r.ahora(relojReal));
-        } catch (RuntimeException e) {
-            log.error("Error al procesar la lectura de '{}': {}", idHabitacion, e.getMessage());
-        }
+        Instant instante = r.instanteDeLectura(ts, tsEnTiempoReal, vigenciaLectura, relojReal);
+        adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante));
     }
 
     /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */
     @EventListener
     public synchronized void alAplicarseInventario(InventarioAplicado evento) {
-        configurarCore(evento.inventario());
+        RelojControl r = reloj;
+        ZoneId zona = r != null ? r.zona() : zonaFija.orElse(ZoneId.systemDefault());
+        configurarCore(evento.inventario(), zona);
     }
 
-    private void configurarCore(Inventario inv) {
-        ZoneId zona = reloj != null ? reloj.zona() : zonaFija.orElse(ZoneId.systemDefault());
+    private void configurarCore(Inventario inv, ZoneId zona) {
         adaptador.configurar(sitioDelCore(inv, zona), habitacionesDelCore(inv));
     }
 
@@ -186,13 +209,18 @@ public class ControlService {
     // Eventos temporales
     // ------------------------------------------------------------------
 
-    void tick() {
+    /**
+     * Corre en el temporizador. El try/catch es necesario: una excepción que escapa de una tarea de
+     * {@code scheduleWithFixedDelay} cancela todas sus ejecuciones siguientes sin avisar. Es {@code
+     * synchronized} por lo mismo que {@link #alRecibirLectura}.
+     */
+    synchronized void tick() {
         RelojControl r = reloj;
         if (r == null) {
             return;
         }
         try {
-            adaptador.alTick(r.ahora(relojReal));
+            adaptador.procesar(new Estimulo.Tick(r.ahora(relojReal)));
         } catch (RuntimeException e) {
             log.error("Error en el tick del control: {}", e.getMessage());
         }

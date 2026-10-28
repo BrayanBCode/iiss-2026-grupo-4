@@ -5,8 +5,8 @@ package uy.edu.utec.iiss.core.model;
  * y potencia mientras está encendida. Termostato y switch son direccionamiento del engine y no
  * están acá.
  *
- * <p>La valida el {@link uy.edu.utec.iiss.core.Core} al recibir la configuración completa, para
- * poder rechazarla entera.
+ * <p>La valida el engine ({@code ValidadorInventario}) antes de aplicar el inventario, para poder
+ * rechazarlo entero.
  */
 public record ConfiguracionHabitacion(
         String id, String nombre, double temperaturaEsperada, double potenciaKW) {}
