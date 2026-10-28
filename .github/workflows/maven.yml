@@ -1,13 +1,16 @@
 name: IISS2026
 
 # Corre en master, en las ramas de cada iteración (implementacion*), en los tags de entrega
-# (version*) y en los PR hacia esas ramas.
+# (version*) y en los PR hacia esas ramas o hacia otra tarjeta (revision/**, PR apilados).
+# Los cambios que solo tocan documentación no lo disparan; los tags corren siempre.
 on:
   push:
     branches: [ "master", "implementacion*" ]
     tags: [ "version*" ]
+    paths-ignore: [ "docs/**", "**/*.md", "LICENSE" ]
   pull_request:
-    branches: [ "master", "implementacion*" ]
+    branches: [ "master", "implementacion*", "revision/**" ]
+    paths-ignore: [ "docs/**", "**/*.md", "LICENSE" ]
 
 jobs:
   build:

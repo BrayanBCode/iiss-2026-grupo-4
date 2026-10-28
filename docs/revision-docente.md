@@ -60,6 +60,7 @@ Tamaño: S (menos de medio día), M (alrededor de un día), L (más de un día).
 | ID | Tarjeta | Estado | Carril | Depende de | Tamaño | Criterio de aceptación |
 |---|---|---|---|---|---|---|
 | T1 | CI con `mvn verify`, sin `-DskipTests` | **Hecho** | B | — | S | El workflow corre un solo `mvn -B verify` y pasa en el PR. Hecho: un solo `verify`, artefactos, dispara en `implementacion*` y tags `version*` (cubre también A1 y A2 de excelencia: JaCoCo `check` ≥ 0.85 en líneas y ramas) |
+| T1b | CI: ignorar cambios de documentación y verificar PR apilados | **Hecho** | B | T1 | S | `paths-ignore` (`docs/**`, `**/*.md`, `LICENSE`) en `push` y `pull_request`: un cambio que solo toca documentación no dispara el build; los tags `version*` corren siempre. `pull_request` también hacia `revision/**`, así los PR apilados entre tarjetas tienen CI. Si `build` pasa a ser check obligatorio, revisar que los PR solo de documentación no queden bloqueados |
 | T2 | Reglas "Java que usamos" + `docs/calidad/guia-java.md` | **Pendiente** | B | D2 | S | El estándar tiene la sección y la guía explica cada técnica que se mantiene con un ejemplo del proyecto |
 | T4 | El estado pasa a `CoreAdapter`, que llama a `core.decidir` | **Hecho** | A | D1, D2 | L | `CoreAdapter` guarda temperaturas, instantes, sitio y reloj; ya no usa `procesar` ni `estadoById`. Los 215 tests en verde |
 | T5 | `Core` queda solo con `decidir`; se migran los tests de `CoreTest` | **Hecho** | A | T4 | L | Ya no existen `procesar`, `CoreClient` ni `ICoreClient`. Los tests de decisión están en `DecidirTest` y los de estímulos en `CoreAdapterEstimulosTest`. Cobertura del core ≥ 85 % |
@@ -314,6 +315,7 @@ Rama `revision/<id>` desde `implementacion5` y PR de vuelta a `implementacion5` 
 | Tarjeta | Rama | Commit |
 |---|---|---|
 | T1 | `revision/t1-ci` | `ci: mvn verify sin -DskipTests` |
+| T1b | `revision/t1b-ci-filtros` | `ci: no correr el build en cambios de documentación y verificar PR apilados` |
 | T2 | `revision/t2-guia-java` | `docs: reglas de Java del proyecto y guía para el equipo` |
 | T4 | `revision/t4-estado-engine` | `engine: el adaptador guarda la situación y llama a decidir` |
 | T5 | `revision/t5-core-sin-estado` | `core: core sin estado, solo decidir y el modelo` |
