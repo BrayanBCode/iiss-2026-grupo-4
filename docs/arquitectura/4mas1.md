@@ -420,7 +420,11 @@ sequenceDiagram
     Env->>Ctl: POST /control/comandos {INICIAR, fechaHora, factorTiempo}
     Ctl->>Ctl: nuevo RelojControl(fechaHora, factor, ahoraReal, zona del sitio = America/Montevideo)
     Ctl->>Ad: configurar(sitio, habitaciones) (si hay inventario, con la zona del sitio)
+    opt re-INICIAR (ya había un reloj)
+        Ctl->>Ad: procesar(Tick(hora actual del reloj anterior)), contando el tiempo detenido
+    end
     Ctl->>Ad: procesar(Sincronizacion(fechaHora, factor))
+    Note over Ad: D7: las lecturas vencidas con el reloj anterior se olvidan (SIN_LECTURA)<br/>y las vigentes se re-sellan con la hora nueva
     Ad->>Core: decidir(situación)
     Ctl->>Ad: iniciar() → en ejecución, pide una pasada con consulta al hilo switches
     Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales, reconciliación 15 s

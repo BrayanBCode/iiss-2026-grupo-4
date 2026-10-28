@@ -136,7 +136,7 @@ public class Core {
         if (e == null || e.temperaturaActual() == null) {
             return Motivo.SIN_LECTURA;
         }
-        if (vencida(e.ultimaLectura(), ahora)) {
+        if (lecturaVencida(e.ultimaLectura(), ahora)) {
             return Motivo.LECTURA_VENCIDA;
         }
         // Histéresis: encendida sigue hasta la esperada; apagada arranca recién debajo de la banda.
@@ -153,8 +153,12 @@ public class Core {
         return null;
     }
 
-    /** La vigencia se mide en tiempo del control (simulado), sin multiplicar por el factor. */
-    private boolean vencida(Instant instante, Instant ahora) {
+    /**
+     * Si una lectura tomada en {@code instante} ya venció a la hora {@code ahora}. La vigencia se
+     * mide en tiempo del control (simulado), sin multiplicar por el factor. Sin alguno de los dos
+     * instantes no vence. Pública para que el engine use la misma regla al re-sincronizar (D7).
+     */
+    public boolean lecturaVencida(Instant instante, Instant ahora) {
         if (ahora == null || instante == null) {
             return false;
         }

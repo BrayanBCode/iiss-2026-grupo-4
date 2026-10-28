@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -262,14 +263,32 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     /**
-     * INICIAR (re)sincroniza el reloj: puede ir hacia atrás. Las temperaturas conocidas se
-     * conservan y se toman como medidas en el nuevo instante, así no se apaga todo hasta que llegue
-     * la próxima lectura, ni se descartan como "fuera de orden" las lecturas que vengan después de
-     * un salto hacia atrás.
+     * INICIAR (re)sincroniza el reloj: puede ir hacia atrás.
+     *
+     * <ul>
+     *   <li>Una lectura que, con el reloj <b>anterior</b>, ya estaba vencida se olvida: la
+     *       habitación queda sin lectura hasta que llegue una nueva (D7). Si no, al sellarla con la
+     *       hora nueva un dato viejo volvería a contar como reciente.
+     *   <li>Las vigentes se conservan y se toman como medidas en el nuevo instante, así no se apaga
+     *       todo hasta la próxima lectura, ni se descartan como "fuera de orden" las que lleguen
+     *       después de un salto hacia atrás.
+     * </ul>
+     *
+     * El reloj anterior es {@code ahora}: {@code ControlService} manda un Tick con la hora actual
+     * del reloj viejo justo antes, para que cuente también el tiempo que estuvo detenido.
      */
     private void sincronizarReloj(Estimulo.Sincronizacion s) {
+        Iterator<Map.Entry<String, Instant>> lecturas = instanteLectura.entrySet().iterator();
+        while (lecturas.hasNext()) {
+            Map.Entry<String, Instant> lectura = lecturas.next();
+            if (core.lecturaVencida(lectura.getValue(), ahora)) {
+                temperaturas.remove(lectura.getKey());
+                lecturas.remove();
+            } else {
+                lectura.setValue(s.ahora());
+            }
+        }
         ahora = s.ahora();
-        instanteLectura.replaceAll((id, ts) -> s.ahora());
     }
 
     /** Arma la situación con el estado propio y le pide al core que decida. */

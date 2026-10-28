@@ -844,6 +844,23 @@ class CoreAdapterEstimulosTest {
 
         @Test
         @DisplayName(
+                "Re-sincronizar no revive una lectura que ya estaba vencida con el reloj anterior"
+                        + " (D7); la vigente se conserva")
+        void resincronizar_noReviveLecturasVencidas() {
+            adaptador.procesar(lectura(ROOM1, 15.0, lunes(10, 0))); // vencerá
+            adaptador.procesar(lectura(ROOM2, 15.0, lunes(10, 8))); // sigue vigente
+            adaptador.procesar(tick(lunes(10, 11))); // room1 tiene 11 min: vencida
+
+            List<Decision> d = adaptador.procesar(sincronizar(lunes(14, 0), 1));
+
+            assertEquals(Motivo.SIN_LECTURA, motivoDe(d, ROOM1));
+            assertNull(adaptador.estadoDe(ROOM1).temperaturaActual());
+            assertEquals(Accion.ON, accionDe(d, ROOM2));
+            assertEquals(lunes(14, 0), adaptador.estadoDe(ROOM2).ultimaLectura());
+        }
+
+        @Test
+        @DisplayName(
                 "Después de re-sincronizar hacia atrás, las lecturas nuevas se aceptan (no se las"
                         + " toma como fuera de orden)")
         void despuesDeResincronizarHaciaAtras_lasLecturasNuevasSeAceptan() {

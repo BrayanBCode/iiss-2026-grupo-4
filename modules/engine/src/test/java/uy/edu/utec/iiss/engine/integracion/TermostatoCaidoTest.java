@@ -1,6 +1,7 @@
 package uy.edu.utec.iiss.engine.integracion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -35,6 +36,44 @@ class TermostatoCaidoTest extends IntegracionBase {
 
         temperatura("living", 16.0); // vuelve
         esperarSwitch("living", "ON");
+    }
+
+    @Test
+    @DisplayName(
+            "D7: DETENER, esperar más que la vigencia y volver a INICIAR no revive la lectura"
+                    + " vieja: la habitación queda SIN_LECTURA hasta que llegue una nueva")
+    void reiniciarDespuesDeLaVigencia_noReviveLaLectura() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar();
+        temperatura("living", 16.0);
+        esperarSwitch("living", "ON");
+
+        detener();
+        Thread.sleep(2500); // detenido más que la vigencia (2 s): el dato ya es viejo
+        iniciar();
+
+        esperarMotivo("living", "SIN_LECTURA");
+        esperarSwitch("living", "OFF");
+        assertNull(estado("living").temperaturaActual());
+
+        temperatura("living", 16.0); // llega una lectura nueva
+        esperarSwitch("living", "ON");
+    }
+
+    @Test
+    @DisplayName(
+            "D7: un re-INICIAR enseguida conserva la lectura vigente (no apaga hasta la próxima)")
+    void reiniciarEnseguida_conservaLaLectura() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar();
+        temperatura("living", 16.0);
+        esperarSwitch("living", "ON");
+
+        iniciar(); // re-sincroniza enseguida
+
+        assertEquals("CALEFACCIONANDO", motivo("living"));
+        assertEquals(16.0, estado("living").temperaturaActual());
+        assertSwitch("living", "ON");
     }
 
     @Test

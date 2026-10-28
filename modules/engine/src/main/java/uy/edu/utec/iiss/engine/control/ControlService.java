@@ -105,6 +105,11 @@ public class ControlService {
         if (inventario.isPresent()) {
             configurarCore(inventario.get());
         }
+        if (reloj != null) {
+            // D7: el adaptador mide qué lecturas ya vencieron con el reloj anterior; este Tick lo
+            // lleva a la hora actual de ese reloj, contando también el tiempo que estuvo detenido.
+            adaptador.procesar(new Estimulo.Tick(reloj.ahora(relojReal)));
+        }
         adaptador.procesar(new Estimulo.Sincronizacion(nuevo.fechaHora(), nuevo.factorTiempo()));
         reloj = nuevo;
         adaptador.iniciar();
