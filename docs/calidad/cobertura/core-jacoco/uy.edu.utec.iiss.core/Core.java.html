@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Core.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">core</a> &gt; <a href="index.source.html" class="el_package">uy.edu.utec.iiss.core</a> &gt; <span class="el_source">Core.java</span></div><h1>Core.java</h1><pre class="source lang-java linenums">package uy.edu.utec.iiss.core;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import uy.edu.utec.iiss.core.model.Accion;
+import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
+import uy.edu.utec.iiss.core.model.Decision;
+import uy.edu.utec.iiss.core.model.EstadoHabitacion;
+import uy.edu.utec.iiss.core.model.Motivo;
+import uy.edu.utec.iiss.core.model.ParametrosControl;
+import uy.edu.utec.iiss.core.model.Sitio;
+
+/**
+ * Lógica de decisión del controlador, sin estado: dada una situación (sitio, habitaciones, lo que
+ * se sabe de cada una y la hora del control) dice qué habitación recibe energía y por qué.
+ *
+ * &lt;p&gt;Java puro y determinista (sin reloj del sistema, red ni azar): la misma situación da siempre
+ * las mismas decisiones. No guarda nada entre llamadas; el estado (lecturas, reloj, última
+ * decisión) lo lleva el engine ({@code CoreAdapter}). Solo tiene campos finales, así que se puede
+ * compartir entre hilos.
+ *
+ * &lt;p&gt;{@link #decidir} decide en tres pasos:
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;&lt;b&gt;Necesidad&lt;/b&gt; de cada habitación: sin lectura, lectura vencida, satisfecha (con
+ *       histéresis), excede la contratada, o con déficit.
+ *   &lt;li&gt;&lt;b&gt;Tarifa&lt;/b&gt;: en punta ninguna con déficit recibe energía.
+ *   &lt;li&gt;&lt;b&gt;Reparto&lt;/b&gt;: las que tienen déficit se ordenan con el {@link CriterioPrioridad} y se les
+ *       asigna potencia mientras entre en la contratada (una que no entra no bloquea a las
+ *       siguientes).
+ * &lt;/ol&gt;
+ */
+public class Core {
+
+    /** Tolerancia para comparar potencias: 0.1 + 0.2 tiene que &quot;entrar&quot; en 0.3. */
+    private static final double EPS = 1e-9;
+
+    private final CriterioPrioridad criterioPrioridad;
+    private final ParametrosControl parametros;
+
+    public Core(CriterioPrioridad criterioPrioridad) {
+<span class="fc" id="L47">        this(criterioPrioridad, ParametrosControl.PREDETERMINADOS);</span>
+<span class="fc" id="L48">    }</span>
+
+<span class="fc" id="L50">    public Core(CriterioPrioridad criterioPrioridad, ParametrosControl parametros) {</span>
+<span class="fc" id="L51">        this.criterioPrioridad = Objects.requireNonNull(criterioPrioridad, &quot;criterioPrioridad&quot;);</span>
+<span class="fc" id="L52">        this.parametros = Objects.requireNonNull(parametros, &quot;parametros&quot;);</span>
+<span class="fc" id="L53">    }</span>
+
+    /**
+     * Si una temperatura puede venir de un sensor sano: finita y dentro del rango físico del sensor
+     * ({@link ParametrosControl#temperaturaMinimaValida()} a {@link
+     * ParametrosControl#temperaturaMaximaValida()}). Una que no lo es se descarta y se conserva el
+     * último dato bueno.
+     */
+    public boolean lecturaValida(double temperaturaC) {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        return Double.isFinite(temperaturaC)</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">                &amp;&amp; temperaturaC &gt;= parametros.temperaturaMinimaValida()</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">                &amp;&amp; temperaturaC &lt;= parametros.temperaturaMaximaValida();</span>
+    }
+
+    /**
+     * La función de decisión: dada una situación, qué habitaciones reciben energía y por qué. Todo
+     * llega por parámetro, salvo el criterio y los parámetros de control.
+     *
+     * @param sitio potencia contratada, franja punta y zona horaria
+     * @param habitaciones configuración de cada habitación; las decisiones salen en este orden
+     * @param estados situación de cada habitación por id: última temperatura, cuándo se midió y si
+     *     está encendida ahora. Una habitación sin entrada (o con temperatura null) se toma como
+     *     sin lectura y apagada
+     * @param ahora hora del control (null = todavía no se conoce: no hay punta ni vencimientos)
+     * @param factorTiempo aceleración vigente (escala la vigencia de las lecturas)
+     * @return una decisión por habitación, en el orden de {@code habitaciones}
+     */
+    public List&lt;Decision&gt; decidir(
+            Sitio sitio,
+            List&lt;ConfiguracionHabitacion&gt; habitaciones,
+            Map&lt;String, EstadoHabitacion&gt; estados,
+            Instant ahora,
+            double factorTiempo) {
+<span class="fc" id="L86">        Objects.requireNonNull(sitio, &quot;sitio&quot;);</span>
+<span class="fc" id="L87">        Objects.requireNonNull(habitaciones, &quot;habitaciones&quot;);</span>
+<span class="fc" id="L88">        Objects.requireNonNull(estados, &quot;estados&quot;);</span>
+
+        // 1. Necesidad de cada habitación
+<span class="fc" id="L91">        Map&lt;String, Motivo&gt; motivos = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L92">        Map&lt;String, Double&gt; potencias = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L93">        List&lt;ConfiguracionHabitacion&gt; conDeficit = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        for (ConfiguracionHabitacion h : habitaciones) {</span>
+<span class="fc" id="L96">            potencias.put(h.id(), h.potenciaKW());</span>
+<span class="fc" id="L97">            Motivo sinDeficit =</span>
+<span class="fc" id="L98">                    motivoSinDeficit(h, estados.get(h.id()), sitio, ahora, factorTiempo);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (sinDeficit != null) {</span>
+<span class="fc" id="L100">                motivos.put(h.id(), sinDeficit);</span>
+            } else {
+<span class="fc" id="L102">                conDeficit.add(h);</span>
+            }
+<span class="fc" id="L104">        }</span>
+
+        // 2. Tarifa  /  3. Reparto de la potencia contratada
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (enPunta(sitio, ahora)) {</span>
+<span class="fc" id="L108">            conDeficit.forEach(h -&gt; motivos.put(h.id(), Motivo.TARIFA_PUNTA));</span>
+
+        } else {
+<span class="fc" id="L111">            double usada = 0;</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">            for (String id : criterioPrioridad.ordenarCandidatas(conDeficit, estados)) {</span>
+<span class="fc" id="L113">                double potencia = potencias.get(id);</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                if (usada + potencia &lt;= sitio.potenciaContratadaKW() + EPS) {</span>
+<span class="fc" id="L115">                    usada += potencia;</span>
+<span class="fc" id="L116">                    motivos.put(id, Motivo.CALEFACCIONANDO);</span>
+                } else {
+<span class="fc" id="L118">                    motivos.put(id, Motivo.SIN_POTENCIA_DISPONIBLE);</span>
+                }
+<span class="fc" id="L120">            }</span>
+        }
+
+<span class="fc" id="L123">        List&lt;Decision&gt; decisiones = new ArrayList&lt;&gt;(habitaciones.size());</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        for (ConfiguracionHabitacion h : habitaciones) {</span>
+<span class="fc" id="L125">            Motivo motivo = motivos.get(h.id());</span>
+<span class="fc" id="L126">            decisiones.add(</span>
+                    new Decision(
+<span class="fc" id="L128">                            h.id(),</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                            motivo == Motivo.CALEFACCIONANDO ? Accion.ON : Accion.OFF,</span>
+                            motivo));
+<span class="fc" id="L131">        }</span>
+<span class="fc" id="L132">        return decisiones;</span>
+    }
+
+    /** Por qué la habitación NO necesita energía, o null si tiene déficit y podría recibirla. */
+    private Motivo motivoSinDeficit(
+            ConfiguracionHabitacion h,
+            EstadoHabitacion e,
+            Sitio sitio,
+            Instant ahora,
+            double factorTiempo) {
+<span class="fc bfc" id="L142" title="All 4 branches covered.">        if (e == null || e.temperaturaActual() == null) {</span>
+<span class="fc" id="L143">            return Motivo.SIN_LECTURA;</span>
+        }
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (vencida(e.ultimaLectura(), ahora, factorTiempo)) {</span>
+<span class="fc" id="L146">            return Motivo.LECTURA_VENCIDA;</span>
+        }
+        // Histéresis: encendida sigue hasta la esperada; apagada arranca recién debajo de la banda.
+        double umbral =
+<span class="fc bfc" id="L150" title="All 2 branches covered.">                e.encendida()</span>
+<span class="fc" id="L151">                        ? h.temperaturaEsperada()</span>
+<span class="fc" id="L152">                        : h.temperaturaEsperada() - parametros.histeresisC();</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (e.temperaturaActual() &gt;= umbral) {</span>
+<span class="fc" id="L154">            return Motivo.SATISFECHA;</span>
+        }
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (h.potenciaKW() &gt; sitio.potenciaContratadaKW() + EPS) {</span>
+<span class="fc" id="L157">            return Motivo.EXCEDE_CONTRATADA;</span>
+        }
+<span class="fc" id="L159">        return null;</span>
+    }
+
+    private boolean vencida(Instant instante, Instant ahora, double factorTiempo) {
+<span class="fc bfc" id="L163" title="All 4 branches covered.">        if (ahora == null || instante == null) {</span>
+<span class="fc" id="L164">            return false;</span>
+        }
+<span class="fc" id="L166">        long vigenciaMs = Math.round(parametros.vigenciaLectura().toMillis() * factorTiempo);</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        return Duration.between(instante, ahora).toMillis() &gt; vigenciaMs;</span>
+    }
+
+    private static boolean enPunta(Sitio sitio, Instant ahora) {
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (ahora == null) {</span>
+<span class="fc" id="L172">            return false;</span>
+        }
+<span class="fc" id="L174">        var local = ahora.atZone(sitio.zona());</span>
+<span class="fc" id="L175">        return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

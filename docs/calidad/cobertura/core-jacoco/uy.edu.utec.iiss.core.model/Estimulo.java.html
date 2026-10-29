@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Estimulo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">core</a> &gt; <a href="index.source.html" class="el_package">uy.edu.utec.iiss.core.model</a> &gt; <span class="el_source">Estimulo.java</span></div><h1>Estimulo.java</h1><pre class="source lang-java linenums">package uy.edu.utec.iiss.core.model;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Modelo de los estímulos a los que reacciona el controlador, ya traducidos (sin MQTT ni REST). El
+ * engine los procesa en {@code CoreAdapter.procesar}: actualiza la situación y le pide al {@link
+ * uy.edu.utec.iiss.core.Core} que decida. Es {@code sealed} para que ese {@code switch} sea
+ * exhaustivo.
+ *
+ * &lt;p&gt;Los instantes son del reloj del control (§5.2), no del sistema.
+ */
+public sealed interface Estimulo {
+
+    /** Lectura de temperatura; el engine ya resolvió la habitación por el topic (§2). */
+    record NuevaLectura(String idHabitacion, double temperaturaC, Instant ts) implements Estimulo {
+<span class="fc" id="L19">        public NuevaLectura {</span>
+<span class="fc" id="L20">            Objects.requireNonNull(idHabitacion, &quot;idHabitacion&quot;);</span>
+<span class="fc" id="L21">            Objects.requireNonNull(ts, &quot;ts&quot;);</span>
+<span class="fc" id="L22">        }</span>
+    }
+
+    /**
+     * Pasó el tiempo. El engine lo dispara periódicamente para reevaluar la tarifa punta y el
+     * vencimiento de lecturas aunque no lleguen lecturas.
+     */
+    record Tick(Instant ts) implements Estimulo {
+<span class="fc" id="L30">        public Tick {</span>
+<span class="fc" id="L31">            Objects.requireNonNull(ts, &quot;ts&quot;);</span>
+<span class="fc" id="L32">        }</span>
+    }
+
+    /** Reemplaza el inventario completo, como {@code PUT /sitio} (§5.1). */
+    record ConfiguracionActualizada(Sitio sitio, List&lt;ConfiguracionHabitacion&gt; habitaciones)
+            implements Estimulo {
+<span class="fc" id="L38">        public ConfiguracionActualizada {</span>
+<span class="fc" id="L39">            Objects.requireNonNull(sitio, &quot;sitio&quot;);</span>
+<span class="fc" id="L40">            habitaciones = List.copyOf(Objects.requireNonNull(habitaciones, &quot;habitaciones&quot;));</span>
+<span class="fc" id="L41">        }</span>
+    }
+
+    /**
+     * INICIAR (§5.2): a diferencia de un Tick, el reloj puede ir hacia atrás y cambia el factor de
+     * tiempo.
+     */
+    record Sincronizacion(Instant ahora, double factorTiempo) implements Estimulo {
+<span class="fc" id="L49">        public Sincronizacion {</span>
+<span class="fc" id="L50">            Objects.requireNonNull(ahora, &quot;ahora&quot;);</span>
+<span class="fc bfc" id="L51" title="All 4 branches covered.">            if (!(factorTiempo &gt; 0) || Double.isInfinite(factorTiempo)) {</span>
+<span class="fc" id="L52">                throw new IllegalArgumentException(&quot;factorTiempo debe ser un número &gt; 0&quot;);</span>
+            }
+<span class="fc" id="L54">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

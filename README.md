@@ -6,7 +6,7 @@ horario de energía cara y con un criterio de prioridad justificable— y comand
 calefacción (REST). Implementa el **estándar de interoperabilidad EcoWarm v2** para integrarse con
 el simulador de la cátedra y con cualquier implementación conforme.
 
-Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 4.
+Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 5.
 
 | Documento | |
 |---|---|
@@ -14,8 +14,9 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 4.
 | Historias, personas, escenarios | [`docs/Producto/`](docs/Producto) |
 | Estándar de interoperabilidad v2 | [`docs/api/interop-v2.md`](docs/api/interop-v2.md) (+ [`controlador`](docs/api/controlador.openapi-v2.yaml) / [`simulador`](docs/api/simulador.openapi-v2.yaml) OpenAPI) |
 | API de este controlador (OpenAPI 3) | [`docs/api/openapi.yaml`](docs/api/openapi.yaml) |
-| Arquitectura 4+1 (vista lógica + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
+| Arquitectura 4+1 (lógica, procesos, desarrollo + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
 | Criterio de adecuación de los tests | [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md) |
+| Calidad: estándar de codificación, Spotless, cobertura | [`docs/calidad/`](docs/calidad/README.md) |
 | Jira | [enlace](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3) |
 
 ---
@@ -64,7 +65,8 @@ Detalle en [`4mas1.md`](docs/arquitectura/4mas1.md).
 .
 ├── docs/
 │   ├── api/            interop-v2.md, OpenAPI del estándar y openapi.yaml de este controlador
-│   ├── arquitectura/   4mas1.md (vista lógica + diagramas de secuencia)
+│   ├── arquitectura/   4mas1.md (vistas lógica, procesos, desarrollo + secuencias)
+│   ├── calidad/        estándar de codificación, salida de spotless:check, reporte de cobertura
 │   ├── tests/          criterio-tests.md (criterio de adecuación) y resultados.md (última ejecución)
 │   └── Producto/       historias, personas, características, escenario
 ├── docker/
@@ -95,6 +97,10 @@ No hace falta Java ni Maven en el host: todo se compila dentro de Docker.
 
 Con Java 25 y Maven locales también se puede: `mvn package` (el JAR queda en
 `modules/engine/target/engine.jar`).
+
+El código sigue Google Java Style (variante AOSP), verificado con Spotless: `mvn spotless:apply`
+formatea y `mvn verify` falla si algo no cumple. Detalle en
+[`docs/calidad/estandares-codificacion.md`](docs/calidad/estandares-codificacion.md).
 
 ---
 
@@ -217,11 +223,13 @@ Recorrido completo con curl: `./scripts/api-demo.sh [api-key] [url]`.
 
 | Módulo | Tests | Qué cubren |
 |---|---|---|
-| core | 116 | `DecidirTest` (35): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"). `CoreTest` (63), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Cobertura JaCoCo: 99 % líneas, 91 % ramas. |
-| engine | 56 | `CoreAdapter` (switches falsos con memoria, reconciliación, fallas), API completa con contexto Spring (`ApiEstandarTest`), validación y persistencia del inventario, reloj acelerado, payload MQTT, registro. |
+| core | 116 | `DecidirTest` (35): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"). `CoreTest` (63), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Cobertura JaCoCo: 99,6 % líneas, 90,8 % ramas. |
+| engine | 99 | Unitarios (56): `CoreAdapter` (switches falsos con memoria, reconciliación, fallas), API completa con contexto Spring (`ApiEstandarTest`), validación y persistencia del inventario, reloj acelerado, payload MQTT, registro. De integración (43), con broker MQTT embebido y switches HTTP falsos: control según la carga total, arranque y parada, cambios de configuración en ejecución, caída del broker, pérdida de mensajes, switches que fallan y termostatos caídos. |
 
-El criterio por el que el conjunto se considera adecuado está en
-[`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md).
+Última ejecución (2026-10-27): 215 tests, 0 fallas. Detalle en
+[`docs/tests/resultados.md`](docs/tests/resultados.md). El criterio por el que el conjunto se
+considera adecuado está en [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md), y la
+cobertura y el estándar de codificación, en [`docs/calidad/`](docs/calidad/README.md).
 
 ```bash
 ./scripts/test.sh            # todos (Docker)
@@ -252,6 +260,7 @@ El criterio por el que el conjunto se considera adecuado está en
 - **Spring Boot / Spring Framework** — Apache 2.0. Framework del `engine`.
 - **Jackson** — Apache 2.0. JSON del `engine`.
 - **Eclipse Paho (mqttv3)** — EPL-2.0. Cliente MQTT.
+- **Moquette** — Apache 2.0. Broker MQTT embebido, solo en los tests de integración.
 - **JUnit 5**, **JaCoCo** — EPL-2.0. Tests y cobertura. **Mockito** — MIT.
 - **Logback** — EPL-1.0 / LGPL-2.1. Logging de Spring Boot.
 

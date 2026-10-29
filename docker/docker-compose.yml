@@ -1,4 +1,4 @@
-# EcoWarm — controlador de calefacción (grupo 4), Iteración 4.
+# EcoWarm — controlador de calefacción (grupo 4), Iteración 5.
 #
 # Levanta SOLO el controlador ("engine"). El entorno —broker MQTT, termostatos,
 # switches e inventario— lo pone el simulador de la cátedra o el ecowarm-check,
@@ -27,8 +27,9 @@ services:
       # Dónde alcanza el ENTORNO a este controlador: el puerto publicado en el anfitrión.
       - CONTROLADOR_BASE_URL=${CONTROLADOR_BASE_URL:-http://localhost:8080}
       - CONTROLADOR_ETIQUETA=${CONTROLADOR_ETIQUETA:-ecowarm-grupo4}
-      # Zona para la franja tarifaria. Vacía = la de la fechaHora de INICIAR.
-      - CONTROL_ZONA_HORARIA=${CONTROL_ZONA_HORARIA:-}
+      # Zona para la franja tarifaria: hora local de Uruguay. TZ alinea también los logs.
+      - CONTROL_ZONA_HORARIA=${CONTROL_ZONA_HORARIA:-America/Montevideo}
+      - TZ=${TZ:-America/Montevideo}
       - LOGGING_FILE_NAME=logs/engine.log
     extra_hosts:
       # En Linux host.docker.internal no existe por defecto.

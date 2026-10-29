@@ -306,6 +306,7 @@ paths:
                     motivo: CALEFACCIONANDO
                     idSwitch: sw-sim-room1
                     estadoSwitch: "ON"
+                    lecturasDescartadas: { TS_VENCIDO: 1 }   # por motivo; solo los que ocurrieron (D8)
         "401": { $ref: "#/components/responses/NoAutorizado" }
 
 components:

@@ -33,7 +33,9 @@
                 <version>3.2.5</version>
             </plugin>
             <!-- Cobertura de los tests del core (respaldo del criterio de adecuación,
-                 docs/tests/criterio-tests.md). Reporte en target/site/jacoco/index.html. -->
+                 docs/tests/criterio-tests.md). Reporte en target/site/jacoco/index.html.
+                 La meta check hace fallar `mvn verify` (y la CI) si el core baja del 85 %
+                 de líneas o de ramas: la letra pide asegurar la cobertura, no solo medirla. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -50,6 +52,32 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <id>umbral-cobertura</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.85</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.85</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
