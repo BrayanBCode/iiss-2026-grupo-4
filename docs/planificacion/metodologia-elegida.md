@@ -13,9 +13,11 @@ Al empezar una iteración el equipo se reúne y:
 3. Toma las **decisiones** que afectan a varias tarjetas, por ejemplo de diseño o de contrato con el simulador. Así nadie arranca una tarjeta con dudas abiertas.
 4. Deja explícito lo que queda **fuera de alcance** de la iteración.
 
-Ejemplo: [`revision-docente.md`](revision-docente.md).
+Las tarjetas, sus dependencias y su estado se llevan en el tablero de Jira (enlace en el README). Cómo atendimos las observaciones del docente en la iteración 5 está registrado en [`revision-docente.md`](revision-docente.md).
 
 ## Tablero
+
+El tablero se lleva en Jira. El sitio de Atlassian tiene un dominio mal nombrado (`estudiantes-grupo8-2026`) porque aloja los espacios de dos materias; el proyecto del grupo 4 es G1234 "Grupo4_2026_Ing".
 
 | Backlog | Listo | En curso | Revisión | Hecho |
 |---|---|---|---|---|

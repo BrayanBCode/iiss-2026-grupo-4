@@ -15,7 +15,8 @@ estado de ejecución) lo guarda `CoreAdapter` en el engine.
 | Lógica | ✅ Iteración 4, actualizada en la 5 (diseño actual, T11a) | §1 |
 | Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 (diseño actual, T11a) | §2 |
 | Procesos | ✅ Iteración 5 (diseño actual, T11a) | §3 |
-| Desarrollo | ✅ Iteración 5 (diseño actual, T11a; se completa en la 6) | §4 |
+| Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | ✅ Iteración 5 (T14) | §4 |
+| Desarrollo | ✅ Iteración 5 (diseño actual, T11a; se completa en la 6) | §5 |
 | Física | ⏳ Iteración 6 (tarjeta T11) | — |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
@@ -652,7 +653,8 @@ responder, y es él mismo quien sirve los switches: esperar ahí era un bloqueo 
 lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pasada se juntan en una
 sola pasada siguiente, que usa la decisión vigente en ese momento. Las pasadas son secuenciales: un
 switch lento todavía demora a los demás switches hasta su timeout (la espera entre reintentos lo
-acota).
+acota): 2 s de conexión más 3 s de lectura, o sea hasta 5 s por switch. Decidimos no paralelizar
+las pasadas.
 
 ### 3.1 Manejo de fallas
 
@@ -668,7 +670,99 @@ acota).
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
 
-## 4. Vista de desarrollo
+## 4. Tiempo del control
+
+El tiempo del sistema es simulado: el simulador genera las lecturas y puede pasar a modo acelerado enviando un factor (por ejemplo, 10 min reales que emulan 5 h son factor 30). Los mensajes MQTT llegan y se procesan en tiempo real, pero con intervalos irregulares, porque el simulador provoca a propósito switches caídos, lecturas atrasadas y relojes desincronizados. Por eso el controlador **no** toma la hora de la máquina donde corre: la saca del contexto que recibe, el INICIAR y el `ts` de cada lectura.
+
+### 4.1 Tres relojes, un trabajo cada uno
+
+```
+(a) reloj del sistema   Clock relojReal = Clock.systemUTC()   (CoreConfig)
+        |  solo mide duraciones (y esperas de reintento a los switches)
+        v
+(b) reloj del control   RelojControl
+        |  ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)
+        |  única fuente de "qué hora es" para decidir (tarifa, vencimiento, ticks)
+        ^
+(c) ts del termostato   solo fecha la medición, nunca mueve la hora del control
+                        (hora real del simulador, se convierte a la escala de (b))
+```
+
+**Fórmula** (estándar v2 §5.2), válida desde el INICIAR:
+
+```
+ahora = fechaHora + (tiempoRealTranscurrido × factorTiempo)
+tiempoRealTranscurrido = Duration.between(iniciadoEn, relojReal.instant())
+```
+
+`iniciadoEn` es la hora real en que llegó el INICIAR. `RelojControl.aTiempoDeControl` aplica la fórmula a cualquier instante real, y `RelojControl.ahora` la aplica a la hora actual. La zona (`America/Montevideo`, fija) solo sirve para leer la franja tarifaria en hora local.
+
+### 4.2 Instante de una lectura (`ts`)
+
+El simulador escribe el `ts` en **hora real** (epoch del reloj de su máquina, con 3 decimales). Se parsea exacto con `BigDecimal` y **siempre** se lleva a la hora del control con la misma fórmula:
+
+```
+tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo
+```
+
+La multiplicación se aplica al **tiempo transcurrido** desde el INICIAR, no a la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2. Una lectura con `ts = 13:05` reales lleva 5 min transcurridos × 2 = 10 min, así que su hora del control es 13:10. Con `fechaHora = 08:00` sería 08:10 (`RelojControlTest.conversion_factorDos_mismaHora` y `conversion_factorDos_otraFechaHora`).
+
+Reglas (`RelojControl.instanteDeLectura` y `CoreAdapter`), con el detalle en la tabla del [§2.2](#22-llega-una-lectura-de-temperatura-evento-mqtt):
+
+- sin `ts`, o con un `ts` que ya convertido queda en el futuro: se usa `ahora`. La temperatura vale igual, y un termostato adelantado no puede adelantar el control;
+- `ts` más viejo que la vigencia: se descarta y se cuenta en `/diagnostico` como `TS_VENCIDO` (D8);
+- `ts` anterior a la última lectura guardada: se descarta y se cuenta como `FUERA_DE_ORDEN`;
+- en cualquier otro caso: se guarda con el `ts` convertido.
+
+### 4.3 Vigencia de una lectura
+
+Una lectura vale `control.vigencia-lectura-segundos` (600 s) de **tiempo de control**, sin escalar por el factor (`Core.lecturaVencida`). La misma regla la usan `Core.decidir`, el descarte del `ts` viejo y la re-sincronización. Con factor 30, 600 s de control son 20 s reales: un termostato caído se detecta en la prueba acelerada. Si la vigencia se escalara por el factor, serían 5 h simuladas y ninguna lectura vencería en toda la corrida.
+
+### 4.4 Tick
+
+Cada tick avanza `control.tick-ms` (1 s) de tiempo de control, así que su período real es `max(10 ms, tickMs / factor)` (`ControlService.periodoTickMs`). El temporizador se rearma en cada INICIAR, por si cambió el factor. El corte o la restitución de la franja punta se atrasan como mucho un tick de tiempo de control: la tabla de atrasos por factor está en el [§2.3](#23-evento-temporal-entrada-y-salida-de-la-franja-punta).
+
+### 4.5 INICIAR repetido (re-sincronización)
+
+Un INICIAR sobre un control en ejecución no es error: re-sincroniza (§5.2). `ControlService.iniciar`:
+
+1. configura el sitio en el adaptador, si hay inventario;
+2. manda un Tick con la hora del reloj **anterior**, así se cuenta también el tiempo que el control estuvo detenido;
+3. manda la Sincronización: `CoreAdapter.sincronizarReloj` olvida las lecturas que ya estaban vencidas con el reloj anterior (la habitación queda `SIN_LECTURA`) y marca las vigentes con la hora nueva (D7). Así un dato viejo no revive, y las lecturas que lleguen después de un salto hacia atrás no se toman como fuera de orden;
+4. reemplaza el reloj, pone al adaptador en ejecución y rearma el tick con el factor nuevo.
+
+`iniciar`, `alRecibirLectura` y `tick` son `synchronized` en `ControlService`: una lectura sellada con el reloj viejo no se procesa después de la re-sincronización.
+
+### 4.6 Qué dice la letra y qué decidimos
+
+La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop-v2.md). Lo que ella no dice son **decisiones del equipo** y se documentan como tales.
+
+| Tema | Qué dice la letra (fuente) | Decisión del equipo | Motivo |
+|---|---|---|---|
+| Sincronización | Sincronizar con `fechaHora` al INICIAR (§5.2) | Igual que la letra | — |
+| Fórmula del tiempo | `ahora = fechaHora + tiempoReal × factorTiempo` (§5.2) | Igual que la letra | — |
+| `factorTiempo` | Mayor que 0; ausente = 1 (§5.2) | Igual que la letra | — |
+| INICIAR repetido | Re-sincroniza (§5.2) | Igual que la letra, y las lecturas vencidas se olvidan (D7) | Un dato viejo no debe volver a contar como reciente |
+| Tarifa punta | Por hora y día de semana, en "hora local" (it. 1 a 5) | Igual que la letra | — |
+| Corte y restitución | Cortar al entrar en punta y restituir al salir (it. 1 a 5) | Igual que la letra | — |
+| Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
+| Escala del `ts` | No la define (§2) | Hora real del simulador, convertida a la hora del control con la fórmula del §5.2 | Confirmado con el docente |
+| Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente |
+| Vigencia de lecturas | No la define | 600 s de tiempo de control, sin escalar por el factor | Un solo reloj; escalada, con factor 30 ninguna lectura vence en 5 h simuladas |
+| Frecuencia de publicación | Depende del escenario del simulador (docente) | No se asume ninguna | El simulador provoca atrasos y caídas a propósito |
+| `ts` viejo | No lo define | Se descarta y se cuenta en `/diagnostico` (D8) | Un dato obsoleto no debe sostener la calefacción |
+| Período del tick | No lo define | 1 s de tiempo de control: `max(10 ms, tickMs / factor)` reales | Con un tick fijo de 1 s real, a ×600 el corte se atrasaba hasta 10 min. Se descartó programar eventos en los bordes de la franja: suma complejidad sin necesidad |
+| Canal del factor en la it. 5 | "Parámetro al inicio" | `factorTiempo` del INICIAR; el paso a acelerado llega como un INICIAR que re-sincroniza | Es el único canal del contrato |
+
+### 4.7 Pregunta abierta y riesgos
+
+- **Abierta:** ¿el paso a modo acelerado llega como un INICIAR nuevo con `factorTiempo`? Si el simulador acelerara sin enviarlo, el reloj del control seguiría con el factor anterior y la tarifa se calcularía con un reloj equivocado. Se confirma en la corrida contra el simulador.
+- **Desfase entre relojes.** La conversión del `ts` supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase se multiplica por el factor: 2 s con factor 30 son 1 min de control. `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede.
+- **Vigencia recuperada al re-sincronizar.** Una lectura vigente marcada con la hora nueva recupera la vigencia completa: un dato de 9:59 min vuelve a valer 10 min. La alternativa es conservar su antigüedad (`nuevo − (ahoraViejo − instante)`); queda como mejora posible.
+- **Re-INICIAR con el control en ejecución.** Son pasos separados (configurar, Tick, Sincronización). Entre ellos el hilo de switches podría enviar un comando decidido con el reloj anterior, que se corrige enseguida. Riesgo bajo.
+- **Lectura medida justo antes del INICIAR.** Puede descartarse como `FUERA_DE_ORDEN` o `TS_VENCIDO`, porque con factor alto la latencia se multiplica. No afecta: la siguiente lectura entra bien, y el descarte queda contado en `/diagnostico`.
+
+## 5. Vista de desarrollo
 
 ```
 modules/
