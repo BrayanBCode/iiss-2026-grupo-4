@@ -38,8 +38,8 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  *   <li>Procesa los {@link Estimulo}s (lectura, tick, configuración, INICIAR): actualiza la
  *       situación (sitio, temperaturas, instantes, reloj) y le pide al core, que no tiene estado,
  *       que decida. Todo serializado con {@code synchronized}.
- *   <li>Recuerda la última decisión por habitación ("deseado"), que además dice cuáles están
- *       encendidas para la histéresis, y el último estado conocido de su switch; solo comanda
+ *   <li>Recuerda la última decisión por habitación ({@code ultimaDecision}), que además dice cuáles
+ *       están encendidas para la histéresis, y el último estado conocido de su switch; solo comanda
  *       cuando difieren.
  *   <li>Reconcilia (§4): consulta cada switch y corrige los que no coinciden (reinicio, cambio
  *       manual, comando perdido).
@@ -50,10 +50,10 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  *       superaría (p. ej. falló el OFF que liberaba esa potencia).
  * </ul>
  *
- * La red con los switches corre en un hilo propio, en "pasadas": cada estímulo actualiza lo deseado
- * y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los switches. Los pedidos
- * durante una pasada se juntan en la siguiente. Las pasadas son secuenciales: un switch lento
- * demora a los demás switches hasta su timeout.
+ * La red con los switches corre en un hilo propio, en "pasadas": cada estímulo actualiza la última
+ * decisión y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los switches.
+ * Los pedidos durante una pasada se juntan en la siguiente. Las pasadas son secuenciales: un switch
+ * lento demora a los demás switches hasta su timeout.
  *
  * <p><b>Estado de ejecución.</b> El adaptador es el único dueño del estado de ejecución ({@link
  * #iniciar}, {@link #detener}, {@link #enEjecucion}); {@code ControlService} le delega y nunca
@@ -119,7 +119,7 @@ public class CoreAdapter implements AutoCloseable {
 
     // Switches
     private final Map<String, HabitacionControlada> habitaciones = new LinkedHashMap<>();
-    private final Map<String, Decision> deseado = new HashMap<>();
+    private final Map<String, Decision> ultimaDecision = new HashMap<>();
     private final Map<String, EstadoSwitch> estadoConocido = new HashMap<>();
     private final Map<String, Instant> noReintentarAntesDe = new HashMap<>();
     private final Set<String> retenidas = new HashSet<>(); // ON esperando potencia confirmada
@@ -315,7 +315,7 @@ public class CoreAdapter implements AutoCloseable {
         }
         temperaturas.keySet().retainAll(ids);
         instanteLectura.keySet().retainAll(ids);
-        deseado.keySet().retainAll(ids);
+        ultimaDecision.keySet().retainAll(ids);
         descartes.keySet().retainAll(ids);
     }
 
@@ -377,7 +377,7 @@ public class CoreAdapter implements AutoCloseable {
         if (!estaConfigurada(idHabitacion)) {
             return null;
         }
-        Decision ultima = deseado.get(idHabitacion);
+        Decision ultima = ultimaDecision.get(idHabitacion);
         return new EstadoHabitacion(
                 idHabitacion,
                 temperaturas.get(idHabitacion),
@@ -429,13 +429,13 @@ public class CoreAdapter implements AutoCloseable {
     // ------------------------------------------------------------------
 
     /**
-     * Guarda lo deseado y pide una pasada. Se loguea cuando cambia la acción o el motivo: un OFF
-     * que sigue OFF pero pasa de SATISFECHA a TARIFA_PUNTA (o a SIN_POTENCIA_DISPONIBLE) es la
-     * única evidencia de la entrada a la punta o de la carga limitada.
+     * Guarda la última decisión y pide una pasada. Se loguea cuando cambia la acción o el motivo:
+     * un OFF que sigue OFF pero pasa de SATISFECHA a TARIFA_PUNTA (o a SIN_POTENCIA_DISPONIBLE) es
+     * la única evidencia de la entrada a la punta o de la carga limitada.
      */
     private void aplicar(List<Decision> decisiones) {
         for (Decision d : decisiones) {
-            Decision anterior = deseado.put(d.idHabitacion(), d);
+            Decision anterior = ultimaDecision.put(d.idHabitacion(), d);
             if (!d.equals(anterior)) {
                 log.info(
                         "Decisión: habitación '{}' -> {} ({})",
@@ -543,7 +543,7 @@ public class CoreAdapter implements AutoCloseable {
                 if (!enEjecucion) {
                     return;
                 }
-                Decision d = deseado.get(h.id());
+                Decision d = ultimaDecision.get(h.id());
                 if (!vigente(h)
                         || d == null
                         || d.accion() != soloEsta
@@ -649,15 +649,16 @@ public class CoreAdapter implements AutoCloseable {
     // ------------------------------------------------------------------
 
     /**
-     * Resumen de lo decidido para el log periódico. Barato y sin red: solo recorre lo deseado con
-     * el candado tomado. Una habitación todavía sin decisión no cuenta en ningún motivo.
+     * Resumen de lo decidido para el log periódico. Barato y sin red: solo recorre las últimas
+     * decisiones con el candado tomado. Una habitación todavía sin decisión no cuenta en ningún
+     * motivo.
      */
     public synchronized Resumen resumen() {
         int encendidas = 0;
         double comprometida = 0;
         Map<Motivo, List<String>> porMotivo = new EnumMap<>(Motivo.class);
         for (HabitacionControlada h : habitaciones.values()) {
-            Decision d = deseado.get(h.id());
+            Decision d = ultimaDecision.get(h.id());
             if (d == null) {
                 continue;
             }
@@ -675,7 +676,7 @@ public class CoreAdapter implements AutoCloseable {
         List<EstadoControlado> salida = new ArrayList<>();
         for (HabitacionControlada h : habitaciones.values()) {
             EstadoHabitacion e = estadoDe(h.id());
-            Decision d = deseado.get(h.id());
+            Decision d = ultimaDecision.get(h.id());
             salida.add(
                     new EstadoControlado(
                             h.id(),

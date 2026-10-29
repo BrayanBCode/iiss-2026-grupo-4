@@ -281,7 +281,7 @@ classDiagram
       -Map~String,Instant~ instanteLectura
       -Instant ahora
       -double factorTiempo
-      -Map~String,Decision~ deseado
+      -Map~String,Decision~ ultimaDecision
       -Map~String,EstadoSwitch~ estadoConocido
       -Set~String~ retenidas
       +configurar(Sitio, List~HabitacionControlada~)
@@ -377,7 +377,7 @@ Decisiones de diseño relevantes:
   reloj es el del último INICIAR y una decisión con esa hora sería engañosa. Decide en `iniciar()`,
   con el reloj ya re-sincronizado; mientras tanto `/diagnostico` muestra la última decisión tomada
   en ejecución (o ninguna, si nunca se inició).
-- **Estado deseado vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
+- **Última decisión vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
   el último estado *conocido* de su switch (por la respuesta del comando o por la consulta §4), y solo
   comanda cuando difieren. La reconciliación periódica corrige un switch que reinició
   (`DESCONOCIDO`), que alguien movió a mano o cuyo comando se perdió.
@@ -650,8 +650,8 @@ ya que el evento `InventarioAplicado` se publica en forma sincrónica) y nunca a
 adaptador no llama a `ControlService`: no hay deadlock. `LecturaMqttListener` usa un candado propio
 solo para la conexión y las suscripciones; el callback de Paho no lo toma.
 
-El core se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza lo
-deseado, pide una pasada al hilo `switches` y vuelve. La pasada toma el candado del adaptador solo para
+El core se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza la
+última decisión, pide una pasada al hilo `switches` y vuelve. La pasada toma el candado del adaptador solo para
 leer o actualizar el estado, y antes de cada comando vuelve a mirar el estado de ejecución: un DETENER
 que llega durante una pasada corta los comandos que faltan. Así `INICIAR` y `PUT /sitio` responden sin
 esperar a los switches —importante porque en el registro §6 el entorno nos da `INICIAR` antes de
@@ -672,7 +672,7 @@ las pasadas.
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
-| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de lo deseado y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
+| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
 
