@@ -3,9 +3,13 @@ package uy.edu.utec.iiss.engine.adaptador;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,15 +24,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import uy.edu.utec.iiss.core.Core;
 import uy.edu.utec.iiss.core.MayorDeficitPrimero;
 import uy.edu.utec.iiss.core.model.Accion;
 import uy.edu.utec.iiss.core.model.DiasTarifa;
 import uy.edu.utec.iiss.core.model.Estimulo;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
+import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.Sitio;
 import uy.edu.utec.iiss.engine.adaptador.CoreAdapter.HabitacionControlada;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
@@ -113,6 +120,8 @@ class CoreAdapterTest {
     private final SwitchesFalsos switches = new SwitchesFalsos();
     private final RelojManual relojReal = new RelojManual();
     private CoreAdapter adaptador; // arranca detenido, como el control
+    // Lo que el adaptador escribe en el log, para verificar qué decisiones quedan registradas.
+    private final ListAppender<ILoggingEvent> logAdaptador = new ListAppender<>();
 
     @BeforeEach
     void setUp() {
@@ -123,6 +132,17 @@ class CoreAdapterTest {
                         relojReal,
                         Duration.ZERO,
                         Runnable::run);
+        logAdaptador.start();
+        loggerDelAdaptador().addAppender(logAdaptador);
+    }
+
+    @AfterEach
+    void quitarAppender() {
+        loggerDelAdaptador().detachAppender(logAdaptador);
+    }
+
+    private static Logger loggerDelAdaptador() {
+        return (Logger) LoggerFactory.getLogger(CoreAdapter.class);
     }
 
     /** Lo que hace ControlService.iniciar con el adaptador: lo pone en ejecución. */
@@ -170,7 +190,7 @@ class CoreAdapterTest {
             "Las lecturas descartadas se cuentan por habitación y motivo (fuera de orden y ts"
                     + " vencido, D8) y no cambian la decisión")
     void lecturasDescartadas_seCuentan() {
-        adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
+        configurarEIniciar();
         leer("living", 15.0, lunes(10, 5)); // ON
         leer("living", 25.0, lunes(10, 0)); // anterior a la última: fuera de orden
         adaptador.descartarLectura("living", MotivoDescarte.TS_VENCIDO);
@@ -188,8 +208,8 @@ class CoreAdapterTest {
 
     @Test
     @DisplayName(
-            "Una sola bandera: al detenerse el control, el adaptador deja de comandar y de"
-                    + " consultar sin que nadie le avise, pero sigue decidiendo")
+            "Una sola bandera: al detenerse el control, el adaptador deja de comandar, de"
+                    + " consultar y de decidir sin que nadie le avise")
     void alDetenerse_dejaDeComandarSinAviso() {
         configurarEIniciar();
         leer("living", 15.0, lunes(10, 0));
@@ -202,13 +222,15 @@ class CoreAdapterTest {
 
         assertTrue(switches.comandos.isEmpty(), "comandó detenido: " + switches.comandos);
         assertTrue(switches.consultas.isEmpty(), "consultó detenido: " + switches.consultas);
-        assertEquals(Accion.OFF, adaptador.estados().get(0).decision());
+        // Detenido no decide: queda la última decisión tomada en ejecución.
+        assertEquals(Accion.ON, adaptador.estados().get(0).decision());
+        assertEquals(25.0, adaptador.estados().get(0).temperaturaActual(), "sí guarda la lectura");
     }
 
     @Test
     @DisplayName(
-            "Detenido no comanda: tras detener(), una lectura que pediría ON no toca ningún switch;"
-                    + " tras iniciar(), sí")
+            "Detenido no comanda ni decide: tras detener(), una lectura que pediría ON no toca"
+                    + " ningún switch; iniciar() decide con ella y comanda")
     void detener_noComanda_iniciar_si() {
         configurarEIniciar();
         assertTrue(adaptador.enEjecucion());
@@ -217,14 +239,88 @@ class CoreAdapterTest {
         assertFalse(adaptador.enEjecucion());
         leer("living", 15.0, lunes(10, 0)); // bajo los 21 °C: pediría ON
 
-        assertEquals(Accion.ON, adaptador.estados().get(0).decision(), "detenido sigue decidiendo");
+        assertEquals(Accion.OFF, adaptador.estados().get(0).decision(), "detenido no decide");
         assertTrue(switches.comandos.isEmpty(), "comandó detenido: " + switches.comandos);
         assertTrue(switches.consultas.isEmpty(), "consultó detenido: " + switches.consultas);
 
         adaptador.iniciar();
 
         assertTrue(adaptador.enEjecucion());
+        assertEquals(Accion.ON, adaptador.estados().get(0).decision());
         assertEquals(List.of("sw-living:ON"), switches.comandos);
+    }
+
+    @Test
+    @DisplayName(
+            "Detenido, aplicar un sitio guarda la configuración sin decidir (ni loguear"
+                    + " decisiones); se decide al iniciar")
+    void detenido_configurarNoDecide() {
+        adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
+        leer("living", 15.0, lunes(10, 0));
+
+        assertEquals(2, adaptador.estados().size(), "la configuración sí se guarda");
+        assertNull(adaptador.estados().get(0).decision(), "decidió detenido");
+        assertEquals(15.0, adaptador.estados().get(0).temperaturaActual());
+        assertEquals(List.of(), decisionesLogueadas());
+
+        iniciarControl();
+
+        assertEquals(Accion.ON, adaptador.estados().get(0).decision());
+        assertEquals(
+                List.of(
+                        "Decisión: habitación 'living' -> ON (CALEFACCIONANDO)",
+                        "Decisión: habitación 'dormitorio' -> OFF (SIN_LECTURA)"),
+                decisionesLogueadas());
+    }
+
+    @Test
+    @DisplayName(
+            "Se loguea la decisión cuando cambia el motivo aunque la acción siga igual, y no se"
+                    + " repite si no cambia nada")
+    void decision_cambioDeMotivoSinCambioDeAccion_seLoguea() {
+        adaptador.configurar(sitio(3.7), List.of(LIVING));
+        iniciarControl(); // sin lectura: OFF (SIN_LECTURA)
+        leer("living", 22.0, lunes(10, 0)); // OFF (SATISFECHA): mismo OFF, otro motivo
+        leer("living", 22.5, lunes(10, 1)); // sin cambios: no se loguea
+
+        assertEquals(
+                List.of(
+                        "Decisión: habitación 'living' -> OFF (SIN_LECTURA)",
+                        "Decisión: habitación 'living' -> OFF (SATISFECHA)"),
+                decisionesLogueadas());
+    }
+
+    @Test
+    @DisplayName(
+            "El resumen cuenta las habitaciones en ON, la potencia comprometida contra la"
+                    + " contratada y las habitaciones por motivo")
+    void resumen() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(10, 0)); // ON, 1.2 kW
+        leer("dormitorio", 25.0, lunes(10, 1)); // OFF satisfecha
+
+        CoreAdapter.Resumen r = adaptador.resumen();
+
+        assertEquals(1, r.encendidas());
+        assertEquals(2, r.habitaciones());
+        assertEquals(1.2, r.comprometidaKW(), 1e-9);
+        assertEquals(3.7, r.contratadaKW(), 1e-9);
+        assertEquals(
+                Map.of(
+                        Motivo.CALEFACCIONANDO, List.of("living"),
+                        Motivo.SATISFECHA, List.of("dormitorio")),
+                r.porMotivo());
+    }
+
+    /** Decisiones que el adaptador escribió en el log desde el comienzo del test. */
+    private List<String> decisionesLogueadas() {
+        List<String> decisiones = new ArrayList<>();
+        for (ILoggingEvent e : logAdaptador.list) {
+            if (e.getFormattedMessage().startsWith("Decisión")) {
+                decisiones.add(e.getFormattedMessage());
+            }
+        }
+        return decisiones;
     }
 
     @Test

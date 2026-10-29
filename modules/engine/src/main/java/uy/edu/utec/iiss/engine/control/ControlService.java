@@ -6,7 +6,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,8 +39,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *   <li>{@link #detener}: deja de comandar switches. Idempotente.
  *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} de tiempo de control, o sea
  *       cada {@code max(10 ms, tickMs / factor)} reales (T12), para cortar y restituir en los
- *       cambios de franja y vencer lecturas; y reconcilia los switches cada {@code
- *       control.reconciliacion-segundos} reales.
+ *       cambios de franja y vencer lecturas; reconcilia los switches cada {@code
+ *       control.reconciliacion-segundos} reales, y deja un resumen en el log cada {@code
+ *       control.resumen-segundos} reales (0 = sin resumen).
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
@@ -63,6 +66,7 @@ public class ControlService {
     private final ZoneId zona; // zona del sitio, fija (T9)
     private final long tickMs;
     private final long reconciliacionSegundos;
+    private final long resumenSegundos;
     private final Duration vigenciaLectura;
 
     // `reloj` solo da la hora (fechaHora, factor, zona) y NO dice si el control está detenido: eso
@@ -78,6 +82,7 @@ public class ControlService {
             @Value("${control.zona-horaria:America/Montevideo}") String zona,
             @Value("${control.tick-ms:1000}") long tickMs,
             @Value("${control.reconciliacion-segundos:15}") long reconciliacionSegundos,
+            @Value("${control.resumen-segundos:30}") long resumenSegundos,
             @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos) {
         this.adaptador = adaptador;
         this.inventarioService = inventarioService;
@@ -85,6 +90,7 @@ public class ControlService {
         this.zona = zona == null || zona.isBlank() ? Sitio.ZONA_URUGUAY : ZoneId.of(zona.trim());
         this.tickMs = tickMs;
         this.reconciliacionSegundos = reconciliacionSegundos;
+        this.resumenSegundos = resumenSegundos;
         this.vigenciaLectura = Duration.ofSeconds(vigenciaSegundos);
     }
 
@@ -99,8 +105,9 @@ public class ControlService {
     public synchronized EstadoControl iniciar(Instant fechaHora, double factorTiempo) {
         boolean resincroniza = enEjecucion();
         RelojControl nuevo = new RelojControl(fechaHora, factorTiempo, relojReal.instant(), zona);
-        // Primero se configura y se sincroniza, y recién después se marca "en ejecución": así la
-        // primera pasada de switches es la que consulta su estado real (§4) antes de comandar.
+        // Primero se configura y se sincroniza, y recién después se marca "en ejecución": detenido
+        // el adaptador no decide, así la primera decisión ya usa el reloj nuevo, y la primera
+        // pasada de switches es la que consulta su estado real (§4) antes de comandar.
         Optional<Inventario> inventario = inventarioService.actual();
         if (inventario.isPresent()) {
             configurarCore(inventario.get());
@@ -115,9 +122,10 @@ public class ControlService {
         adaptador.iniciar();
         arrancarTemporizador(nuevo.factorTiempo()); // T12: el período depende del factor
         log.info(
-                "Control {}: fechaHora={} factorTiempo={} zona={}",
+                "Control {}: fechaHora={} ({}) factorTiempo={} zona={}",
                 resincroniza ? "re-sincronizado" : "INICIADO",
                 fechaHora,
+                horaLocal(fechaHora),
                 factorTiempo,
                 nuevo.zona());
         return estado();
@@ -172,12 +180,26 @@ public class ControlService {
         Optional<Instant> instante = reloj.instanteDeLectura(ts, vigenciaLectura, relojReal);
         if (instante.isEmpty()) {
             adaptador.descartarLectura(idHabitacion, MotivoDescarte.TS_VENCIDO); // D8
+            // INFO porque es excepcional: con el ts original y su conversión se ve si el problema
+            // es el termostato o el reloj del control.
+            log.info(
+                    "Lectura de '{}' descartada ({}): ts {} (hora real) = {} (hora del control),"
+                            + " más vieja que la vigencia de {} s; hora del control {}",
+                    idHabitacion,
+                    MotivoDescarte.TS_VENCIDO,
+                    ts,
+                    horaLocal(reloj.aTiempoDeControl(ts)),
+                    vigenciaLectura.toSeconds(),
+                    horaLocal(reloj.ahora(relojReal)));
             return;
         }
         adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante.get()));
     }
 
-    /** PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. */
+    /**
+     * PUT /sitio (o el ABM) aplicó un inventario nuevo: el core lo adopta en caliente. En ejecución
+     * se decide al instante; detenido solo se guarda y se decide en el próximo INICIAR.
+     */
     @EventListener
     public synchronized void aplicarInventario(InventarioAplicado evento) {
         configurarCore(evento.inventario());
@@ -237,6 +259,42 @@ public class ControlService {
         }
     }
 
+    /**
+     * Deja en el log una foto del control (hora del control, habitaciones en ON, potencia
+     * comprometida contra la contratada y habitaciones por motivo), para poder seguir una corrida
+     * sin consultar {@code /diagnostico}. Solo en ejecución. No toca la red: lee el estado del
+     * adaptador con su candado.
+     */
+    synchronized void resumir() {
+        if (!enEjecucion()) {
+            return;
+        }
+        try {
+            CoreAdapter.Resumen r = adaptador.resumen();
+            log.info(
+                    "Resumen: hora del control {} | ON {}/{} | potencia {} de {} kW | {}",
+                    horaLocal(reloj.ahora(relojReal)),
+                    r.encendidas(),
+                    r.habitaciones(),
+                    String.format(Locale.ROOT, "%.2f", r.comprometidaKW()),
+                    String.format(Locale.ROOT, "%.2f", r.contratadaKW()),
+                    r.porMotivo());
+        } catch (RuntimeException e) {
+            log.error("Error al resumir el estado del control: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Un instante como hora local del sitio, con el día de la semana: es lo que hay que mirar para
+     * saber si es punta ({@code jueves 2026-10-01 18:00:00}).
+     */
+    private String horaLocal(Instant instante) {
+        return HORA_LOCAL.format(instante.atZone(zona));
+    }
+
+    private static final DateTimeFormatter HORA_LOCAL =
+            DateTimeFormatter.ofPattern("EEEE yyyy-MM-dd HH:mm:ss", Locale.forLanguageTag("es"));
+
     void reconciliar() {
         if (!enEjecucion()) {
             return;
@@ -285,6 +343,10 @@ public class ControlService {
                     reconciliacionSegundos,
                     reconciliacionSegundos,
                     TimeUnit.SECONDS);
+        }
+        if (resumenSegundos > 0) {
+            temporizador.scheduleWithFixedDelay(
+                    this::resumir, resumenSegundos, resumenSegundos, TimeUnit.SECONDS);
         }
     }
 
