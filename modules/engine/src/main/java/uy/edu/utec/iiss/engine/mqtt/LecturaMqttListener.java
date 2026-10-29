@@ -297,7 +297,9 @@ public class LecturaMqttListener implements MqttCallbackExtended {
         PayloadTermostato.parsear(payload)
                 .ifPresentOrElse(
                         p -> {
-                            log.info(
+                            // DEBUG: una línea por mensaje tapa el resto del log (≈95 % en una
+                            // corrida contra el simulador). Se sube en application.properties.
+                            log.debug(
                                     "[TEMPERATURA] '{}' (habitación '{}'): {} °C",
                                     topic,
                                     idHabitacion,
