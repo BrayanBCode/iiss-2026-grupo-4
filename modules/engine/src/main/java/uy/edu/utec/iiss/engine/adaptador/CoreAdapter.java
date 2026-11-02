@@ -50,10 +50,10 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  *       superaría (p. ej. falló el OFF que liberaba esa potencia).
  * </ul>
  *
- * La red con los switches corre en un hilo propio, en "pasadas": cada estímulo actualiza la última
- * decisión y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los switches.
- * Los pedidos durante una pasada se juntan en la siguiente. Las pasadas son secuenciales: un switch
- * lento demora a los demás switches hasta su timeout.
+ * Las llamadas HTTP a los switches corren en un hilo propio, en "pasadas": cada estímulo actualiza
+ * la última decisión y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los
+ * switches. Los pedidos durante una pasada se juntan en la siguiente. Las pasadas son secuenciales:
+ * un switch lento demora a los demás switches hasta su timeout.
  *
  * <p><b>Estado de ejecución.</b> El adaptador es el único dueño del estado de ejecución ({@link
  * #iniciar}, {@link #detener}, {@link #enEjecucion}); {@code ControlService} le delega y nunca
@@ -471,8 +471,9 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     /**
-     * Corre en el hilo de switches: consulta (si se pidió) y manda lo pendiente. El bloqueo se toma
-     * solo para leer o actualizar el estado, nunca durante la red.
+     * Corre en el hilo de switches: consulta los switches (si se pidió) y les manda lo pendiente.
+     * El candado se toma solo para leer o actualizar el estado, nunca durante una llamada HTTP a un
+     * switch.
      */
     private void pasada() {
         try {
