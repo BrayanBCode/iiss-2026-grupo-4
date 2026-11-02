@@ -56,7 +56,9 @@ public class LecturaMqttListener implements MqttCallbackExtended {
     private final ControlService controlService;
     private final String clientIdBase;
     private final long segundosEntreReintentos;
-    private final ScheduledExecutorService hilo =
+    // Único hilo para conectar, reintentar y suscribir: connect() puede bloquear hasta 5 s, y los
+    // callbacks de Paho no pueden cerrar el cliente desde su propio hilo.
+    private final ScheduledExecutorService hiloConexion =
             Executors.newSingleThreadScheduledExecutor(
                     r -> {
                         Thread t = new Thread(r, "mqtt-conexion");
@@ -68,16 +70,20 @@ public class LecturaMqttListener implements MqttCallbackExtended {
     private volatile Map<String, String> habitacionPorTopic = Map.of();
     private final Set<String> suscritos = new HashSet<>();
     private String brokerUrl;
-    private MqttClient client;
-    private long generacion; // invalida reintentos de una conexión anterior al cambiar de broker
+    private MqttClient cliente;
+    // Identifica el intento de conexión vigente. Cada reintento guarda el valor con el que se creó
+    // y
+    // se cancela si ya no coincide: así, al cambiar de broker o al apagar, no quedan cadenas
+    // viejas.
+    private long idConexionVigente;
 
     public LecturaMqttListener(
             ControlService controlService,
             @Value("${controlador.etiqueta:ecowarm-grupo4}") String etiqueta,
-            @Value("${mqtt.reconexion-max-segundos:5}") int reconexionMaxSegundos) {
+            @Value("${mqtt.reconexion-max-segundos:5}") int segundosEntreReintentos) {
         this.controlService = controlService;
         this.clientIdBase = etiqueta;
-        this.segundosEntreReintentos = reconexionMaxSegundos;
+        this.segundosEntreReintentos = segundosEntreReintentos;
     }
 
     /**
@@ -85,21 +91,21 @@ public class LecturaMqttListener implements MqttCallbackExtended {
      */
     public void conectar(String nuevoBrokerUrl) {
         synchronized (candado) {
-            if (nuevoBrokerUrl.equals(brokerUrl) && client != null && client.isConnected()) {
+            if (nuevoBrokerUrl.equals(brokerUrl) && cliente != null && cliente.isConnected()) {
                 return;
             }
-            cerrar(client);
-            client = null;
+            cerrarCliente(cliente);
+            cliente = null;
             suscritos.clear();
             brokerUrl = nuevoBrokerUrl;
-            long esta = ++generacion;
-            hilo.execute(() -> intentarConexion(esta, false));
+            long idConexion = ++idConexionVigente;
+            hiloConexion.execute(() -> intentarConexion(idConexion, false));
         }
     }
 
-    private void intentarConexion(long esta, boolean reconexion) {
+    private void intentarConexion(long idConexion, boolean reconexion) {
         synchronized (candado) {
-            if (esta != generacion || client != null) {
+            if (idConexion != idConexionVigente || cliente != null) {
                 return;
             }
             MqttClient nuevo = null;
@@ -115,7 +121,7 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                 opciones.setConnectionTimeout(5);
                 nuevo.setCallback(this);
                 nuevo.connect(opciones);
-                client = nuevo;
+                cliente = nuevo;
                 if (reconexion) {
                     log.info(
                             "Reconectado al broker MQTT ({}). Se restablecen las suscripciones.",
@@ -130,8 +136,9 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                         brokerUrl,
                         e.getMessage(),
                         segundosEntreReintentos);
-                cerrar(nuevo);
-                programar(() -> intentarConexion(esta, reconexion), segundosEntreReintentos);
+                cerrarCliente(nuevo);
+                programarTarea(
+                        () -> intentarConexion(idConexion, reconexion), segundosEntreReintentos);
             }
         }
     }
@@ -139,51 +146,45 @@ public class LecturaMqttListener implements MqttCallbackExtended {
     /** Se perdió la conexión: se descarta el cliente caído y se reintenta con uno nuevo. */
     private void reconectar() {
         synchronized (candado) {
-            if (client == null || client.isConnected()) {
+            if (cliente == null || cliente.isConnected()) {
                 return; // ya se reemplazó o no hay nada que reconectar
             }
-            cerrar(client);
-            client = null;
+            cerrarCliente(cliente);
+            cliente = null;
             suscritos.clear();
-            long esta = generacion;
-            programar(() -> intentarConexion(esta, true), segundosEntreReintentos);
+            long idConexion = idConexionVigente;
+            programarTarea(() -> intentarConexion(idConexion, true), segundosEntreReintentos);
         }
     }
 
     /** Nuevo inventario en uso: se ajustan las suscripciones a sus topics. */
     @EventListener
-    public void alAplicarseInventario(InventarioAplicado evento) {
+    public void aplicarInventario(InventarioAplicado evento) {
         Map<String, String> mapa = new HashMap<>();
         for (Inventario.Habitacion h : evento.inventario().habitaciones()) {
             mapa.put(h.topicTermostato(), h.id());
         }
         habitacionPorTopic = Map.copyOf(mapa);
-        programar(
-                () -> {
-                    synchronized (candado) {
-                        sincronizarSuscripciones();
-                    }
-                },
-                0);
+        programarSincronizacion(0);
     }
 
     /** Llamar con el candado tomado y desde el hilo propio (nunca desde un callback de Paho). */
     private void sincronizarSuscripciones() {
-        if (client == null || !client.isConnected()) {
+        if (cliente == null || !cliente.isConnected()) {
             return;
         }
-        Set<String> deseados = habitacionPorTopic.keySet();
+        Set<String> topicsDelInventario = habitacionPorTopic.keySet();
         try {
             for (String topic : Set.copyOf(suscritos)) {
-                if (!deseados.contains(topic)) {
-                    client.unsubscribe(topic);
+                if (!topicsDelInventario.contains(topic)) {
+                    cliente.unsubscribe(topic);
                     suscritos.remove(topic);
                     log.info("Desuscrito de '{}'.", topic);
                 }
             }
-            for (String topic : deseados) {
+            for (String topic : topicsDelInventario) {
                 if (!suscritos.contains(topic)) {
-                    client.subscribe(topic, QOS);
+                    cliente.subscribe(topic, QOS);
                     suscritos.add(topic);
                     log.info(
                             "Suscrito a '{}' (habitación '{}').",
@@ -196,19 +197,23 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                     "Falló la suscripción MQTT: {}. Se reintenta en {} s.",
                     e.getMessage(),
                     segundosEntreReintentos);
-            programar(
-                    () -> {
-                        synchronized (candado) {
-                            sincronizarSuscripciones();
-                        }
-                    },
-                    segundosEntreReintentos);
+            programarSincronizacion(segundosEntreReintentos);
         }
     }
 
-    private void programar(Runnable tarea, long segundos) {
+    private void programarSincronizacion(long segundos) {
+        programarTarea(
+                () -> {
+                    synchronized (candado) {
+                        sincronizarSuscripciones();
+                    }
+                },
+                segundos);
+    }
+
+    private void programarTarea(Runnable tarea, long segundos) {
         try {
-            hilo.schedule(tarea, segundos, TimeUnit.SECONDS);
+            hiloConexion.schedule(tarea, segundos, TimeUnit.SECONDS);
         } catch (RejectedExecutionException e) {
             log.debug("El engine se está apagando: no se programa más trabajo MQTT.");
         }
@@ -216,32 +221,32 @@ public class LecturaMqttListener implements MqttCallbackExtended {
 
     @PreDestroy
     void detener() {
-        hilo.shutdownNow();
+        hiloConexion.shutdownNow();
         synchronized (candado) {
-            generacion++;
-            cerrar(client);
-            client = null;
+            idConexionVigente++;
+            cerrarCliente(cliente);
+            cliente = null;
         }
     }
 
-    private void cerrar(MqttClient c) {
-        if (c == null) {
+    private void cerrarCliente(MqttClient cliente) {
+        if (cliente == null) {
             return;
         }
         try {
-            if (c.isConnected()) {
-                c.disconnect();
+            if (cliente.isConnected()) {
+                cliente.disconnect();
             }
         } catch (MqttException e) {
             log.debug("Error al desconectar el cliente MQTT: {}", e.getMessage());
         }
         try {
-            c.close();
+            cliente.close();
         } catch (MqttException e) {
             // Tras un connect() fallido Paho puede quedar "conectando" y rechazar el close().
             try {
-                c.disconnectForcibly(0, 0, false);
-                c.close();
+                cliente.disconnectForcibly(0, 0, false);
+                cliente.close();
             } catch (MqttException otra) {
                 log.warn("Error al cerrar el cliente MQTT: {}", otra.getMessage());
             }
@@ -249,8 +254,8 @@ public class LecturaMqttListener implements MqttCallbackExtended {
     }
 
     public boolean conectado() {
-        MqttClient c = client;
-        return c != null && c.isConnected();
+        MqttClient actual = cliente;
+        return actual != null && actual.isConnected();
     }
 
     // --- Callbacks de Paho ---
@@ -268,7 +273,7 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                 causa == null ? "?" : causa.getMessage(),
                 segundosEntreReintentos);
         // Corre en el hilo de Paho: cerrar el cliente desde acá puede trabarse. Se delega.
-        programar(this::reconectar, 0);
+        programarTarea(this::reconectar, 0);
     }
 
     @Override

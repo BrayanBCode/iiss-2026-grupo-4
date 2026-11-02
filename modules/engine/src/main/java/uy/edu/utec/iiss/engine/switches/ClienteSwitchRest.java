@@ -53,7 +53,10 @@ public class ClienteSwitchRest implements ClienteSwitch {
         JsonNode respuesta =
                 llamar(idSwitch, url, HttpMethod.POST, Map.of("accion", accion.name()));
         EstadoSwitch estado = estado(respuesta);
-        return estado != null ? estado : (accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF);
+        if (estado != null) {
+            return estado;
+        }
+        return accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
     }
 
     @Override

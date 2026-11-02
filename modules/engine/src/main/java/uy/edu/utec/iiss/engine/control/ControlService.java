@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -227,16 +228,17 @@ public class ControlService {
     }
 
     static List<HabitacionControlada> habitacionesDelCore(Inventario inv) {
-        return inv.habitaciones().stream()
-                .map(
-                        h ->
-                                new HabitacionControlada(
-                                        h.id(),
-                                        h.temperaturaEsperada(),
-                                        h.potenciaKW(),
-                                        h.idSwitch(),
-                                        h.urlSwitch()))
-                .toList();
+        List<HabitacionControlada> habitaciones = new ArrayList<>();
+        for (Inventario.Habitacion h : inv.habitaciones()) {
+            habitaciones.add(
+                    new HabitacionControlada(
+                            h.id(),
+                            h.temperaturaEsperada(),
+                            h.potenciaKW(),
+                            h.idSwitch(),
+                            h.urlSwitch()));
+        }
+        return habitaciones;
     }
 
     // ------------------------------------------------------------------

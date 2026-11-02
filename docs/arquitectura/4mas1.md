@@ -314,7 +314,7 @@ classDiagram
 
     class LecturaMqttListener {
       +conectar(brokerUrl)
-      +alAplicarseInventario(InventarioAplicado)
+      +aplicarInventario(InventarioAplicado)
       +messageArrived(topic, mensaje)
       procesarMensaje(topic, payload)
       +conectado() boolean
