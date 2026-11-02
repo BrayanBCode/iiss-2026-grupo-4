@@ -102,7 +102,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private final Core core;
     private final ClienteSwitch switches;
-    private final Clock relojReal;
+    private final Clock relojEsperas;
     private final Duration esperaReintento;
     private final Executor hiloSwitches;
 
@@ -128,11 +128,11 @@ public class CoreAdapter implements AutoCloseable {
 
     /** Con su propio hilo de switches. */
     public CoreAdapter(
-            Core core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento) {
+            Core core, ClienteSwitch switches, Clock relojEsperas, Duration esperaReintento) {
         this(
                 core,
                 switches,
-                relojReal,
+                relojEsperas,
                 esperaReintento,
                 Executors.newSingleThreadScheduledExecutor(
                         r -> {
@@ -149,12 +149,12 @@ public class CoreAdapter implements AutoCloseable {
     public CoreAdapter(
             Core core,
             ClienteSwitch switches,
-            Clock relojReal,
+            Clock relojEsperas,
             Duration esperaReintento,
             Executor hiloSwitches) {
         this.core = Objects.requireNonNull(core);
         this.switches = Objects.requireNonNull(switches);
-        this.relojReal = Objects.requireNonNull(relojReal);
+        this.relojEsperas = Objects.requireNonNull(relojEsperas);
         this.esperaReintento = Objects.requireNonNull(esperaReintento);
         this.hiloSwitches = Objects.requireNonNull(hiloSwitches);
     }
@@ -265,6 +265,7 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     private void contarDescarte(String idHabitacion, MotivoDescarte motivo) {
+        // descartes[habitación][motivo] += 1, creando el contador si no existe
         descartes
                 .computeIfAbsent(idHabitacion, id -> new EnumMap<>(MotivoDescarte.class))
                 .merge(motivo, 1, Integer::sum);
@@ -455,7 +456,9 @@ public class CoreAdapter implements AutoCloseable {
         if (!enEjecucion) {
             return;
         }
-        consultaPendiente |= consultarAntes;
+        if (consultarAntes) {
+            consultaPendiente = true;
+        }
         if (pasadaEncolada) {
             return;
         }
@@ -473,7 +476,7 @@ public class CoreAdapter implements AutoCloseable {
      */
     private void pasada() {
         try {
-            List<HabitacionControlada> aConsultar;
+            List<HabitacionControlada> aConsultar = new ArrayList<>();
             synchronized (this) {
                 pasadaEncolada = false; // lo que llegue desde ahora pide otra pasada
                 boolean consultar = consultaPendiente;
@@ -481,12 +484,13 @@ public class CoreAdapter implements AutoCloseable {
                 if (!enEjecucion) {
                     return;
                 }
-                aConsultar =
-                        consultar
-                                ? habitaciones.values().stream()
-                                        .filter(h -> !enEspera(h.id()))
-                                        .toList()
-                                : List.of();
+                if (consultar) {
+                    for (HabitacionControlada h : habitaciones.values()) {
+                        if (!enEspera(h.id())) {
+                            aConsultar.add(h);
+                        }
+                    }
+                }
             }
             aConsultar.forEach(this::consultar);
             enviarPendientes();
@@ -621,7 +625,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private void registrarFalla(HabitacionControlada h, String que, RuntimeException e) {
         boolean primera = !noReintentarAntesDe.containsKey(h.id());
-        noReintentarAntesDe.put(h.id(), relojReal.instant().plus(esperaReintento));
+        noReintentarAntesDe.put(h.id(), relojEsperas.instant().plus(esperaReintento));
         if (primera) {
             log.error(
                     "No se pudo {} el switch '{}' (habitación '{}'); se reintenta: {}",
@@ -636,7 +640,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private boolean enEspera(String idHabitacion) {
         Instant hasta = noReintentarAntesDe.get(idHabitacion);
-        return hasta != null && relojReal.instant().isBefore(hasta);
+        return hasta != null && relojEsperas.instant().isBefore(hasta);
     }
 
     private static boolean coincide(EstadoSwitch estado, Accion accion) {

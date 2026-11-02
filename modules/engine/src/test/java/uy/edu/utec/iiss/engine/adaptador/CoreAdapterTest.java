@@ -118,7 +118,7 @@ class CoreAdapterTest {
     }
 
     private final SwitchesFalsos switches = new SwitchesFalsos();
-    private final RelojManual relojReal = new RelojManual();
+    private final RelojManual relojEsperas = new RelojManual();
     private CoreAdapter adaptador; // arranca detenido, como el control
     // Lo que el adaptador escribe en el log, para verificar qué decisiones quedan registradas.
     private final ListAppender<ILoggingEvent> logAdaptador = new ListAppender<>();
@@ -129,7 +129,7 @@ class CoreAdapterTest {
                 new CoreAdapter(
                         new Core(new MayorDeficitPrimero()),
                         switches,
-                        relojReal,
+                        relojEsperas,
                         Duration.ZERO,
                         Runnable::run);
         logAdaptador.start();
@@ -466,7 +466,7 @@ class CoreAdapterTest {
                 new CoreAdapter(
                         new Core(new MayorDeficitPrimero()),
                         switches,
-                        relojReal,
+                        relojEsperas,
                         Duration.ofSeconds(5),
                         Runnable::run);
         switches.caidos.add("sw-living");
@@ -478,7 +478,7 @@ class CoreAdapterTest {
         assertTrue(
                 switches.comandos.isEmpty(), "reintentó antes de la espera: " + switches.comandos);
 
-        relojReal.ahora = relojReal.ahora.plusSeconds(6);
+        relojEsperas.ahora = relojEsperas.ahora.plusSeconds(6);
         tick(lunes(10, 1));
         assertEquals(List.of("sw-living:OFF"), switches.comandos);
     }
@@ -510,7 +510,7 @@ class CoreAdapterTest {
                 };
         try (CoreAdapter asincrono =
                 new CoreAdapter(
-                        new Core(new MayorDeficitPrimero()), lento, relojReal, Duration.ZERO)) {
+                        new Core(new MayorDeficitPrimero()), lento, relojEsperas, Duration.ZERO)) {
             asincrono.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
 
             assertTimeoutPreemptively(
