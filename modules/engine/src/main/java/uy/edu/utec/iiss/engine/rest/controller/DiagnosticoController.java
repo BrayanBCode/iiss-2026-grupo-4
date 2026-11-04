@@ -1,5 +1,6 @@
 package uy.edu.utec.iiss.engine.rest.controller;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,22 +41,19 @@ public class DiagnosticoController {
         m.put("control", control.estado().estado());
         m.put("mqttConectado", mqtt.conectado());
         m.put("registradoAnteEntorno", registro.registrado());
-        List<Map<String, Object>> habitaciones =
-                adaptador.estados().stream()
-                        .map(
-                                e -> {
-                                    Map<String, Object> h = new LinkedHashMap<>();
-                                    h.put("id", e.idHabitacion());
-                                    h.put("temperaturaActual", e.temperaturaActual());
-                                    h.put("ultimaLectura", Instantes.iso(e.ultimaLectura()));
-                                    h.put("decision", e.decision());
-                                    h.put("motivo", e.motivo());
-                                    h.put("idSwitch", e.idSwitch());
-                                    h.put("estadoSwitch", e.estadoSwitch());
-                                    h.put("lecturasDescartadas", e.lecturasDescartadas());
-                                    return h;
-                                })
-                        .toList();
+        List<Map<String, Object>> habitaciones = new ArrayList<>();
+        for (CoreAdapter.EstadoControlado e : adaptador.estados()) {
+            Map<String, Object> h = new LinkedHashMap<>();
+            h.put("id", e.idHabitacion());
+            h.put("temperaturaActual", e.temperaturaActual());
+            h.put("ultimaLectura", Instantes.iso(e.ultimaLectura()));
+            h.put("decision", e.decision());
+            h.put("motivo", e.motivo());
+            h.put("idSwitch", e.idSwitch());
+            h.put("estadoSwitch", e.estadoSwitch());
+            h.put("lecturasDescartadas", e.lecturasDescartadas());
+            habitaciones.add(h);
+        }
         m.put("habitaciones", habitaciones);
         return m;
     }

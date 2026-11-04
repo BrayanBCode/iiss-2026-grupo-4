@@ -55,6 +55,7 @@ import uy.edu.utec.iiss.engine.inventario.Inventario;
             "entorno.url=",
             "control.tick-ms=100",
             "control.reconciliacion-segundos=1",
+            "control.resumen-segundos=1", // que el resumen del log corra durante los tests
             "switch.espera-reintento-segundos=1",
             "switch.timeout-conexion-ms=500",
             "switch.timeout-lectura-ms=1000"

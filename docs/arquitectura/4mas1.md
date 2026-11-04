@@ -260,6 +260,7 @@ classDiagram
       +aplicarInventario(InventarioAplicado)
       tick()
       reconciliar()
+      resumir()
     }
     class RelojControl {
       <<record>>
@@ -280,7 +281,7 @@ classDiagram
       -Map~String,Instant~ instanteLectura
       -Instant ahora
       -double factorTiempo
-      -Map~String,Decision~ deseado
+      -Map~String,Decision~ ultimaDecision
       -Map~String,EstadoSwitch~ estadoConocido
       -Set~String~ retenidas
       +configurar(Sitio, List~HabitacionControlada~)
@@ -292,6 +293,7 @@ classDiagram
       +enEjecucion() boolean
       +reconciliar()
       +estados() List~EstadoControlado~
+      +resumen() Resumen
       -pasada()
       -excederiaLaContratada(HabitacionControlada) boolean
     }
@@ -312,7 +314,7 @@ classDiagram
 
     class LecturaMqttListener {
       +conectar(brokerUrl)
-      +alAplicarseInventario(InventarioAplicado)
+      +aplicarInventario(InventarioAplicado)
       +messageArrived(topic, mensaje)
       procesarMensaje(topic, payload)
       +conectado() boolean
@@ -371,8 +373,11 @@ Decisiones de diseño relevantes:
   `CoreAdapter.enEjecucion()`, que cambia con `iniciar()` y `detener()`. `ControlService` le delega
   (`ControlService.enEjecucion()` devuelve `adaptador.enEjecucion()`) y no guarda una copia: su campo
   `reloj` solo da la hora (y queda con el último INICIAR después de DETENER). Detenido, el adaptador
-  sigue decidiendo (por ejemplo, ante un `PUT /sitio`) pero no comanda ningún switch.
-- **Estado deseado vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
+  guarda lo que llega (por ejemplo, un `PUT /sitio`) pero **no decide** ni comanda ningún switch: su
+  reloj es el del último INICIAR y una decisión con esa hora sería engañosa. Decide en `iniciar()`,
+  con el reloj ya re-sincronizado; mientras tanto `/diagnostico` muestra la última decisión tomada
+  en ejecución (o ninguna, si nunca se inició).
+- **Última decisión vs estado conocido.** El adaptador recuerda la última decisión de cada habitación y
   el último estado *conocido* de su switch (por la respuesta del comando o por la consulta §4), y solo
   comanda cuando difieren. La reconciliación periódica corrige un switch que reinició
   (`DESCONOCIDO`), que alguien movió a mano o cuyo comando se perdió.
@@ -414,9 +419,8 @@ sequenceDiagram
     Inv->>Inv: validar → grabar (atómico) → en uso
     Inv-->>Ctl: evento InventarioAplicado (aplicarInventario)
     Ctl->>Ad: configurar(sitio, habitaciones)
-    Ad->>Ad: procesar(ConfiguracionActualizada) → guarda sitio y habitaciones
-    Ad->>Core: decidir(situación)
-    Note over Ad: detenido: guarda la decisión pero no comanda switches
+    Ad->>Ad: procesar(ConfiguracionActualizada) → guarda sitio y habitaciones<br/>log: Sitio aplicado (contratada, punta, zona, kW por habitación)
+    Note over Ad: detenido: no decide ni comanda switches (decide al iniciar)
     Inv-->>Mq: evento InventarioAplicado → anota los topics
     Env->>Ctl: POST /control/comandos {INICIAR, fechaHora, factorTiempo}
     Ctl->>Ctl: nuevo RelojControl(fechaHora, factor, ahoraReal, zona del sitio = America/Montevideo)
@@ -426,9 +430,9 @@ sequenceDiagram
     end
     Ctl->>Ad: procesar(Sincronizacion(fechaHora, factor))
     Note over Ad: D7: las lecturas vencidas con el reloj anterior se olvidan (SIN_LECTURA)<br/>y las vigentes se re-sellan con la hora nueva
+    Ctl->>Ad: iniciar() → en ejecución, decide y pide una pasada con consulta al hilo switches
     Ad->>Core: decidir(situación)
-    Ctl->>Ad: iniciar() → en ejecución, pide una pasada con consulta al hilo switches
-    Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales, reconciliación 15 s
+    Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales,<br/>reconciliación 15 s, resumen en el log 30 s
     Ctl-->>Env: 200 EN_EJECUCION (sin esperar a los switches)
     Env-->>Eng: 201 {mqtt: {host, puerto}}
     Eng->>Mq: conectar(tcp://host:puerto)
@@ -488,6 +492,8 @@ Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageA
 | dentro de la vigencia | se guarda con el `ts` convertido | el caso normal (llega milisegundos después de medirse) |
 | más viejo que la vigencia | **se descarta** y se cuenta en `/diagnostico` (`TS_VENCIDO`, D8) | un dato obsoleto no sostiene la calefacción; sellarlo con la hora actual haría que la próxima lectura buena pareciera fuera de orden |
 | anterior a la última guardada | **se descarta** y se cuenta (`FUERA_DE_ORDEN`) | hay un dato más nuevo |
+
+Cada descarte deja además una línea INFO en el log (son excepcionales): habitación, motivo, el `ts` original en hora real y su conversión a hora del control (en `TS_VENCIDO`; en `FUERA_DE_ORDEN` el adaptador solo conoce el instante ya convertido) y la hora del control en ese momento.
 
 La vigencia se mide en tiempo de control, sin escalar por el factor (T8c), tanto acá como en `Core.decidir`. Un desfase entre el reloj real del simulador y el del controlador se multiplica por el factor (2 s con factor 30 son 1 min de control): `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede; en Docker sobre el mismo host los dos comparten el reloj, y se verifica contra el simulador en T13.
 
@@ -629,7 +635,7 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
 | Paho callback | broker MQTT | `messageArrived` → `procesarMensaje` → `ControlService.alRecibirLectura` |
 | `mqtt-conexion` | propio (`LecturaMqttListener`) | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
-| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), y reconciliación cada 15 s reales; existe solo mientras el control está en ejecución |
+| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), reconciliación cada 15 s reales y un resumen en el log cada `control.resumen-segundos` (30 s) reales; existe solo mientras el control está en ejecución |
 | `registro-entorno` | propio (`RegistroEntorno`) | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
 | `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |
@@ -644,8 +650,8 @@ ya que el evento `InventarioAplicado` se publica en forma sincrónica) y nunca a
 adaptador no llama a `ControlService`: no hay deadlock. `LecturaMqttListener` usa un candado propio
 solo para la conexión y las suscripciones; el callback de Paho no lo toma.
 
-El core se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza lo
-deseado, pide una pasada al hilo `switches` y vuelve. La pasada toma el candado del adaptador solo para
+El core se llama dentro del bloqueo, pero **la red hacia los switches no**: cada estímulo actualiza la
+última decisión, pide una pasada al hilo `switches` y vuelve. La pasada toma el candado del adaptador solo para
 leer o actualizar el estado, y antes de cada comando vuelve a mirar el estado de ejecución: un DETENER
 que llega durante una pasada corta los comandos que faltan. Así `INICIAR` y `PUT /sitio` responden sin
 esperar a los switches —importante porque en el registro §6 el entorno nos da `INICIAR` antes de
@@ -666,9 +672,21 @@ las pasadas.
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
-| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de lo deseado y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
+| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
+
+### 3.2 Qué deja el log de una corrida
+
+Una corrida contra el simulador tiene que poder verificarse después solo con el log, sin cambiar el comportamiento del control. En INFO quedan:
+
+- **Sitio aplicado** (`CoreAdapter.configurar`, en cada `PUT /sitio` o ABM y en cada INICIAR): potencia contratada, franja punta (desde-hasta y días), zona y, por habitación, temperatura esperada, kW y switch.
+- **Decisión** por habitación cuando cambia la acción **o el motivo**: así se ve la entrada a la punta (`SATISFECHA` → `TARIFA_PUNTA`) o la carga limitada (`SIN_POTENCIA_DISPONIBLE`) aunque el switch siga en OFF.
+- **Lecturas descartadas** (`TS_VENCIDO`, `FUERA_DE_ORDEN`), con el `ts` y la hora del control (ver [§2.2](#22-llega-una-lectura-de-temperatura-evento-mqtt)).
+- **Resumen** cada `control.resumen-segundos` reales (30 por defecto, 0 lo desactiva), solo en ejecución: hora del control con el día de la semana, habitaciones en ON, potencia comprometida contra la contratada y habitaciones por motivo.
+- Comandos y fallas de switches, conexión MQTT, INICIAR y DETENER.
+
+Cada lectura recibida (`[TEMPERATURA]`) va en DEBUG: en una corrida real eran el 95 % de las líneas. Se sube con `logging.level.uy.edu.utec.iiss.engine.mqtt.LecturaMqttListener=DEBUG`.
 
 ## 4. Tiempo del control
 
@@ -729,7 +747,7 @@ Un INICIAR sobre un control en ejecución no es error: re-sincroniza (§5.2). `C
 1. configura el sitio en el adaptador, si hay inventario;
 2. manda un Tick con la hora del reloj **anterior**, así se cuenta también el tiempo que el control estuvo detenido;
 3. manda la Sincronización: `CoreAdapter.sincronizarReloj` olvida las lecturas que ya estaban vencidas con el reloj anterior (la habitación queda `SIN_LECTURA`) y marca las vigentes con la hora nueva (D7). Así un dato viejo no revive, y las lecturas que lleguen después de un salto hacia atrás no se toman como fuera de orden;
-4. reemplaza el reloj, pone al adaptador en ejecución y rearma el tick con el factor nuevo.
+4. reemplaza el reloj, pone al adaptador en ejecución (que decide con el reloj nuevo; detenido no decidía en los pasos 1 a 3) y rearma el tick con el factor nuevo.
 
 `iniciar`, `alRecibirLectura` y `tick` son `synchronized` en `ControlService`: una lectura sellada con el reloj viejo no se procesa después de la re-sincronización.
 
@@ -747,16 +765,16 @@ La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop
 | Corte y restitución | Cortar al entrar en punta y restituir al salir (it. 1 a 5) | Igual que la letra | — |
 | Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
 | Escala del `ts` | No la define (§2) | Hora real del simulador, convertida a la hora del control con la fórmula del §5.2 | Confirmado con el docente |
-| Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente |
+| Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente y por la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md): el simulador cruza la punta con `fechaHora` en hora de Montevideo |
 | Vigencia de lecturas | No la define | 600 s de tiempo de control, sin escalar por el factor | Un solo reloj; escalada, con factor 30 ninguna lectura vence en 5 h simuladas |
 | Frecuencia de publicación | Depende del escenario del simulador (docente) | No se asume ninguna | El simulador provoca atrasos y caídas a propósito |
 | `ts` viejo | No lo define | Se descarta y se cuenta en `/diagnostico` (D8) | Un dato obsoleto no debe sostener la calefacción |
 | Período del tick | No lo define | 1 s de tiempo de control: `max(10 ms, tickMs / factor)` reales | Con un tick fijo de 1 s real, a ×600 el corte se atrasaba hasta 10 min. Se descartó programar eventos en los bordes de la franja: suma complejidad sin necesidad |
-| Canal del factor en la it. 5 | "Parámetro al inicio" | `factorTiempo` del INICIAR; el paso a acelerado llega como un INICIAR que re-sincroniza | Es el único canal del contrato |
+| Canal del factor en la it. 5 | "Parámetro al inicio" | `factorTiempo` del INICIAR; el paso a acelerado llega como un INICIAR que re-sincroniza | Es el único canal del contrato; confirmado en la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md) (`factorTiempo = 60` en cada INICIAR) |
 
-### 4.7 Pregunta abierta y riesgos
+### 4.7 Riesgos (y la pregunta que se cerró)
 
-- **Abierta:** ¿el paso a modo acelerado llega como un INICIAR nuevo con `factorTiempo`? Si el simulador acelerara sin enviarlo, el reloj del control seguiría con el factor anterior y la tarifa se calcularía con un reloj equivocado. Se confirma en la corrida contra el simulador.
+- **Cerrada:** el paso a modo acelerado llega como un INICIAR con `factorTiempo`. En la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md) cada escenario fue `PUT /sitio`, INICIAR con factor 60 y DETENER; el cruce de punta se restituyó exactamente a las 23:00 de control.
 - **Desfase entre relojes.** La conversión del `ts` supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase se multiplica por el factor: 2 s con factor 30 son 1 min de control. `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede.
 - **Vigencia recuperada al re-sincronizar.** Una lectura vigente marcada con la hora nueva recupera la vigencia completa: un dato de 9:59 min vuelve a valer 10 min. La alternativa es conservar su antigüedad (`nuevo − (ahoraViejo − instante)`); queda como mejora posible.
 - **Re-INICIAR con el control en ejecución.** Son pasos separados (configurar, Tick, Sincronización). Entre ellos el hilo de switches podría enviar un comando decidido con el reloj anterior, que se corrige enseguida. Riesgo bajo.

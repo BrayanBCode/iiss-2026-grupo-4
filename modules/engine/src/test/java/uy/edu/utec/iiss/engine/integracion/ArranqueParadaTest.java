@@ -142,6 +142,30 @@ class ArranqueParadaTest extends IntegracionBase {
     }
 
     @Test
+    @DisplayName(
+            "Detenido, un PUT /sitio guarda la configuración sin decidir con el reloj viejo; el"
+                    + " próximo INICIAR decide con ella")
+    void detenido_aplicarSitioNoDecide() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar();
+        temperatura("living", 16.0);
+        esperarSwitch("living", "ON");
+
+        detener();
+        int comandosAlDetener = SWITCHES.comandos().size();
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 15.0, 1.0)); // ya no tendría déficit
+
+        assertEquals("CALEFACCIONANDO", motivo("living"), "decidió detenido");
+        assertEquals(16.0, adaptador.estados().get(0).temperaturaActual(), "perdió la lectura");
+        assertEquals(comandosAlDetener, SWITCHES.comandos().size());
+
+        iniciar(); // decide con la configuración guardada detenido
+
+        esperarMotivo("living", "SATISFECHA");
+        esperarSwitch("living", "OFF");
+    }
+
+    @Test
     @DisplayName("DETENER es idempotente y sin sitio no falla")
     void detenerIdempotente() throws Exception {
         detener();

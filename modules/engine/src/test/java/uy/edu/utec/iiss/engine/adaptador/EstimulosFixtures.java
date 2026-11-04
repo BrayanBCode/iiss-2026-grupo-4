@@ -37,8 +37,8 @@ final class EstimulosFixtures {
             new FranjaHoraria(LocalTime.of(17, 0), LocalTime.of(23, 0), DiasTarifa.HABILES);
 
     /**
-     * Nunca se llama: el adaptador de estos tests nunca se pone en ejecución, así que no comanda
-     * switches.
+     * Nunca se llama: el adaptador de estos tests descarta las pasadas de switches (ver {@link
+     * #adaptadorCon}).
      */
     private static final ClienteSwitch SIN_SWITCHES =
             new ClienteSwitch() {
@@ -61,9 +61,16 @@ final class EstimulosFixtures {
         return new ConfiguracionHabitacion(id, id, temperaturaEsperada, potenciaKW);
     }
 
-    /** Adaptador sin configurar, con el core dado. Detenido: decide, pero no toca switches. */
+    /**
+     * Adaptador sin configurar, con el core dado. En ejecución, porque detenido no decide, pero con
+     * un executor que descarta las pasadas: estos tests miran solo las decisiones y nunca tocan
+     * switches.
+     */
     static CoreAdapter adaptadorCon(Core core) {
-        return new CoreAdapter(core, SIN_SWITCHES, Clock.systemUTC(), Duration.ZERO, Runnable::run);
+        CoreAdapter adaptador =
+                new CoreAdapter(core, SIN_SWITCHES, Clock.systemUTC(), Duration.ZERO, pasada -> {});
+        adaptador.iniciar();
+        return adaptador;
     }
 
     /** Adaptador con el core por defecto y la configuración dada. */

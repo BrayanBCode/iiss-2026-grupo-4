@@ -25,6 +25,8 @@ import uy.edu.utec.iiss.core.model.ConfiguracionHabitacion;
 import uy.edu.utec.iiss.core.model.Decision;
 import uy.edu.utec.iiss.core.model.EstadoHabitacion;
 import uy.edu.utec.iiss.core.model.Estimulo;
+import uy.edu.utec.iiss.core.model.FranjaHoraria;
+import uy.edu.utec.iiss.core.model.Motivo;
 import uy.edu.utec.iiss.core.model.Sitio;
 import uy.edu.utec.iiss.engine.switches.ClienteSwitch;
 import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
@@ -36,8 +38,8 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  *   <li>Procesa los {@link Estimulo}s (lectura, tick, configuración, INICIAR): actualiza la
  *       situación (sitio, temperaturas, instantes, reloj) y le pide al core, que no tiene estado,
  *       que decida. Todo serializado con {@code synchronized}.
- *   <li>Recuerda la última decisión por habitación ("deseado"), que además dice cuáles están
- *       encendidas para la histéresis, y el último estado conocido de su switch; solo comanda
+ *   <li>Recuerda la última decisión por habitación ({@code ultimaDecision}), que además dice cuáles
+ *       están encendidas para la histéresis, y el último estado conocido de su switch; solo comanda
  *       cuando difieren.
  *   <li>Reconcilia (§4): consulta cada switch y corrige los que no coinciden (reinicio, cambio
  *       manual, comando perdido).
@@ -48,16 +50,21 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
  *       superaría (p. ej. falló el OFF que liberaba esa potencia).
  * </ul>
  *
- * La red con los switches corre en un hilo propio, en "pasadas": cada estímulo actualiza lo deseado
- * y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los switches. Los pedidos
- * durante una pasada se juntan en la siguiente. Las pasadas son secuenciales: un switch lento
- * demora a los demás switches hasta su timeout.
+ * Las llamadas HTTP a los switches corren en un hilo propio, en "pasadas": cada estímulo actualiza
+ * la última decisión y pide una pasada sin esperarla, así ni INICIAR ni PUT /sitio esperan a los
+ * switches. Los pedidos durante una pasada se juntan en la siguiente. Las pasadas son secuenciales:
+ * un switch lento demora a los demás switches hasta su timeout.
  *
  * <p><b>Estado de ejecución.</b> El adaptador es el único dueño del estado de ejecución ({@link
  * #iniciar}, {@link #detener}, {@link #enEjecucion}); {@code ControlService} le delega y nunca
  * guarda una copia. La dependencia va en un solo sentido (ControlService usa al adaptador, nunca al
- * revés), así los candados se toman siempre en el mismo orden y no hay deadlock. Detenido, se sigue
- * decidiendo (por ejemplo, ante un PUT /sitio) pero no se toca ningún switch.
+ * revés), así los candados se toman siempre en el mismo orden y no hay deadlock.
+ *
+ * <p><b>Detenido no decide.</b> Los estímulos actualizan la situación (sitio, lecturas, reloj) pero
+ * no se le pide nada al core ni se toca ningún switch: el reloj de un control detenido es el del
+ * último INICIAR y una decisión con esa hora sería engañosa. {@link #iniciar} decide con la
+ * situación ya re-sincronizada. Mientras tanto queda la última decisión tomada en ejecución (la que
+ * muestra {@code /diagnostico}), o ninguna si nunca se inició.
  */
 public class CoreAdapter implements AutoCloseable {
 
@@ -82,9 +89,20 @@ public class CoreAdapter implements AutoCloseable {
             String idSwitch,
             Map<MotivoDescarte, Integer> lecturasDescartadas) {}
 
+    /**
+     * Foto del control para el resumen periódico del log: cuántas habitaciones están decididas ON,
+     * la potencia que comprometen frente a la contratada y qué habitaciones hay por motivo.
+     */
+    public record Resumen(
+            int encendidas,
+            int habitaciones,
+            double comprometidaKW,
+            double contratadaKW,
+            Map<Motivo, List<String>> porMotivo) {}
+
     private final Core core;
     private final ClienteSwitch switches;
-    private final Clock relojReal;
+    private final Clock relojEsperas;
     private final Duration esperaReintento;
     private final Executor hiloSwitches;
 
@@ -101,7 +119,7 @@ public class CoreAdapter implements AutoCloseable {
 
     // Switches
     private final Map<String, HabitacionControlada> habitaciones = new LinkedHashMap<>();
-    private final Map<String, Decision> deseado = new HashMap<>();
+    private final Map<String, Decision> ultimaDecision = new HashMap<>();
     private final Map<String, EstadoSwitch> estadoConocido = new HashMap<>();
     private final Map<String, Instant> noReintentarAntesDe = new HashMap<>();
     private final Set<String> retenidas = new HashSet<>(); // ON esperando potencia confirmada
@@ -110,11 +128,11 @@ public class CoreAdapter implements AutoCloseable {
 
     /** Con su propio hilo de switches. */
     public CoreAdapter(
-            Core core, ClienteSwitch switches, Clock relojReal, Duration esperaReintento) {
+            Core core, ClienteSwitch switches, Clock relojEsperas, Duration esperaReintento) {
         this(
                 core,
                 switches,
-                relojReal,
+                relojEsperas,
                 esperaReintento,
                 Executors.newSingleThreadScheduledExecutor(
                         r -> {
@@ -131,12 +149,12 @@ public class CoreAdapter implements AutoCloseable {
     public CoreAdapter(
             Core core,
             ClienteSwitch switches,
-            Clock relojReal,
+            Clock relojEsperas,
             Duration esperaReintento,
             Executor hiloSwitches) {
         this.core = Objects.requireNonNull(core);
         this.switches = Objects.requireNonNull(switches);
-        this.relojReal = Objects.requireNonNull(relojReal);
+        this.relojEsperas = Objects.requireNonNull(relojEsperas);
         this.esperaReintento = Objects.requireNonNull(esperaReintento);
         this.hiloSwitches = Objects.requireNonNull(hiloSwitches);
     }
@@ -154,10 +172,12 @@ public class CoreAdapter implements AutoCloseable {
     // ------------------------------------------------------------------
 
     /**
-     * Define (o redefine) el sitio y las habitaciones con sus switches; puede cambiar decisiones,
-     * que se aplican al instante. El inventario ya viene validado ({@code ValidadorInventario}).
+     * Define (o redefine) el sitio y las habitaciones con sus switches. En ejecución puede cambiar
+     * decisiones, que se aplican al instante; detenido solo se guarda (se decide al iniciar). El
+     * inventario ya viene validado ({@code ValidadorInventario}).
      */
     public synchronized void configurar(Sitio sitio, List<HabitacionControlada> nuevas) {
+        registrarSitio(sitio, nuevas);
         Map<String, HabitacionControlada> porId = new LinkedHashMap<>();
         List<ConfiguracionHabitacion> configuracionNueva = new ArrayList<>();
         for (HabitacionControlada h : nuevas) {
@@ -183,15 +203,40 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     /**
-     * Procesa un estímulo (lectura, tick, configuración o INICIAR): actualiza la situación, le pide
-     * al core que decida y aplica las decisiones (los switches se comandan en su hilo, si el
-     * control está en ejecución).
+     * Deja en el log con qué sitio se controla: sin esto no se puede verificar después una corrida
+     * contra el simulador (potencia, franja, zona y kW de cada habitación).
+     */
+    private static void registrarSitio(Sitio sitio, List<HabitacionControlada> nuevas) {
+        FranjaHoraria punta = sitio.puntaTarifa();
+        log.info(
+                "Sitio aplicado '{}': contratada {} kW, punta {}-{} {}, zona {}, habitaciones: {}",
+                sitio.id(),
+                sitio.potenciaContratadaKW(),
+                punta.desde(),
+                punta.hasta(),
+                punta.dias(),
+                sitio.zona(),
+                nuevas.size());
+        for (HabitacionControlada h : nuevas) {
+            log.info(
+                    "  habitación '{}': esperada {} °C, {} kW, switch '{}'",
+                    h.id(),
+                    h.temperaturaEsperada(),
+                    h.potenciaKW(),
+                    h.idSwitch());
+        }
+    }
+
+    /**
+     * Procesa un estímulo (lectura, tick, configuración o INICIAR): actualiza la situación y, si el
+     * control está en ejecución, le pide al core que decida y aplica las decisiones (los switches
+     * se comandan en su hilo). Detenido no decide (ver la clase).
      *
      * <p>Una {@code ConfiguracionActualizada} recibida directamente cambia lo que se decide pero no
      * los switches; el engine usa {@link #configurar}, que actualiza las dos cosas.
      *
      * @return una decisión por habitación configurada, en el orden del inventario (vacía si todavía
-     *     no hay sitio)
+     *     no hay sitio o si el control está detenido)
      */
     public synchronized List<Decision> procesar(Estimulo estimulo) {
         switch (estimulo) {
@@ -199,6 +244,9 @@ public class CoreAdapter implements AutoCloseable {
             case Estimulo.Tick t -> avanzarReloj(t.ts());
             case Estimulo.ConfiguracionActualizada c -> adoptarConfiguracion(c);
             case Estimulo.Sincronizacion s -> sincronizarReloj(s);
+        }
+        if (!enEjecucion) {
+            return List.of();
         }
         List<Decision> decisiones = decidir();
         aplicar(decisiones);
@@ -208,7 +256,7 @@ public class CoreAdapter implements AutoCloseable {
     /**
      * Una lectura que no llegó a ser estímulo porque se descartó antes (por ejemplo, su {@code ts}
      * es más viejo que la vigencia): solo se cuenta para {@code /diagnostico}. No cambia ninguna
-     * decisión.
+     * decisión. El log lo escribe quien descarta, que es el que conoce el {@code ts} original.
      */
     public synchronized void descartarLectura(String idHabitacion, MotivoDescarte motivo) {
         if (estaConfigurada(idHabitacion)) {
@@ -217,10 +265,10 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     private void contarDescarte(String idHabitacion, MotivoDescarte motivo) {
+        // descartes[habitación][motivo] += 1, creando el contador si no existe
         descartes
                 .computeIfAbsent(idHabitacion, id -> new EnumMap<>(MotivoDescarte.class))
                 .merge(motivo, 1, Integer::sum);
-        log.debug("Lectura de '{}' descartada: {}", idHabitacion, motivo);
     }
 
     private void registrarLectura(Estimulo.NuevaLectura l) {
@@ -234,6 +282,16 @@ public class CoreAdapter implements AutoCloseable {
         Instant anterior = instanteLectura.get(id);
         if (anterior != null && l.ts().isBefore(anterior)) {
             contarDescarte(id, MotivoDescarte.FUERA_DE_ORDEN); // hay un dato más nuevo
+            // INFO porque es excepcional y explica por qué una lectura no cambió nada. Acá el
+            // instante ya está en hora del control: el ts original solo lo conoce ControlService.
+            log.info(
+                    "Lectura de '{}' descartada ({}): medida a las {} (hora del control), anterior"
+                            + " a la última guardada {}; hora del control {}",
+                    id,
+                    MotivoDescarte.FUERA_DE_ORDEN,
+                    l.ts(),
+                    anterior,
+                    ahora);
             return;
         }
         temperaturas.put(id, l.temperaturaC());
@@ -258,7 +316,7 @@ public class CoreAdapter implements AutoCloseable {
         }
         temperaturas.keySet().retainAll(ids);
         instanteLectura.keySet().retainAll(ids);
-        deseado.keySet().retainAll(ids);
+        ultimaDecision.keySet().retainAll(ids);
         descartes.keySet().retainAll(ids);
     }
 
@@ -320,7 +378,7 @@ public class CoreAdapter implements AutoCloseable {
         if (!estaConfigurada(idHabitacion)) {
             return null;
         }
-        Decision ultima = deseado.get(idHabitacion);
+        Decision ultima = ultimaDecision.get(idHabitacion);
         return new EstadoHabitacion(
                 idHabitacion,
                 temperaturas.get(idHabitacion),
@@ -334,13 +392,17 @@ public class CoreAdapter implements AutoCloseable {
 
     /**
      * Pone el control en ejecución (o lo re-sincroniza si ya lo estaba): se olvidan las esperas
-     * entre reintentos y se pide una pasada que primero consulta el estado real de cada switch (§4)
-     * y después manda lo que falte. No espera a los switches.
+     * entre reintentos, se decide con la situación actual (detenido no se decidía) y se pide una
+     * pasada que primero consulta el estado real de cada switch (§4) y después manda lo que falte.
+     * No espera a los switches.
      */
     public synchronized void iniciar() {
         enEjecucion = true;
         noReintentarAntesDe.clear();
-        programarPasada(true);
+        // Antes de aplicar: así la pasada que pide aplicar ya consulta antes de comandar, aun con
+        // un executor sincrónico.
+        consultaPendiente = true;
+        aplicar(decidir());
     }
 
     /**
@@ -367,10 +429,15 @@ public class CoreAdapter implements AutoCloseable {
     // Internos
     // ------------------------------------------------------------------
 
+    /**
+     * Guarda la última decisión y pide una pasada. Se loguea cuando cambia la acción o el motivo:
+     * un OFF que sigue OFF pero pasa de SATISFECHA a TARIFA_PUNTA (o a SIN_POTENCIA_DISPONIBLE) es
+     * la única evidencia de la entrada a la punta o de la carga limitada.
+     */
     private void aplicar(List<Decision> decisiones) {
         for (Decision d : decisiones) {
-            Decision anterior = deseado.put(d.idHabitacion(), d);
-            if (anterior == null || anterior.accion() != d.accion()) {
+            Decision anterior = ultimaDecision.put(d.idHabitacion(), d);
+            if (!d.equals(anterior)) {
                 log.info(
                         "Decisión: habitación '{}' -> {} ({})",
                         d.idHabitacion(),
@@ -389,7 +456,9 @@ public class CoreAdapter implements AutoCloseable {
         if (!enEjecucion) {
             return;
         }
-        consultaPendiente |= consultarAntes;
+        if (consultarAntes) {
+            consultaPendiente = true;
+        }
         if (pasadaEncolada) {
             return;
         }
@@ -402,12 +471,13 @@ public class CoreAdapter implements AutoCloseable {
     }
 
     /**
-     * Corre en el hilo de switches: consulta (si se pidió) y manda lo pendiente. El bloqueo se toma
-     * solo para leer o actualizar el estado, nunca durante la red.
+     * Corre en el hilo de switches: consulta los switches (si se pidió) y les manda lo pendiente.
+     * El candado se toma solo para leer o actualizar el estado, nunca durante una llamada HTTP a un
+     * switch.
      */
     private void pasada() {
         try {
-            List<HabitacionControlada> aConsultar;
+            List<HabitacionControlada> aConsultar = new ArrayList<>();
             synchronized (this) {
                 pasadaEncolada = false; // lo que llegue desde ahora pide otra pasada
                 boolean consultar = consultaPendiente;
@@ -415,12 +485,13 @@ public class CoreAdapter implements AutoCloseable {
                 if (!enEjecucion) {
                     return;
                 }
-                aConsultar =
-                        consultar
-                                ? habitaciones.values().stream()
-                                        .filter(h -> !enEspera(h.id()))
-                                        .toList()
-                                : List.of();
+                if (consultar) {
+                    for (HabitacionControlada h : habitaciones.values()) {
+                        if (!enEspera(h.id())) {
+                            aConsultar.add(h);
+                        }
+                    }
+                }
             }
             aConsultar.forEach(this::consultar);
             enviarPendientes();
@@ -477,7 +548,7 @@ public class CoreAdapter implements AutoCloseable {
                 if (!enEjecucion) {
                     return;
                 }
-                Decision d = deseado.get(h.id());
+                Decision d = ultimaDecision.get(h.id());
                 if (!vigente(h)
                         || d == null
                         || d.accion() != soloEsta
@@ -555,7 +626,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private void registrarFalla(HabitacionControlada h, String que, RuntimeException e) {
         boolean primera = !noReintentarAntesDe.containsKey(h.id());
-        noReintentarAntesDe.put(h.id(), relojReal.instant().plus(esperaReintento));
+        noReintentarAntesDe.put(h.id(), relojEsperas.instant().plus(esperaReintento));
         if (primera) {
             log.error(
                     "No se pudo {} el switch '{}' (habitación '{}'); se reintenta: {}",
@@ -570,7 +641,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private boolean enEspera(String idHabitacion) {
         Instant hasta = noReintentarAntesDe.get(idHabitacion);
-        return hasta != null && relojReal.instant().isBefore(hasta);
+        return hasta != null && relojEsperas.instant().isBefore(hasta);
     }
 
     private static boolean coincide(EstadoSwitch estado, Accion accion) {
@@ -582,11 +653,35 @@ public class CoreAdapter implements AutoCloseable {
     // Diagnóstico
     // ------------------------------------------------------------------
 
+    /**
+     * Resumen de lo decidido para el log periódico. Barato y sin red: solo recorre las últimas
+     * decisiones con el candado tomado. Una habitación todavía sin decisión no cuenta en ningún
+     * motivo.
+     */
+    public synchronized Resumen resumen() {
+        int encendidas = 0;
+        double comprometida = 0;
+        Map<Motivo, List<String>> porMotivo = new EnumMap<>(Motivo.class);
+        for (HabitacionControlada h : habitaciones.values()) {
+            Decision d = ultimaDecision.get(h.id());
+            if (d == null) {
+                continue;
+            }
+            if (d.accion() == Accion.ON) {
+                encendidas++;
+                comprometida += h.potenciaKW();
+            }
+            porMotivo.computeIfAbsent(d.motivo(), m -> new ArrayList<>()).add(h.id());
+        }
+        double contratada = sitio == null ? 0 : sitio.potenciaContratadaKW();
+        return new Resumen(encendidas, habitaciones.size(), comprometida, contratada, porMotivo);
+    }
+
     public synchronized List<EstadoControlado> estados() {
         List<EstadoControlado> salida = new ArrayList<>();
         for (HabitacionControlada h : habitaciones.values()) {
             EstadoHabitacion e = estadoDe(h.id());
-            Decision d = deseado.get(h.id());
+            Decision d = ultimaDecision.get(h.id());
             salida.add(
                     new EstadoControlado(
                             h.id(),
