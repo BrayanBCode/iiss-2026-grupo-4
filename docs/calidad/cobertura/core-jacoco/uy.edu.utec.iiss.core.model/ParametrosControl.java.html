@@ -8,8 +8,8 @@ import java.util.Objects;
  *
  * @param histeresisC banda (°C) bajo la esperada en la que una habitación apagada no se enciende;
  *     una encendida sigue hasta la esperada.
- * @param vigenciaLectura cuánto tiempo real vale una lectura (escalado por el factor de tiempo);
- *     vencida, la habitación se apaga.
+ * @param vigenciaLectura cuánto tiempo de control (simulado) vale una lectura; vencida, la
+ *     habitación se apaga.
  * @param temperaturaMinimaValida lecturas por debajo se descartan (sensor roto).
  * @param temperaturaMaximaValida lecturas por encima se descartan (sensor roto).
  */

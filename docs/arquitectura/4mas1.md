@@ -16,7 +16,7 @@ estado de ejecución) lo guarda `CoreAdapter` en el engine.
 | Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 (diseño actual, T11a) | §2 |
 | Procesos | ✅ Iteración 5 (diseño actual, T11a) | §3 |
 | Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | ✅ Iteración 5 (T14) | §4 |
-| Desarrollo | ✅ Iteración 5 (diseño actual, T11a; se completa en la 6) | §5 |
+| Desarrollo | ✅ Iteración 5, completada en la 6 (tests actuales, T11) | §5 |
 | Física: despliegue en Docker, red del simulador y persistencia | ✅ Iteración 6 (T11) | §6 |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
@@ -806,7 +806,7 @@ modules/
                └── src/test/…/
                    ├── adaptador/   CoreAdapterTest (switches, pasadas, estado de ejecución),
                    │                CoreAdapterEstimulosTest (por estímulos), EstimulosFixtures
-                   ├── control/     RelojControlTest
+                   ├── control/     RelojControlTest, ControlServiceTest (período del tick)
                    ├── inventario/  ValidadorInventarioTest, RepositorioInventarioTest,
                    │                InventarioEjemplo
                    ├── mqtt/        PayloadTermostatoTest
@@ -816,7 +816,7 @@ modules/
                                 IntegracionBase (contexto Spring + BrokerMqttEmbebido (Moquette)
                                 + SwitchesHttpFalsos), ControlCargaTest, ArranqueParadaTest,
                                 CambioConfiguracionTest, FallaBrokerMqttTest, PerdidaMensajesTest,
-                                FallaSwitchTest, TermostatoCaidoTest
+                                FallaSwitchTest, TermostatoCaidoTest, TiempoAceleradoTest
 ```
 
 Los tests de estímulos (lectura, tick, configuración, INICIAR) eran `CoreTest` hasta la iteración 5;
