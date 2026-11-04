@@ -2,6 +2,8 @@ package uy.edu.utec.iiss.engine.registro;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -95,6 +97,14 @@ public class RegistroEntorno {
             mqtt.conectar(brokerPorDefecto);
             return;
         }
+        Optional<String> problema = problemaBaseUrl(baseUrl, entornoUrl);
+        if (problema.isPresent()) {
+            log.warn(
+                    "CONTROLADOR_BASE_URL={} {}: el entorno no podrá cargar el sitio ni dar"
+                            + " INICIAR.",
+                    baseUrl,
+                    problema.get());
+        }
         Thread t = new Thread(this::registrarConReintentos, "registro-entorno");
         t.setDaemon(true);
         t.start();
@@ -167,6 +177,76 @@ public class RegistroEntorno {
             return Optional.empty();
         }
         return Optional.of("tcp://" + m.path("host").asText() + ":" + m.path("puerto").asInt());
+    }
+
+    /**
+     * Revisa que el entorno pueda alcanzar la {@code baseUrl} que le declaramos al registrarnos. El
+     * registro sale bien aunque no pueda: el error recién se nota porque nunca llega el {@code PUT
+     * /sitio}. En la corrida del 2026-10-28 pasó dos veces (con {@code localhost} y con una IP mal
+     * escrita).
+     *
+     * @return por qué no la va a poder alcanzar, o vacío si parece bien
+     */
+    static Optional<String> problemaBaseUrl(String baseUrl, String entornoUrl) {
+        String host = host(baseUrl);
+        if (host == null) {
+            return Optional.of("no es una URL http(s) válida");
+        }
+        if (pareceIpMalEscrita(host)) {
+            return Optional.of("tiene el host '" + host + "', que parece una IP mal escrita");
+        }
+        String hostEntorno = host(entornoUrl);
+        if (esLocal(host) && hostEntorno != null && !esLocal(hostEntorno)) {
+            return Optional.of(
+                    "apunta a esta máquina y el entorno está en '"
+                            + hostEntorno
+                            + "', que no la ve como localhost");
+        }
+        return Optional.empty();
+    }
+
+    private static String host(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            URI uri = new URI(url);
+            String esquema = uri.getScheme();
+            if (!"http".equalsIgnoreCase(esquema) && !"https".equalsIgnoreCase(esquema)) {
+                return null;
+            }
+            return uri.getHost();
+        } catch (URISyntaxException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Local para el entorno: la misma máquina. {@code host.docker.internal} cuenta como local
+     * porque el entorno que corre en el anfitrión alcanza al contenedor por el puerto publicado.
+     */
+    private static boolean esLocal(String host) {
+        return host.equals("localhost")
+                || host.startsWith("127.")
+                || host.equals("[::1]")
+                || host.equals("host.docker.internal");
+    }
+
+    /** Solo números y puntos, pero no cuatro octetos de 0 a 255. */
+    private static boolean pareceIpMalEscrita(String host) {
+        if (!host.matches("[0-9.]+")) {
+            return false;
+        }
+        String[] octetos = host.split("\\.", -1);
+        if (octetos.length != 4) {
+            return true;
+        }
+        for (String octeto : octetos) {
+            if (octeto.isEmpty() || octeto.length() > 3 || Integer.parseInt(octeto) > 255) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void pedirSitio() {
