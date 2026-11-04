@@ -14,7 +14,7 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 5.
 | Historias, personas, escenarios | [`docs/Producto/`](docs/Producto) |
 | Estándar de interoperabilidad v2 | [`docs/api/interop-v2.md`](docs/api/interop-v2.md) (+ [`controlador`](docs/api/controlador.openapi-v2.yaml) / [`simulador`](docs/api/simulador.openapi-v2.yaml) OpenAPI) |
 | API de este controlador (OpenAPI 3) | [`docs/api/openapi.yaml`](docs/api/openapi.yaml) |
-| Arquitectura 4+1 (lógica, procesos, desarrollo + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
+| Arquitectura 4+1 (lógica, procesos, desarrollo, física + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
 | Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | [`4mas1.md` §4](docs/arquitectura/4mas1.md#4-tiempo-del-control) |
 | Registro de la revisión del docente (iteración 5) | [`docs/planificacion/revision-docente.md`](docs/planificacion/revision-docente.md) |
 | Criterio de adecuación de los tests | [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md) |

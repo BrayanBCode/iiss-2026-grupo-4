@@ -4,7 +4,7 @@ Se documenta en forma incremental con la técnica 4+1 de Kruchten. En la **Itera
 presentaron la **vista lógica** y los **diagramas de secuencia** del manejo de eventos. En la
 **Iteración 5** se completa la **vista de procesos** con el manejo de fallas, se agregan los
 escenarios de falla (§2.5 y §2.6) y se actualiza la vista de desarrollo con los tests de
-integración. La vista física queda para la iteración 6.
+integración. En la **Iteración 6** se agrega la **vista física** (§6).
 
 Tras la revisión docente de la iteración 5 (tarjetas T4, T5, T7 y T7b) las vistas describen el diseño
 actual: el core contiene el modelo y la función pura `decidir`, y el estado del control (situación y
@@ -17,7 +17,7 @@ estado de ejecución) lo guarda `CoreAdapter` en el engine.
 | Procesos | ✅ Iteración 5 (diseño actual, T11a) | §3 |
 | Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | ✅ Iteración 5 (T14) | §4 |
 | Desarrollo | ✅ Iteración 5 (diseño actual, T11a; se completa en la 6) | §5 |
-| Física | ⏳ Iteración 6 (tarjeta T11) | — |
+| Física: despliegue en Docker, red del simulador y persistencia | ✅ Iteración 6 (T11) | §6 |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
 
@@ -825,3 +825,83 @@ con el core sin estado pasaron a `CoreAdapterEstimulosTest`, junto con `CoreAdap
 
 Formato del código: Spotless con google-java-format (AOSP), configurado en el `pom.xml` padre;
 `mvn verify` falla si algo no cumple (ver [`docs/calidad/`](../calidad/README.md)).
+
+## 6. Vista física (Iteración 6)
+
+Dónde corre cada pieza, por dónde se comunican y qué sobrevive a un reinicio. El controlador es un
+solo proceso Java (core + engine en `engine.jar`) dentro de un contenedor Docker; todo lo demás es
+del entorno.
+
+### 6.1 Despliegue en el laboratorio (red del simulador)
+
+Es la configuración de las pruebas de aceptación:
+`docker compose -f docker/docker-compose.yml -f docker/docker-compose.lab.yml up -d --build`
+(o `./scripts/up.sh lab`).
+
+```mermaid
+flowchart LR
+    subgraph host["Anfitrión (Docker)"]
+        subgraph lab["red iiss-lab-net (la crea el stack del simulador)"]
+            subgraph ctrl["contenedor ecowarm-grupo4 · eclipse-temurin:25-jre-alpine"]
+                engine["engine.jar<br/>core + engine (Spring Boot)<br/>:8080"]
+            end
+            sim["iiss-simulator :9090<br/>registro §6 · switches §3/§4<br/>termostatos simulados"]
+            broker["broker MQTT<br/>(el que informa el registro,<br/>p. ej. mosquitto:1883)"]
+        end
+        vol[("volumen inventario<br/>/app/data/inventario.json")]
+        logs[("../logs (bind mount)<br/>/app/logs/engine.log")]
+    end
+    usuario["Equipo / docente<br/>curl, navegador"]
+
+    engine -- "POST /controladores §6<br/>(X-API-Key del entorno)" --> sim
+    sim -- "PUT /sitio §5.1 · INICIAR §5.2<br/>(X-API-Key del controlador)" --> engine
+    sim -- "publica ts + temperatura §2" --> broker
+    engine -- "suscribe QoS 1 §2" --> broker
+    engine -- "GET/POST /switches/{id} §3/§4" --> sim
+    engine --- vol
+    engine --- logs
+    usuario -- "localhost:8080<br/>/control · /diagnostico" --> engine
+```
+
+| Nodo | Imagen / proceso | Puertos | Quién lo levanta |
+|---|---|---|---|
+| `ecowarm-grupo4` | `eclipse-temurin:25-jre-alpine` + `engine.jar` (build en dos etapas, `modules/engine/Dockerfile`) | 8080 (publicado en el anfitrión) | Nosotros (`docker/docker-compose.yml` + `.lab.yml`) |
+| `iiss-simulator` | Simulador de la cátedra | 9090 en la red `iiss-lab-net` | La cátedra (su `docker-compose.yml`) |
+| Broker MQTT | Del stack del simulador | 1883 en la red | La cátedra. Su dirección llega en la respuesta del registro: no se configura |
+
+| Comunicación | Protocolo | Dirección | Configuración |
+|---|---|---|---|
+| Registro §6 | HTTP + `X-API-Key` | controlador → `http://iiss-simulator:9090` | `ENTORNO_URL`, `ENTORNO_API_KEY` |
+| Inventario §5.1 e INICIAR/DETENER §5.2 | HTTP + `X-API-Key` | simulador → `http://ecowarm-grupo4:8080` | `CONTROLADOR_BASE_URL` (va en el registro), `API_KEY` |
+| Lecturas §2 | MQTT, QoS 1, sesión limpia | broker → controlador | Broker informado por el registro; si no lo informa, `MQTT_BROKER` |
+| Switches §3/§4 | HTTP + `X-API-Key` | controlador → `urlSwitch` de cada habitación (el simulador) | `SWITCH_API_KEY` (por defecto la del entorno) |
+
+**Orden de arranque.** El stack del simulador va primero: crea la red `iiss-lab-net`, que el compose
+del controlador declara `external`. Si el simulador todavía no responde, el registro reintenta con
+espera exponencial (2, 4, 8 … 30 s) y MQTT cada 5 s (§3.1): el orden dentro de la red no importa.
+
+**Qué sobrevive a un reinicio del contenedor.**
+
+| Dato | Dónde | ¿Sobrevive? |
+|---|---|---|
+| Inventario del sitio | volumen `inventario` → `/app/data/inventario.json` | Sí, también a recrear el contenedor |
+| Log | `../logs/engine.log` en el anfitrión (bind mount) | Sí |
+| Estado de ejecución y reloj del control | memoria | No: arranca `DETENIDO` hasta el próximo INICIAR ([roadmap L2](roadmap.md)) |
+| Lecturas y últimas decisiones | memoria | No: se reconstruyen con las lecturas nuevas y la consulta §4 a los switches |
+
+### 6.2 Otras configuraciones
+
+| Configuración | Cómo se levanta | Diferencias con 6.1 |
+|---|---|---|
+| **Con el verificador `ecowarm-check`** (primer intento de integración) | `java -jar ecowarm-check.jar` en el anfitrión y `./scripts/up.sh` | El checker hace de simulador, broker y switches en el anfitrión (`:9090`, `:1883`); el contenedor lo alcanza por `host.docker.internal` (`extra_hosts` del compose) |
+| **Instalación real** (sin entorno con registro) | `docker compose -f docker/docker-compose.yml up -d` con `ENTORNO_URL` vacío | No hay registro: el broker sale de `MQTT_BROKER` y el inventario se carga con `PUT /sitio`. Los switches son dispositivos de la casa en la red local |
+| **Desarrollo** | `mvn verify` / `java -jar modules/engine/target/engine.jar` | Sin Docker. Los tests de integración levantan un broker Moquette y switches HTTP falsos dentro del mismo proceso (§5) |
+
+### 6.3 Requisitos del anfitrión
+
+- Docker con Compose v2. La imagen se compila adentro (Maven + JDK 25), así que no hace falta Java en
+  el anfitrión para levantar el controlador; sí para `mvn verify`.
+- Puerto 8080 libre (o cambiar el mapeo en el compose y `CONTROLADOR_BASE_URL`).
+- Relojes del anfitrión y del simulador sincronizados: el `ts` de las lecturas se convierte con la
+  hora real del controlador (§4.2, [roadmap L5](roadmap.md)). En el laboratorio comparten el reloj
+  del anfitrión.
