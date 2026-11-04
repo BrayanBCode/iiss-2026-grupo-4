@@ -1,8 +1,9 @@
-# Cobertura del core — Iteración 5
+# Cobertura del core — Iteración 6
 
-Medida con JaCoCo 0.8.14 al correr `mvn clean verify` el 2026-10-27 sobre la rama
-`implementacion5`, después de dejar el core sin estado (tarjetas T4/T5). El objetivo de la
-iteración es **≥ 85 % en el core**, y el build lo exige para **líneas y ramas** (ver abajo).
+Medida con JaCoCo 0.8.14 al correr `mvn clean verify` el 2026-11-03 sobre la rama
+`iter6/t11-vista-fisica` (tarjeta T11, sobre `implementacion6`), con el core sin estado (T4/T5)
+y los cambios de tiempo de la iteración 5 (T8b, T8c, D7). El objetivo es **≥ 85 % en el core**, y
+el build lo exige para **líneas y ramas** (ver abajo).
 
 Reporte navegable: [`core-jacoco/index.html`](core-jacoco/index.html) (también
 [`jacoco.csv`](core-jacoco/jacoco.csv) y [`jacoco.xml`](core-jacoco/jacoco.xml)).
@@ -11,21 +12,21 @@ Reporte navegable: [`core-jacoco/index.html`](core-jacoco/index.html) (también
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 150 | 150 | **100 %** |
+| Líneas | 148 | 148 | **100 %** |
 | Ramas | 79 | 84 | **94,0 %** |
-| Instrucciones | 755 | 755 | 100 % |
+| Instrucciones | 745 | 745 | 100 % |
 | Métodos | 31 | 31 | 100 % |
 
 El core es más chico que en la versión anterior (238 líneas, 130 ramas) porque el manejo de
 estímulos y el estado (`procesar`, `CoreClient`, `validar`) pasaron al engine; ahora queda la
-función `decidir`, `lecturaValida`, el criterio y el modelo. Los tests de esa parte que se fue
+función `decidir`, `lecturaValida`, `lecturaVencida`, el criterio y el modelo. Los tests de esa parte que se fue
 siguen corriendo en el engine (`CoreAdapterEstimulosTest`).
 
 ## Por clase (las que tienen ramas)
 
 | Clase | Líneas | Ramas |
 |---|---|---|
-| `Core` | 61 / 61 | 40 / 40 |
+| `Core` | 59 / 59 | 40 / 40 |
 | `MayorDeficitPrimero` | 22 / 22 | 11 / 14 |
 | `FranjaHoraria` | 10 / 10 | 13 / 14 |
 | `ParametrosControl` | 11 / 11 | 9 / 10 |
