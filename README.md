@@ -16,6 +16,7 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 5.
 | API de este controlador (OpenAPI 3) | [`docs/api/openapi.yaml`](docs/api/openapi.yaml) |
 | Arquitectura 4+1 (lógica, procesos, desarrollo + secuencias) | [`docs/arquitectura/4mas1.md`](docs/arquitectura/4mas1.md) |
 | Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | [`4mas1.md` §4](docs/arquitectura/4mas1.md#4-tiempo-del-control) |
+| Limitaciones conocidas y roadmap | [`docs/arquitectura/roadmap.md`](docs/arquitectura/roadmap.md) |
 | Registro de la revisión del docente (iteración 5) | [`docs/planificacion/revision-docente.md`](docs/planificacion/revision-docente.md) |
 | Criterio de adecuación de los tests | [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md) |
 | Calidad: estándar de codificación, Spotless, cobertura | [`docs/calidad/`](docs/calidad/README.md) |
