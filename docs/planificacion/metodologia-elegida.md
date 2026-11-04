@@ -13,7 +13,7 @@ Al empezar una iteración el equipo se reúne y:
 3. Toma las **decisiones** que afectan a varias tarjetas, por ejemplo de diseño o de contrato con el simulador. Así nadie arranca una tarjeta con dudas abiertas.
 4. Deja explícito lo que queda **fuera de alcance** de la iteración.
 
-Las tarjetas, sus dependencias y su estado se llevan en el tablero de Jira (enlace en el README). Cómo atendimos las observaciones del docente en la iteración 5 está registrado en [`revision-docente.md`](revision-docente.md).
+Las tarjetas, sus dependencias y su estado se llevan en el tablero de Jira (enlace en el README). Cómo atendimos las observaciones del docente en la iteración 5 está registrado en [`revision-docente.md`](revision-docente.md). El resultado de la planificación de la iteración 6 está en [`planificacion-iter6.md`](planificacion-iter6.md).
 
 ## Tablero
 
