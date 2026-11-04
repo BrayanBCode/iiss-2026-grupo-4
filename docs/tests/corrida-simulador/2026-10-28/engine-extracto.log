@@ -1,0 +1,181 @@
+# Extracto del log del controlador — corrida contra el simulador de la cátedra, 2026-10-28
+# Fuente: logs/engine.log.2026-10-28.0.gz (26830 líneas). Se quitaron las lecturas [TEMPERATURA] (25673),
+# los reintentos repetidos de registro/MQTT de los arranques de prueba y las líneas de Spring/Tomcat.
+# Desde la línea 'Registrado ... 192.168.1.116:9094' (18:06) es la sesión con el simulador.
+
+2026-10-28T18:06:16.360-03:00 INFO [main] Inventario 'casa-ejemplo' recuperado de /app/data/inventario.json (2 habitaciones).
+2026-10-28T18:06:16.366-03:00 INFO [main] Decisión: habitación 'room1' -> OFF (SIN_LECTURA)
+2026-10-28T18:06:16.367-03:00 INFO [main] Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-10-28T18:06:16.447-03:00 INFO [registro-entorno] Registrado ante el entorno http://192.168.1.116:9094 como 'ecowarm-grupo4' (baseUrl http://localhost:8080).
+2026-10-28T18:06:16.955-03:00 INFO [mqtt-conexion] Conectado al broker MQTT en tcp://192.168.1.116:1894.
+2026-10-28T18:06:16.963-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room2/status/temperature:0' (habitación 'room2').
+2026-10-28T18:06:16.991-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room1/status/temperature:0' (habitación 'room1').
+2026-10-28T18:07:26.184-03:00 ERROR [mqtt] Conexión perdida con el broker MQTT (tcp://192.168.1.116:1894): Connection lost. Reintento en 5 s.
+2026-10-28T18:07:35.900-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:07:45.539-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:07:55.467-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:08:07.924-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: MqttException. Reintento en 5 s.
+2026-10-28T18:08:22.939-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: MqttException. Reintento en 5 s.
+2026-10-28T18:08:37.951-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: MqttException. Reintento en 5 s.
+2026-10-28T18:08:52.965-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: MqttException. Reintento en 5 s.
+2026-10-28T18:09:05.905-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:09:15.137-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:09:24.535-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:09:35.439-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:09:47.623-03:00 ERROR [mqtt-conexion] No se pudo conectar al broker MQTT en tcp://192.168.1.116:1894: Unable to connect to server. Reintento en 5 s.
+2026-10-28T18:09:55.623-03:00 INFO [mqtt-conexion] Reconectado al broker MQTT (tcp://192.168.1.116:1894). Se restablecen las suscripciones.
+2026-10-28T18:09:56.446-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room2/status/temperature:0' (habitación 'room2').
+2026-10-28T18:09:57.670-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room1/status/temperature:0' (habitación 'room1').
+2026-10-28T18:20:21.040-03:00 INFO [main] Inventario 'casa-ejemplo' recuperado de /app/data/inventario.json (2 habitaciones).
+2026-10-28T18:20:21.046-03:00 INFO [main] Decisión: habitación 'room1' -> OFF (SIN_LECTURA)
+2026-10-28T18:20:21.047-03:00 INFO [main] Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-10-28T18:20:21.167-03:00 INFO [registro-entorno] Registrado ante el entorno http://192.168.1.116:9094 como 'ecowarm-grupo4' (baseUrl http://192.168.148:8080).
+2026-10-28T18:20:21.505-03:00 INFO [mqtt-conexion] Conectado al broker MQTT en tcp://192.168.1.116:1894.
+2026-10-28T18:20:21.513-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room1/status/temperature:0' (habitación 'room1').
+2026-10-28T18:20:21.519-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room2/status/temperature:0' (habitación 'room2').
+2026-10-28T18:21:55.136-03:00 INFO [main] Inventario 'casa-ejemplo' recuperado de /app/data/inventario.json (2 habitaciones).
+2026-10-28T18:21:55.146-03:00 INFO [main] Decisión: habitación 'room1' -> OFF (SIN_LECTURA)
+2026-10-28T18:21:55.147-03:00 INFO [main] Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-10-28T18:21:55.340-03:00 INFO [registro-entorno] Registrado ante el entorno http://192.168.1.116:9094 como 'ecowarm-grupo4' (baseUrl http://192.168.1.148:8080).
+2026-10-28T18:21:55.695-03:00 INFO [mqtt-conexion] Conectado al broker MQTT en tcp://192.168.1.116:1894.
+2026-10-28T18:21:55.742-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room1/status/temperature:0' (habitación 'room1').
+2026-10-28T18:21:55.759-03:00 INFO [mqtt-conexion] Suscrito a 'ht-room2/status/temperature:0' (habitación 'room2').
+2026-10-28T18:23:17.292-03:00 INFO [http-nio-8080-exec-3] Inventario 'gen-0-holgado-s1' aplicado (0 habitaciones).
+2026-10-28T18:23:17.313-03:00 INFO [mqtt-conexion] Desuscrito de 'ht-room2/status/temperature:0'.
+2026-10-28T18:23:17.330-03:00 INFO [mqtt-conexion] Desuscrito de 'ht-room1/status/temperature:0'.
+2026-10-28T18:23:17.350-03:00 INFO [http-nio-8080-exec-5] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T18:23:47.526-03:00 INFO [http-nio-8080-exec-7] Control DETENIDO: no se comandan más switches.
+2026-10-28T18:25:49.062-03:00 INFO [http-nio-8080-exec-10] Inventario 'gen-1-holgado-s1' aplicado (1 habitaciones).
+2026-10-28T18:25:49.064-03:00 INFO [http-nio-8080-exec-10] Decisión: habitación 'room1' -> OFF (SIN_LECTURA)
+2026-10-28T18:25:49.080-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room1/status/temperature:0' (habitación 'room1').
+2026-10-28T18:25:49.104-03:00 INFO [http-nio-8080-exec-2] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T18:25:49.234-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:25:49.297-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T18:25:49.345-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T18:27:13.298-03:00 INFO [mqtt] Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-10-28T18:27:13.341-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:27:49.184-03:00 INFO [http-nio-8080-exec-4] Control DETENIDO: no se comandan más switches.
+2026-10-28T18:36:10.096-03:00 INFO [http-nio-8080-exec-7] Inventario 'gen-2-limitante-s1' aplicado (2 habitaciones).
+2026-10-28T18:36:10.097-03:00 INFO [http-nio-8080-exec-7] Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-10-28T18:36:10.143-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room2/status/temperature:0' (habitación 'room2').
+2026-10-28T18:36:10.194-03:00 INFO [http-nio-8080-exec-9] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T18:36:10.226-03:00 WARN [switches] Switch 'sw-sim-room1' (habitación 'room1') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T18:36:10.259-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:36:10.268-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T18:36:10.302-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T18:36:10.327-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T18:37:34.284-03:00 INFO [mqtt] Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-10-28T18:37:34.284-03:00 INFO [mqtt] Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-10-28T18:37:34.314-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:37:34.342-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-10-28T18:38:10.278-03:00 INFO [http-nio-8080-exec-1] Control DETENIDO: no se comandan más switches.
+2026-10-28T18:44:55.705-03:00 INFO [http-nio-8080-exec-4] Inventario 'gen-5-holgado-s1' aplicado (5 habitaciones).
+2026-10-28T18:44:55.706-03:00 INFO [http-nio-8080-exec-4] Decisión: habitación 'room3' -> OFF (SIN_LECTURA)
+2026-10-28T18:44:55.706-03:00 INFO [http-nio-8080-exec-4] Decisión: habitación 'room4' -> OFF (SIN_LECTURA)
+2026-10-28T18:44:55.707-03:00 INFO [http-nio-8080-exec-4] Decisión: habitación 'room5' -> OFF (SIN_LECTURA)
+2026-10-28T18:44:55.725-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room3/status/temperature:0' (habitación 'room3').
+2026-10-28T18:44:55.755-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room5/status/temperature:0' (habitación 'room5').
+2026-10-28T18:44:55.820-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room4/status/temperature:0' (habitación 'room4').
+2026-10-28T18:44:55.820-03:00 INFO [http-nio-8080-exec-6] Decisión: habitación 'room2' -> OFF (LECTURA_VENCIDA)
+2026-10-28T18:44:55.821-03:00 INFO [http-nio-8080-exec-6] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T18:44:55.862-03:00 WARN [switches] Switch 'sw-sim-room1' (habitación 'room1') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T18:44:55.950-03:00 WARN [switches] Switch 'sw-sim-room2' (habitación 'room2') está DESCONOCIDO y se creía ON: se corrige.
+2026-10-28T18:44:56.104-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:44:56.146-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T18:44:56.186-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-10-28T18:44:56.214-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-10-28T18:44:56.238-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-10-28T18:44:56.288-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T18:44:56.290-03:00 INFO [mqtt] Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-10-28T18:44:56.291-03:00 INFO [mqtt] Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-10-28T18:44:56.293-03:00 INFO [mqtt] Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-10-28T18:44:56.304-03:00 INFO [mqtt] Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-10-28T18:44:56.346-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T18:44:56.366-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-10-28T18:44:56.391-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-10-28T18:44:56.429-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-10-28T18:44:56.447-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> ON
+2026-10-28T18:46:20.285-03:00 INFO [mqtt] Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-10-28T18:46:20.326-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:46:33.304-03:00 INFO [mqtt] Decisión: habitación 'room4' -> OFF (SATISFECHA)
+2026-10-28T18:46:33.336-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-10-28T18:46:44.287-03:00 INFO [mqtt] Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-10-28T18:46:44.296-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T18:46:45.301-03:00 INFO [mqtt] Decisión: habitación 'room3' -> OFF (SATISFECHA)
+2026-10-28T18:46:45.314-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-10-28T18:46:54.309-03:00 INFO [mqtt] Decisión: habitación 'room5' -> OFF (SATISFECHA)
+2026-10-28T18:46:54.330-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-10-28T18:46:55.872-03:00 INFO [http-nio-8080-exec-8] Control DETENIDO: no se comandan más switches.
+2026-10-28T18:52:56.612-03:00 INFO [http-nio-8080-exec-1] Inventario 'gen-2-holgado-s1' aplicado (2 habitaciones).
+2026-10-28T18:52:56.636-03:00 INFO [mqtt-conexion] Desuscrito de 'ht-sim-room3/status/temperature:0'.
+2026-10-28T18:52:56.660-03:00 INFO [mqtt-conexion] Desuscrito de 'ht-sim-room5/status/temperature:0'.
+2026-10-28T18:52:56.668-03:00 INFO [http-nio-8080-exec-3] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T18:52:56.717-03:00 INFO [mqtt-conexion] Desuscrito de 'ht-sim-room4/status/temperature:0'.
+2026-10-28T18:52:56.724-03:00 WARN [switches] Switch 'sw-sim-room1' (habitación 'room1') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T18:52:56.794-03:00 WARN [switches] Switch 'sw-sim-room2' (habitación 'room2') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T18:52:56.809-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:52:56.847-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T18:52:57.301-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T18:52:57.303-03:00 INFO [mqtt] Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-10-28T18:52:57.315-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T18:52:57.326-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-10-28T18:54:21.287-03:00 INFO [mqtt] Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-10-28T18:54:21.305-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T18:54:45.291-03:00 INFO [mqtt] Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-10-28T18:54:45.301-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T18:54:56.701-03:00 INFO [http-nio-8080-exec-5] Control DETENIDO: no se comandan más switches.
+2026-10-28T19:12:43.013-03:00 INFO [http-nio-8080-exec-8] Inventario 'gen-5-limitante-s1' aplicado (5 habitaciones).
+2026-10-28T19:12:43.014-03:00 INFO [http-nio-8080-exec-8] Decisión: habitación 'room3' -> OFF (SIN_LECTURA)
+2026-10-28T19:12:43.015-03:00 INFO [http-nio-8080-exec-8] Decisión: habitación 'room4' -> OFF (SIN_LECTURA)
+2026-10-28T19:12:43.015-03:00 INFO [http-nio-8080-exec-8] Decisión: habitación 'room5' -> OFF (SIN_LECTURA)
+2026-10-28T19:12:43.161-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room3/status/temperature:0' (habitación 'room3').
+2026-10-28T19:12:43.184-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room5/status/temperature:0' (habitación 'room5').
+2026-10-28T19:12:43.250-03:00 INFO [mqtt-conexion] Suscrito a 'ht-sim-room4/status/temperature:0' (habitación 'room4').
+2026-10-28T19:12:43.566-03:00 INFO [http-nio-8080-exec-10] Control INICIADO: fechaHora=2026-11-03T13:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T19:12:43.634-03:00 WARN [switches] Switch 'sw-sim-room1' (habitación 'room1') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T19:12:43.670-03:00 WARN [switches] Switch 'sw-sim-room2' (habitación 'room2') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T19:12:43.792-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T19:12:43.822-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T19:12:43.878-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-10-28T19:12:43.905-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-10-28T19:12:44.048-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-10-28T19:12:44.289-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T19:12:44.315-03:00 INFO [mqtt] Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-10-28T19:12:44.319-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T19:12:44.345-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-10-28T19:14:08.286-03:00 INFO [mqtt] Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-10-28T19:14:08.287-03:00 INFO [mqtt] Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-10-28T19:14:08.331-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T19:14:08.369-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-10-28T19:14:32.352-03:00 INFO [mqtt] Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-10-28T19:14:32.352-03:00 INFO [mqtt] Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-10-28T19:14:32.384-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T19:14:32.503-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-10-28T19:15:43.636-03:00 INFO [http-nio-8080-exec-2] Control DETENIDO: no se comandan más switches.
+2026-10-28T19:27:23.333-03:00 INFO [http-nio-8080-exec-5] Inventario 'gen-5-holgado-s1' aplicado (5 habitaciones).
+2026-10-28T19:27:23.335-03:00 INFO [http-nio-8080-exec-5] Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-10-28T19:27:23.399-03:00 INFO [http-nio-8080-exec-7] Decisión: habitación 'room3' -> OFF (LECTURA_VENCIDA)
+2026-10-28T19:27:23.399-03:00 INFO [http-nio-8080-exec-7] Decisión: habitación 'room4' -> OFF (LECTURA_VENCIDA)
+2026-10-28T19:27:23.400-03:00 INFO [http-nio-8080-exec-7] Decisión: habitación 'room5' -> OFF (LECTURA_VENCIDA)
+2026-10-28T19:27:23.402-03:00 INFO [http-nio-8080-exec-7] Control INICIADO: fechaHora=2026-11-04T01:00:00Z factorTiempo=60.0 zona=America/Montevideo
+2026-10-28T19:27:23.436-03:00 WARN [switches] Switch 'sw-sim-room1' (habitación 'room1') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T19:27:23.443-03:00 WARN [switches] Switch 'sw-sim-room2' (habitación 'room2') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T19:27:23.451-03:00 WARN [switches] Switch 'sw-sim-room3' (habitación 'room3') está DESCONOCIDO y se creía ON: se corrige.
+2026-10-28T19:27:23.494-03:00 WARN [switches] Switch 'sw-sim-room4' (habitación 'room4') está DESCONOCIDO y se creía ON: se corrige.
+2026-10-28T19:27:23.530-03:00 WARN [switches] Switch 'sw-sim-room5' (habitación 'room5') está DESCONOCIDO y se creía OFF: se corrige.
+2026-10-28T19:27:23.592-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-10-28T19:27:23.606-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-10-28T19:27:23.615-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-10-28T19:27:23.631-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-10-28T19:27:23.639-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-10-28T19:28:23.403-03:00 INFO [mqtt] Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-10-28T19:28:23.404-03:00 INFO [mqtt] Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-10-28T19:28:23.404-03:00 INFO [mqtt] Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-10-28T19:28:23.405-03:00 INFO [mqtt] Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-10-28T19:28:23.405-03:00 INFO [mqtt] Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-10-28T19:28:23.662-03:00 INFO [switches] Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-10-28T19:28:23.694-03:00 INFO [switches] Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-10-28T19:28:23.706-03:00 INFO [switches] Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-10-28T19:28:23.720-03:00 INFO [switches] Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-10-28T19:28:23.734-03:00 INFO [switches] Switch 'sw-sim-room5' (habitación 'room5') -> ON
+2026-10-28T19:29:23.489-03:00 INFO [http-nio-8080-exec-9] Control DETENIDO: no se comandan más switches.

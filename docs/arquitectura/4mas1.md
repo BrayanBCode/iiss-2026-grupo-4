@@ -765,16 +765,16 @@ La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop
 | Corte y restitución | Cortar al entrar en punta y restituir al salir (it. 1 a 5) | Igual que la letra | — |
 | Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
 | Escala del `ts` | No la define (§2) | Hora real del simulador, convertida a la hora del control con la fórmula del §5.2 | Confirmado con el docente |
-| Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente |
+| Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente y por la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md): el simulador cruza la punta con `fechaHora` en hora de Montevideo |
 | Vigencia de lecturas | No la define | 600 s de tiempo de control, sin escalar por el factor | Un solo reloj; escalada, con factor 30 ninguna lectura vence en 5 h simuladas |
 | Frecuencia de publicación | Depende del escenario del simulador (docente) | No se asume ninguna | El simulador provoca atrasos y caídas a propósito |
 | `ts` viejo | No lo define | Se descarta y se cuenta en `/diagnostico` (D8) | Un dato obsoleto no debe sostener la calefacción |
 | Período del tick | No lo define | 1 s de tiempo de control: `max(10 ms, tickMs / factor)` reales | Con un tick fijo de 1 s real, a ×600 el corte se atrasaba hasta 10 min. Se descartó programar eventos en los bordes de la franja: suma complejidad sin necesidad |
-| Canal del factor en la it. 5 | "Parámetro al inicio" | `factorTiempo` del INICIAR; el paso a acelerado llega como un INICIAR que re-sincroniza | Es el único canal del contrato |
+| Canal del factor en la it. 5 | "Parámetro al inicio" | `factorTiempo` del INICIAR; el paso a acelerado llega como un INICIAR que re-sincroniza | Es el único canal del contrato; confirmado en la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md) (`factorTiempo = 60` en cada INICIAR) |
 
-### 4.7 Pregunta abierta y riesgos
+### 4.7 Riesgos (y la pregunta que se cerró)
 
-- **Abierta:** ¿el paso a modo acelerado llega como un INICIAR nuevo con `factorTiempo`? Si el simulador acelerara sin enviarlo, el reloj del control seguiría con el factor anterior y la tarifa se calcularía con un reloj equivocado. Se confirma en la corrida contra el simulador.
+- **Cerrada:** el paso a modo acelerado llega como un INICIAR con `factorTiempo`. En la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md) cada escenario fue `PUT /sitio`, INICIAR con factor 60 y DETENER; el cruce de punta se restituyó exactamente a las 23:00 de control.
 - **Desfase entre relojes.** La conversión del `ts` supone que el reloj real del simulador y el del controlador coinciden (en Docker sobre el mismo host comparten el reloj). Un desfase se multiplica por el factor: 2 s con factor 30 son 1 min de control. `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede.
 - **Vigencia recuperada al re-sincronizar.** Una lectura vigente marcada con la hora nueva recupera la vigencia completa: un dato de 9:59 min vuelve a valer 10 min. La alternativa es conservar su antigüedad (`nuevo − (ahoraViejo − instante)`); queda como mejora posible.
 - **Re-INICIAR con el control en ejecución.** Son pasos separados (configurar, Tick, Sincronización). Entre ellos el hilo de switches podría enviar un comando decidido con el reloj anterior, que se corrige enseguida. Riesgo bajo.
