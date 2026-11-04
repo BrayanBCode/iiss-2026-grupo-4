@@ -34,7 +34,7 @@ public class ClienteSwitchRest implements ClienteSwitch {
     public ClienteSwitchRest(
             @Value("${switch.api-key:}") String apiKey,
             @Value("${switch.timeout-conexion-ms:2000}") int timeoutConexionMs,
-            @Value("${switch.timeout-lectura-ms:3000}") int timeoutLecturaMs) {
+            @Value("${switch.timeout-lectura-ms:10000}") int timeoutLecturaMs) {
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(timeoutConexionMs);
         fabrica.setReadTimeout(timeoutLecturaMs);
