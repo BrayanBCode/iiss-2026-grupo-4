@@ -180,7 +180,7 @@ conocido de su switch; además si MQTT está conectado y si se registró ante el
 | `ENTORNO_URL` | `http://host.docker.internal:9090` (compose) | Entorno ante el que registrarse (§6). Vacío = sin registro. |
 | `ENTORNO_API_KEY` | vacío | Clave que exige el entorno. Vacío = no se envía. |
 | `SWITCH_API_KEY` | = `ENTORNO_API_KEY` | Clave que exigen los switches (§3/§4). |
-| `CONTROLADOR_BASE_URL` | `http://localhost:8080` | Dónde el **entorno** alcanza a este controlador. |
+| `CONTROLADOR_BASE_URL` | `http://localhost:8080` | Dónde el **entorno** alcanza a este controlador. Si el entorno está en otra máquina, tiene que ser la IP o el nombre de **esta** máquina en esa red: con `localhost` o una IP mal escrita el registro "sale bien" pero nunca llega el sitio, así que el controlador lo avisa en el log al arrancar. |
 | `CONTROLADOR_ETIQUETA` | `ecowarm-grupo4` | Etiqueta estable del registro (idempotente). |
 | `MQTT_BROKER` | `tcp://localhost:1883` | Broker si el entorno no lo informa o no hay entorno. |
 | `INVENTARIO_ARCHIVO` | `/app/data/inventario.json` (Docker) | Dónde se persiste el inventario. |
