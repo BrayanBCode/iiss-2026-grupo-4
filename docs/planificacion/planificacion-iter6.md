@@ -34,6 +34,7 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T32 | Crecer de 5 a 20 habitaciones y achicar en caliente (E15/E16) y cobertura de los escenarios de la clase | Hecha, falta PR | `iter6/t32-sitio-grande` |
 | T33 | Payload del termostato con `tC` o `ts` como texto y `ts` en milisegundos (F04) | Hecha, falta PR | `iter6/t33-termostato-fuera-de-contrato` |
 | T34 | Una habitación cuyo switch no prende cede su potencia (F09, A17) | Hecha, falta PR | `iter6/t34-switch-no-prende` |
+| T35 | Cliente MQTT con versión 3.1.1 fija e identificador de 23 caracteres como máximo (visto en F01 de `ecowarm-run`) | Hecha, falta PR | `iter6/t35-mqtt-client-id` |
 | T25 · `G1234-157` | `EscenariosSimuladorTest` (3 tests como corre el simulador) y mapa escenario → test | Mergeada | `iter6/t25-tests-escenarios` |
 | T17 · `G1234-146` | Tests de re-INICIAR con otro factor y hacia atrás | Mergeada | `revision/t17-tests-reinicio` |
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
@@ -50,7 +51,7 @@ Vamos en cuatro etapas; el orden crítico es T22 → T13 → T28 → T30. Lo que
 decisiones avanza en paralelo.
 
 1. **Decidir e integrar.** Reunión T22 (D9–D12). En paralelo, revisar y mergear los PR hacia
-   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T31 → T32 → T33 → T34 → T26 → T27 (ya están mergeadas
+   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T31 → T32 → T33 → T34 → T35 → T26 → T27 (ya están mergeadas
    T21, T11, T23, T24a, T25 y T17).
 2. **Completar el producto y la documentación.** T29 si las decisiones cambian el comportamiento.
    T26 (decisiones) depende de T22. T27 (traspaso) depende de T21 y T26.
@@ -113,7 +114,7 @@ siga.
 
 - [ ] Reunión T22, con una postura sobre D9–D12
 - [x] Revisar los PR de T21, T11, T23, T24a y T25 (y T17)
-- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T31, T32, T33, T34, T26 y T27, en ese orden
+- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T31, T32, T33, T34, T35, T26 y T27, en ese orden
 - [ ] Pasar a "to test" en el Jira las tarjetas con PR abierto y a "Listo" las mergeadas
 - [x] Correr el simulador oficial `ecowarm-run` (9 de 9, 2026-11-06)
 - [ ] Coordinar con el docente la corrida T13 en el laboratorio y los escenarios nuevos (T28)

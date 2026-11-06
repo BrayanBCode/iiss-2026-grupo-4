@@ -124,7 +124,9 @@ en [limitaciones y roadmap](roadmap.md).
   entre clientes (campo estático) y dejaba clientes vivos que no se podían cerrar.
 - **Decisión.** Se apaga la reconexión automática. El hilo `mqtt-conexion` reintenta cada 5 s con un
   cliente nuevo y restablece las suscripciones; nunca desde el hilo de Paho. Suscripción con QoS 1 y
-  sesión limpia.
+  sesión limpia. La versión es MQTT 3.1.1 fija y el identificador del cliente tiene como máximo 23
+  caracteres: si no, Paho reintenta con 3.1 y ese broker rechaza identificadores largos (pasó con
+  `ecowarm-run` al volver de una caída, T35).
 - **Consecuencias.** Tras una caída del broker se reconecta en segundos (`FallaBrokerMqttTest`). Lo
   publicado durante la caída se pierde; si la caída supera la vigencia, la habitación se apaga (L10).
 
