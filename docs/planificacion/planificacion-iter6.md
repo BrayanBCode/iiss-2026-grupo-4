@@ -26,10 +26,10 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T22 · `G1234-154` | Reunión: decisiones D9–D12 (este documento) | Documento mergeado; falta la reunión | `iter6/t22-planning` |
 | T23 · `G1234-155` | Relevamiento de la corrida del simulador del 2026-10-28, con extracto del log | Mergeada | `iter6/t23-problemas-simulador` |
 | T24a · `G1234-163` | Aviso al arrancar si el entorno no puede alcanzar la `baseUrl` (problema P2 de la corrida) | Mergeada | `iter6/t24a-aviso-baseurl` |
-| T24b | El `ts` del termostato en hora real o en hora del control (corrida del 2026-11-04: se descartaban todas las lecturas) | Hecha, falta PR | `iter6/t24b-ts-escala` |
-| T24c | Timeout de respuesta de los switches a 10 s | Hecha, falta PR | `iter6/t24c-timeout-switch` |
-| T24d | Respuesta del switch leída como texto, con el detalle si no es JSON | Hecha, falta PR | `iter6/t24d-respuesta-switch` |
-| T24e | Corte de la punta anticipado (E11 del simulador oficial) y la corrida 9 de 9 | Hecha, falta PR | `iter6/t24e-anticipar-punta` |
+| T24b · `G1234-164` | El `ts` del termostato en hora real o en hora del control (corrida del 2026-11-04: se descartaban todas las lecturas) | Hecha, falta PR | `iter6/t24b-ts-escala` |
+| T24c · `G1234-165` | Timeout de respuesta de los switches a 10 s | Hecha, falta PR | `iter6/t24c-timeout-switch` |
+| T24d · `G1234-166` | Respuesta del switch leída como texto, con el detalle si no es JSON | Hecha, falta PR | `iter6/t24d-respuesta-switch` |
+| T24e · `G1234-167` | Corte de la punta anticipado (E11 del simulador oficial) y la corrida 9 de 9 | Hecha, falta PR | `iter6/t24e-anticipar-punta` |
 | T25 · `G1234-157` | `EscenariosSimuladorTest` (3 tests como corre el simulador) y mapa escenario → test | Mergeada | `iter6/t25-tests-escenarios` |
 | T17 · `G1234-146` | Tests de re-INICIAR con otro factor y hacia atrás | Mergeada | `revision/t17-tests-reinicio` |
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
