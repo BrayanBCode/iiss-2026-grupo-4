@@ -200,6 +200,7 @@ conocido de su switch; además si MQTT está conectado y si se registró ante el
 | `CONTROL_MARGEN_INTERCAMBIO_C` | `0.5` | Ventaja de la habitación encendida en el reparto (°C). |
 | `CONTROL_VIGENCIA_LECTURA_SEGUNDOS` | `600` | Tiempo **del control** tras el cual una lectura vence (sin escalar por `factorTiempo`: a ×60 son 10 s reales). |
 | `CONTROL_TICK_MS` | `1000` | Período del tick en tiempo del control (cortes de franja, vencimientos); en tiempo real es `max(10 ms, tick / factor)`. |
+| `CONTROL_ANTICIPACION_PUNTA_SEGUNDOS` | `60` | Tiempo **del control** antes del comienzo de la franja punta en que ya se corta, para que los OFF lleguen a tiempo (la salida no se adelanta). |
 | `CONTROL_RECONCILIACION_SEGUNDOS` | `15` | Cada cuánto se consulta el estado real de los switches (§4). |
 | `CONTROL_RESUMEN_SEGUNDOS` | `30` | Cada cuántos segundos reales se escribe el resumen del control en el log (0 = nunca). |
 

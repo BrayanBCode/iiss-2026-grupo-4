@@ -28,6 +28,7 @@ en [limitaciones y roadmap](roadmap.md).
 | A13 | Calidad exigida por el build: formato, tests y cobertura del core | Vigente |
 | A14 | Imagen Docker en dos etapas, sin correr los tests adentro | Vigente |
 | A15 | Timeouts de los switches: 2 s de conexión, 10 s de respuesta, 5 s entre reintentos | Vigente |
+| A16 | Cortar la franja punta un poco antes de que empiece | Vigente (T24e) |
 | D1 | El core queda sin estado: modelo y función pura `decidir` | Vigente |
 | D2 | `Estimulo` es modelo del core y lo procesa `CoreAdapter` | Vigente |
 | D3 | El `ts` es el instante de la lectura, llevado a la hora del control | Vigente (cambió en T24b) |
@@ -182,6 +183,22 @@ en [limitaciones y roadmap](roadmap.md).
   simulador no cuente como caído.
 - **Consecuencias.** Un switch colgado se da por caído a los 12 s y, por las pasadas secuenciales
   (A5), atrasa a los demás en esa pasada.
+
+### A16 · Cortar la franja punta un poco antes de que empiece
+
+- **Contexto.** En el escenario E11 del simulador oficial (`ecowarm-run`, ×60) los OFF llegaron
+  entre 1 y 2 s de control después de las 17:00: el tick y la pasada de switches tardan unos
+  milisegundos reales, que a ×60 son segundos simulados. La expectativa "en punta no se enciende
+  nada" (nivel riesgo) falló.
+- **Decisión.** El core trata la punta como si empezara `anticipacionPunta` antes
+  (`ParametrosControl`; en el engine, `control.anticipacion-punta-segundos`, 60 s de tiempo del
+  control por defecto). La salida no se adelanta: a la hora de fin se restituye como antes (T24e).
+- **Alternativas.** Programar un evento en el borde exacto de la franja (se descartó en T12 por
+  complejidad, y igual llegaría tarde por la latencia de los comandos).
+- **Consecuencias.** Con el corte anticipado pasan los 9 escenarios del simulador oficial
+  ([corrida del 2026-11-06](../tests/corrida-simulador/2026-11-06-ecowarm-run/README.md)). Se
+  calefacciona un minuto menos antes de cada punta. Lo prueban
+  `DecidirTest.anticipacion_cortaAntesYRestituyeALaHora` y `anticipacion_respetaLosDias`.
 
 ---
 

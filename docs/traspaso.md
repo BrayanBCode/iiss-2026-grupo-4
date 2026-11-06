@@ -64,6 +64,28 @@ El método completo (tablero, límites de trabajo en curso, definición de hecho
 
 ## 5. Probar contra el simulador de la cátedra
 
+### Con `ecowarm-run` (escenarios firmados, en la misma máquina)
+
+El simulador oficial por comando: trae el simulador, el broker y los switches, corre escenarios
+firmados contra el controlador y deja un reporte en `ecowarm-reporte/reporte.md` (necesita Java 21 o
+más nuevo). El `ecowarm-run.jar` lo entrega la cátedra: no está en el repo. Solo corre escenarios
+firmados; los propios se prueban con los tests de integración (`EscenariosSimuladorTest`).
+
+```bash
+# 1. el controlador, apuntando al simulador local (clave del simulador: iiss-2026)
+ENTORNO_URL=http://localhost:9090 ENTORNO_API_KEY=iiss-2026 CONTROLADOR_BASE_URL=http://localhost:8080 java -jar modules/engine/target/engine.jar
+# 2. los escenarios (todos tardan unos 18 min; --mqtt 1884 si el 1883 está ocupado)
+java -jar ecowarm-run.jar todos
+java -jar ecowarm-run.jar listar     # qué trae
+java -jar ecowarm-run.jar ver E11    # el YAML de un escenario: sitio, fallas y expectativas
+```
+
+Si el controlador corre en Docker, agregar `--host host.docker.internal`. Sale con 0 si pasan todos.
+La última corrida (9 de 9) y cómo se corrigió lo que fallaba están en
+[`tests/corrida-simulador/2026-11-06-ecowarm-run/`](tests/corrida-simulador/2026-11-06-ecowarm-run/README.md).
+
+### Con el simulador del laboratorio (otra máquina)
+
 1. Averiguar la IP del simulador, su clave y la IP de **esta** máquina en esa red (`ipconfig`).
 2. Levantar el controlador con esas tres:
    ```bash
