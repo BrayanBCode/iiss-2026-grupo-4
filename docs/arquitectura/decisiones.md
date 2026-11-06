@@ -29,6 +29,8 @@ en [limitaciones y roadmap](roadmap.md).
 | A14 | Imagen Docker en dos etapas, sin correr los tests adentro | Vigente |
 | A15 | Timeouts de los switches: 2 s de conexión, 10 s de respuesta, 5 s entre reintentos | Vigente |
 | A16 | Cortar la franja punta un poco antes de que empiece | Vigente (T24e) |
+| A17 | Una habitación cuyo switch no prende cede su potencia mientras espera | Vigente (T34) |
+| A18 | De lo que está fuera de contrato, tolerar lo que se entiende sin riesgo | Vigente (T24d, T31, T33) |
 | D1 | El core queda sin estado: modelo y función pura `decidir` | Vigente |
 | D2 | `Estimulo` es modelo del core y lo procesa `CoreAdapter` | Vigente |
 | D3 | El `ts` es el instante de la lectura, llevado a la hora del control | Vigente (cambió en T24b) |
@@ -199,6 +201,38 @@ en [limitaciones y roadmap](roadmap.md).
   ([corrida del 2026-11-06](../tests/corrida-simulador/2026-11-06-ecowarm-run/README.md)). Se
   calefacciona un minuto menos antes de cada punta. Lo prueban
   `DecidirTest.anticipacion_cortaAntesYRestituyeALaHora` y `anticipacion_respetaLosDias`.
+
+### A17 · Una habitación cuyo switch no prende cede su potencia mientras espera
+
+- **Contexto.** Escenario F09 de la clase ("un switch que no prende"): el core no sabe nada de los
+  switches, así que seguía eligiendo esa habitación y su potencia quedaba sin usar mientras otra,
+  fría, esperaba sin potencia.
+- **Decisión.** Si el switch aceptó el ON y sigue apagado, o el ON falló y una consulta lo muestra
+  apagado, `CoreAdapter` deja esa habitación afuera de la decisión (`OFF` con
+  `SWITCH_NO_RESPONDE`) durante una espera que se duplica en cada falla seguida (6 esperas de
+  reintento, 30 s, hasta 10 min). Al vencer se reintenta; si prende, vuelve a tener prioridad. Un
+  switch de estado desconocido se consulta en la próxima pasada, no a los 15 s de la reconciliación.
+- **Alternativas.** Reintentar en cada pasada (las vecinas conmutarían cada pocos segundos) o
+  avisar al core (el core no conoce los switches, A1).
+- **Consecuencias.** La potencia se aprovecha aunque un switch falle. Un switch caído o sin
+  respuesta sigue igual que antes: no se sabe si prendió, así que se lo cuenta como encendido (A6).
+  Lo prueban `CoreAdapterTest.switchQueNoPrende_cedeLaPotencia` y
+  `onConError_seConsultaYCedeLaPotencia`.
+
+### A18 · De lo que está fuera de contrato, tolerar lo que se entiende sin riesgo
+
+- **Contexto.** Escenarios F04 y F07 de la clase: termostatos y switches que no respetan el
+  estándar. Descartar todo lo que no es exacto deja al control sin datos; aceptar cualquier cosa es
+  calefaccionar a ciegas.
+- **Decisión.** Se acepta lo que tiene un único significado posible y no contradice el contrato: un
+  `tC` numérico escrito como texto, un `ts` como texto o en milisegundos (T33), un `estado` de
+  switch en minúscula, un JSON con otro `Content-Type` (T24d, T31) y un comando que responde 2xx
+  aunque su cuerpo no sea JSON (se toma como aplicado y la reconciliación lo verifica). **No** se
+  acepta lo que el contrato prohíbe o es ambiguo: una lectura sin `tC` (aunque traiga `tF`), una
+  temperatura fuera del rango del sensor, una consulta de switch que no es JSON.
+- **Consecuencias.** Más tolerante sin bajar la seguridad: todo lo aceptado pasa por las mismas
+  reglas (rango del sensor, vigencia, contratada). Lo prueban `PayloadTermostatoTest`,
+  `ClienteSwitchRestTest` y `PerdidaMensajesTest.payloadInvalido`.
 
 ---
 

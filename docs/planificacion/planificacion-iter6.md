@@ -30,10 +30,14 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T24c · `G1234-165` | Timeout de respuesta de los switches a 10 s | Hecha, falta PR | `iter6/t24c-timeout-switch` |
 | T24d · `G1234-166` | Respuesta del switch leída como texto, con el detalle si no es JSON | Hecha, falta PR | `iter6/t24d-respuesta-switch` |
 | T24e · `G1234-167` | Corte de la punta anticipado (E11 del simulador oficial) y la corrida 9 de 9 | Hecha, falta PR | `iter6/t24e-anticipar-punta` |
+| T31 | Respuestas de switch fuera de contrato toleradas: `estado` sin mayúsculas, comando 2xx con cuerpo raro (F07) | Hecha, falta PR | `iter6/t31-switch-fuera-de-contrato` |
+| T32 | Crecer de 5 a 20 habitaciones y achicar en caliente (E15/E16) y cobertura de los escenarios de la clase | Hecha, falta PR | `iter6/t32-sitio-grande` |
+| T33 | Payload del termostato con `tC` o `ts` como texto y `ts` en milisegundos (F04) | Hecha, falta PR | `iter6/t33-termostato-fuera-de-contrato` |
+| T34 | Una habitación cuyo switch no prende cede su potencia (F09, A17) | Hecha, falta PR | `iter6/t34-switch-no-prende` |
 | T25 · `G1234-157` | `EscenariosSimuladorTest` (3 tests como corre el simulador) y mapa escenario → test | Mergeada | `iter6/t25-tests-escenarios` |
 | T17 · `G1234-146` | Tests de re-INICIAR con otro factor y hacia atrás | Mergeada | `revision/t17-tests-reinicio` |
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
-| T26 · `G1234-158` | [`decisiones.md`](../arquitectura/decisiones.md) (A1–A16 de arquitectura, D1–D12 del equipo) | Hecha, falta PR | `iter6/t26-decisiones` |
+| T26 · `G1234-158` | [`decisiones.md`](../arquitectura/decisiones.md) (A1–A18 de arquitectura, D1–D12 del equipo) | Hecha, falta PR | `iter6/t26-decisiones` |
 | T27 · `G1234-159` | README final, [guía de traspaso](../traspaso.md) y roadmap como traspaso | Hecha, falta PR | `iter6/t27-traspaso` |
 | T29 · `G1234-161` | Lo que decida T22. Ya hecho, por si se aprueba D11: contar las temperaturas fuera de rango | Espera T22 | `iter6/t29-fuera-de-rango` |
 | T13 · `G1234-149` | Corrida contra el simulador con evidencia | En curso: [simulador oficial, 9 de 9](../tests/corrida-simulador/2026-11-06-ecowarm-run/README.md); falta la del laboratorio | — |
@@ -46,7 +50,7 @@ Vamos en cuatro etapas; el orden crítico es T22 → T13 → T28 → T30. Lo que
 decisiones avanza en paralelo.
 
 1. **Decidir e integrar.** Reunión T22 (D9–D12). En paralelo, revisar y mergear los PR hacia
-   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T26 → T27 (ya están mergeadas
+   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T31 → T32 → T33 → T34 → T26 → T27 (ya están mergeadas
    T21, T11, T23, T24a, T25 y T17).
 2. **Completar el producto y la documentación.** T29 si las decisiones cambian el comportamiento.
    T26 (decisiones) depende de T22. T27 (traspaso) depende de T21 y T26.
@@ -109,7 +113,7 @@ siga.
 
 - [ ] Reunión T22, con una postura sobre D9–D12
 - [x] Revisar los PR de T21, T11, T23, T24a y T25 (y T17)
-- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T26 y T27, en ese orden
+- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T31, T32, T33, T34, T26 y T27, en ese orden
 - [ ] Pasar a "to test" en el Jira las tarjetas con PR abierto y a "Listo" las mergeadas
 - [x] Correr el simulador oficial `ecowarm-run` (9 de 9, 2026-11-06)
 - [ ] Coordinar con el docente la corrida T13 en el laboratorio y los escenarios nuevos (T28)

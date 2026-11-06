@@ -2,7 +2,7 @@
 
 Entregable de la iteración 6. Es para el equipo que continúe el desarrollo: qué no hace hoy el
 controlador, qué riesgos asumimos a sabiendas y por dónde seguir. Las decisiones que explican cada
-limitación están en [`decisiones.md`](decisiones.md) (A1–A16, D1–D12) y en el
+limitación están en [`decisiones.md`](decisiones.md) (A1–A18, D1–D12) y en el
 [4+1 §4.6](4mas1.md#46-qué-dice-la-letra-y-qué-decidimos).
 
 Cada limitación tiene un id (`L…`) que el roadmap usa para decir qué resuelve cada paso.
