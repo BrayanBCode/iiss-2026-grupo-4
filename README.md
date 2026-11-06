@@ -8,8 +8,11 @@ el simulador de la cátedra y con cualquier implementación conforme.
 
 Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 6 (versión final).
 
+**¿Recibís el proyecto?** Empezá por la [guía de traspaso](docs/traspaso.md): cómo levantarlo el primer día, dónde tocar cada cosa y los problemas que ya encontramos.
+
 | Documento | |
 |---|---|
+| Guía de traspaso (equipo receptor) | [`docs/traspaso.md`](docs/traspaso.md) |
 | Visión del producto | [`docs/vision.md`](docs/vision.md) |
 | Historias, personas, escenarios | [`docs/Producto/`](docs/Producto) |
 | Estándar de interoperabilidad v2 | [`docs/api/interop-v2.md`](docs/api/interop-v2.md) (+ [`controlador`](docs/api/controlador.openapi-v2.yaml) / [`simulador`](docs/api/simulador.openapi-v2.yaml) OpenAPI) |
@@ -19,6 +22,8 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 6 (versi�
 | Limitaciones conocidas y roadmap | [`docs/arquitectura/roadmap.md`](docs/arquitectura/roadmap.md) |
 | Decisiones del desarrollo (arquitectura y equipo) | [`docs/arquitectura/decisiones.md`](docs/arquitectura/decisiones.md) |
 | Registro de la revisión del docente (iteración 5) | [`docs/planificacion/revision-docente.md`](docs/planificacion/revision-docente.md) |
+| Planificación de la iteración 6 | [`docs/planificacion/planificacion-iter6.md`](docs/planificacion/planificacion-iter6.md) |
+| Corridas contra el simulador | [`docs/tests/corrida-simulador/`](docs/tests/corrida-simulador/README.md) |
 | Criterio de adecuación de los tests | [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md) |
 | Calidad: estándar de codificación, Spotless, cobertura | [`docs/calidad/`](docs/calidad/README.md) |
 | Jira | [enlace](https://estudiantes-grupo8-2026.atlassian.net/jira/software/projects/G1234/boards/3) |
@@ -37,18 +42,19 @@ Proyecto del curso **Taller IISS 2026** (UTEC) — grupo 4. Iteración 6 (versi�
                            └──────────────────────────────────────────────────┘
 ```
 
-- **core** (`modules/core`): decide qué habitación recibe energía, con un modelo interno del estado,
-  de los estímulos (`NuevaLectura`, `Tick`, `ConfiguracionActualizada`, `Sincronizacion`) y de las
-  decisiones (`ON`/`OFF` + `Motivo`). No se comunica con nada: no tiene dependencias de producción.
+- **core** (`modules/core`): decide qué habitación recibe energía. Es una función pura,
+  `decidir(sitio, habitaciones, estados, ahora)`, más el modelo (sitio, estímulos, decisiones `ON`/`OFF`
+  con su `Motivo`). No guarda estado ni se comunica con nada: no tiene dependencias de producción.
 - **engine** (`modules/engine`): integra el core con el exterior. Recibe MQTT, expone el API del
   estándar, se registra ante el entorno, persiste el inventario, lleva el reloj del control (con
-  aceleración), dispara los eventos temporales y comanda/consulta los switches.
+  aceleración), dispara los eventos temporales y comanda/consulta los switches. `CoreAdapter` es el
+  único dueño del estado del control y el único que llama al core.
 
 ### Cómo decide el core
 
-Ante cada estímulo recalcula, para cada habitación:
+Ante cada estímulo, `CoreAdapter` arma la situación y `decidir` calcula, para cada habitación:
 
-1. **Necesidad**: sin lectura → OFF; lectura vencida (termostato caído, 10 min reales) → OFF;
+1. **Necesidad**: sin lectura → OFF; lectura vencida (termostato caído, 10 min de tiempo del control) → OFF;
    en su temperatura (con histéresis de 0.3 °C para no conmutar con cada décima) → OFF;
    potencia mayor que la contratada → OFF; si no, tiene **déficit**.
 2. **Tarifa**: en la franja punta, ninguna con déficit recibe energía (corte al entrar,
@@ -69,14 +75,16 @@ Detalle en [`4mas1.md`](docs/arquitectura/4mas1.md).
 .
 ├── docs/
 │   ├── api/            interop-v2.md, OpenAPI del estándar y openapi.yaml de este controlador
-│   ├── arquitectura/   4mas1.md (vistas lógica, procesos, desarrollo + secuencias)
+│   ├── arquitectura/   4mas1.md (las 5 vistas), decisiones.md, roadmap.md (limitaciones y roadmap)
+│   ├── planificacion/  metodología, revisión del docente, planificación de la iteración 6
 │   ├── calidad/        estándar de codificación, salida de spotless:check, reporte de cobertura
-│   ├── tests/          criterio-tests.md (criterio de adecuación) y resultados.md (última ejecución)
-│   └── Producto/       historias, personas, características, escenario
+│   ├── tests/          criterio de adecuación, resultados y corridas contra el simulador
+│   ├── Producto/       historias, personas, características, escenario
+│   └── traspaso.md     guía para el equipo que continúe el desarrollo
 ├── docker/
 │   ├── docker-compose.yml       el controlador, contra un entorno en el anfitrión (:9090)
 │   └── docker-compose.lab.yml   superposición para la red del simulador (iiss-lab-net)
-├── scripts/            build, up, down, stop, test, api-demo, send-temp, receive-temp
+├── scripts/            build, up, down, stop, test, api-demo, send-temp, receive-temp, captura-simulador
 ├── modules/
 │   ├── core/           lógica de decisión pura + tests unitarios (TDD)
 │   └── engine/         Spring Boot: integración con el exterior + tests
@@ -100,7 +108,8 @@ No hace falta Java ni Maven en el host: todo se compila dentro de Docker.
 ```
 
 Con Java 25 y Maven locales también se puede: `mvn package` (el JAR queda en
-`modules/engine/target/engine.jar`).
+`modules/engine/target/engine.jar`). Siempre desde la raíz, o con `-am` si se elige un módulo: el
+engine compilado contra un `core` viejo de `~/.m2` falla de formas raras.
 
 El código sigue Google Java Style (variante AOSP), verificado con Spotless: `mvn spotless:apply`
 formatea y `mvn verify` falla si algo no cumple. Detalle en
@@ -118,7 +127,7 @@ reintenta solo (2, 4, 8 … 30 s).
 
 ```bash
 # terminal 1: el entorno (broker MQTT, switches e inventario en :9090)
-java -jar ecowarm-check.jar --anunciar host.docker.internal
+java -jar ecowarm-check.jar --anunciar host.docker.internal   # --broker 1884 si el 1883 está ocupado
 
 # terminal 2: el controlador en Docker
 ./scripts/up.sh
@@ -184,18 +193,22 @@ conocido de su switch; además si MQTT está conectado y si se registró ante el
 | `CONTROLADOR_BASE_URL` | `http://localhost:8080` | Dónde el **entorno** alcanza a este controlador. Si el entorno está en otra máquina, tiene que ser la IP o el nombre de **esta** máquina en esa red: con `localhost` o una IP mal escrita el registro "sale bien" pero nunca llega el sitio, así que el controlador lo avisa en el log al arrancar. |
 | `CONTROLADOR_ETIQUETA` | `ecowarm-grupo4` | Etiqueta estable del registro (idempotente). |
 | `MQTT_BROKER` | `tcp://localhost:1883` | Broker si el entorno no lo informa o no hay entorno. |
+| `MQTT_RECONEXION_MAX_SEGUNDOS` | `5` | Segundos entre reintentos de conexión al broker. |
 | `INVENTARIO_ARCHIVO` | `/app/data/inventario.json` (Docker) | Dónde se persiste el inventario. |
-| `CONTROL_ZONA_HORARIA` | vacío | Zona para leer la franja punta. Vacío = la zona/offset en que viene la `fechaHora` de `INICIAR` (`…Z` ⇒ UTC). Ej.: `America/Montevideo`. |
+| `CONTROL_ZONA_HORARIA` | `America/Montevideo` | Zona en la que se lee la franja punta. Fija: no depende de la zona del contenedor ni del offset de la `fechaHora`. |
 | `CONTROL_HISTERESIS_C` | `0.3` | Banda de histéresis (°C). |
 | `CONTROL_MARGEN_INTERCAMBIO_C` | `0.5` | Ventaja de la habitación encendida en el reparto (°C). |
-| `CONTROL_VIGENCIA_LECTURA_SEGUNDOS` | `600` | Tiempo **real** tras el cual una lectura vence (se escala con `factorTiempo`). |
-| `CONTROL_TICK_MS` | `1000` | Período real del tick (cortes de franja, vencimientos). |
+| `CONTROL_VIGENCIA_LECTURA_SEGUNDOS` | `600` | Tiempo **del control** tras el cual una lectura vence (sin escalar por `factorTiempo`: a ×60 son 10 s reales). |
+| `CONTROL_TICK_MS` | `1000` | Período del tick en tiempo del control (cortes de franja, vencimientos); en tiempo real es `max(10 ms, tick / factor)`. |
 | `CONTROL_RECONCILIACION_SEGUNDOS` | `15` | Cada cuánto se consulta el estado real de los switches (§4). |
+| `CONTROL_RESUMEN_SEGUNDOS` | `30` | Cada cuántos segundos reales se escribe el resumen del control en el log (0 = nunca). |
 
-**Zona horaria de la tarifa.** El estándar dice "hora local, sin conversión de zona". Por defecto se
-toma la zona en que el entorno escribe la `fechaHora` de `INICIAR`, así ambos leen la misma hora
-local en el mismo instante. Si el entorno espera otra (por ejemplo hora de Uruguay con `fechaHora`
-en `Z`), fijar `CONTROL_ZONA_HORARIA`.
+Los timeouts de los switches (2 s de conexión, 10 s de respuesta, 5 s entre reintentos) se cambian en
+`application.properties` (`switch.timeout-*`, `switch.espera-reintento-segundos`).
+
+**Zona horaria de la tarifa.** La franja punta se lee en hora de Uruguay (D4): una `fechaHora` de
+`INICIAR` con `Z` se convierte (21:00Z son las 18:00, en punta) y una sin offset se toma como hora de
+Montevideo. El simulador de la cátedra trabaja igual: cruza la punta con `fechaHora` 01:00Z, las 22:00.
 
 ---
 

@@ -30,7 +30,7 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
 | T22 · `G1234-154` | Reunión: decisiones D9–D12 (este documento) | En curso | `iter6/t22-planning` |
 | T26 · `G1234-158` | [`decisiones.md`](../arquitectura/decisiones.md) (A1–A15 de arquitectura, D1–D12 del equipo) | Hecha, falta PR | `iter6/t26-decisiones` |
-| T27 · `G1234-159` | README final y guía de traspaso | Pendiente | `iter6/t27-traspaso` |
+| T27 · `G1234-159` | README final y [guía de traspaso](../traspaso.md) | Hecha, falta PR | `iter6/t27-traspaso` |
 | T29 · `G1234-161` | Implementar D9/D10, solo si cambian el comportamiento | Pendiente | `iter6/t29-<tema>` |
 | T13 · `G1234-149` | Corrida contra el simulador con evidencia | Pendiente | — |
 | T28 · `G1234-160` | Ensayo de aceptación con los escenarios nuevos | Pendiente | `iter6/t28-aceptacion` |
