@@ -754,7 +754,7 @@ Un INICIAR sobre un control en ejecución no es error: re-sincroniza (§5.2). `C
 
 ### 4.6 Qué dice la letra y qué decidimos
 
-La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop-v2.md). Lo que ella no dice son **decisiones del equipo** y se documentan como tales.
+La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop-v2.md). Lo que ella no dice son **decisiones del equipo** y se documentan como tales. El registro completo de decisiones, con contexto, alternativas y consecuencias, está en [`decisiones.md`](decisiones.md).
 
 | Tema | Qué dice la letra (fuente) | Decisión del equipo | Motivo |
 |---|---|---|---|
