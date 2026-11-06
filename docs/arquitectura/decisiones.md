@@ -65,7 +65,7 @@ en [limitaciones y roadmap](roadmap.md).
   dos habitaciones parecidas no se alternen en cada lectura. Los empates se resuelven por `id`.
 - **Alternativas.** Orden fijo del inventario (injusto); turnos por tiempo (no mira la necesidad).
 - **Consecuencias.** Es determinista y explicable en la demo. `CriterioPrioridad` es una interfaz:
-  se puede agregar otro criterio sin tocar `decidir` (roadmap R14).
+  se puede agregar otro criterio sin tocar `decidir` (roadmap R13).
 
 ### A3 · Histéresis de 0,3 °C
 
@@ -84,7 +84,7 @@ en [limitaciones y roadmap](roadmap.md).
   `synchronized`; es el único que llama al core. Los candados se toman siempre en el mismo orden
   (`InventarioService` → `ControlService` → `CoreAdapter`) y nunca al revés (D1, D6).
 - **Consecuencias.** No hay deadlock posible y no hay estado duplicado. La clase quedó grande (unas
-  700 líneas): separarla es el paso R4 del roadmap (L15).
+  700 líneas): separarla es el paso R6 del roadmap (L15).
 
 ### A5 · La red hacia los switches, fuera del candado y en un hilo propio, con pasadas secuenciales
 
@@ -95,7 +95,7 @@ en [limitaciones y roadmap](roadmap.md).
 - **Alternativas.** Pasadas en paralelo: más rápidas con switches caídos, pero complican el orden OFF
   antes que ON (A6).
 - **Consecuencias.** INICIAR y `PUT /sitio` responden sin esperar a los switches. Un switch colgado
-  atrasa a los demás hasta su timeout (A15; limitación L9, paso R6 del roadmap).
+  atrasa a los demás hasta su timeout (A15; limitación L9, paso R7 del roadmap).
 
 ### A6 · Nunca superar la contratada, tampoco por un instante
 
@@ -141,7 +141,7 @@ en [limitaciones y roadmap](roadmap.md).
 - **Decisión.** `data/inventario.json`, con escritura atómica; uno corrupto no impide arrancar. En
   Docker va en un volumen.
 - **Alternativas.** Una base de datos: no hacía falta para un solo documento.
-- **Consecuencias.** Simple, pero sin historial de lecturas ni decisiones (L13, paso R8).
+- **Consecuencias.** Simple, pero sin historial de lecturas ni decisiones (L13, paso R11).
 
 ### A11 · Seguridad con `X-API-Key`, una clave por dirección
 

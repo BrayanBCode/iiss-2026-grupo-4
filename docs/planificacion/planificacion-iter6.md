@@ -21,7 +21,7 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 
 | Tarjeta | Qué entrega | Estado | Rama |
 |---|---|---|---|
-| T21 · `G1234-152` | Limitaciones conocidas (L1–L17) y roadmap (R1–R15) en [`roadmap.md`](../arquitectura/roadmap.md) | Hecha, falta PR | `iter6/n4-roadmap-limitaciones` |
+| T21 · `G1234-152` | Limitaciones conocidas (L1–L18) y hoja de ruta para el equipo que continúe (R1–R15) en [`roadmap.md`](../arquitectura/roadmap.md) | Hecha, falta PR | `iter6/n4-roadmap-limitaciones` |
 | T11 · `G1234-137` | Vista física del 4+1 (§6); cobertura, spotless, `resultados.md` y `criterio-tests.md` al día | Hecha, falta PR | `iter6/t11-vista-fisica` |
 | T23 · `G1234-155` | Relevamiento de la corrida del simulador del 2026-10-28, con extracto del log | Hecha, falta PR | `iter6/t23-problemas-simulador` |
 | T24a · `G1234-163` | Aviso al arrancar si el entorno no puede alcanzar la `baseUrl` (problema P2 de la corrida) | Hecha, falta PR | `iter6/t24a-aviso-baseurl` |
@@ -95,7 +95,7 @@ siga.
 
 - **T19 y T18**, separar el despachador de switches y unificar el mapa de lecturas de `CoreAdapter`:
   refactorizar la clase central justo antes de la aceptación es riesgo sin ganancia para la prueba
-  (roadmap R4).
+  (roadmap R6).
 - **T15**, versiones en el pom padre: en pausa.
 - **PIT, Actuator, historial en base de datos, TLS y roles:** pasos de mediano y largo plazo del
   roadmap.
