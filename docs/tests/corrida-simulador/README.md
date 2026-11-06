@@ -71,11 +71,11 @@ cubren con tests propios o con el comportamiento ya probado:
 | E16 | Achicar de 20 a 5 | El mismo test: deja de escuchar los 15 termostatos y no comanda sus switches |
 | E17 | Arranque en frío | Todas frías al INICIAR: E02/E04 de `ecowarm-run` y `ControlCargaTest` |
 | F02 | Broker caído media hora | `EscenariosSimuladorTest.brokerCaidoMasQueLaVigencia`: las lecturas vencen, se apaga y retoma |
-| F04 | Termostatos fuera de contrato | Lo inválido se descarta y se conserva la última lectura buena (`PerdidaMensajesTest`). **Abierto:** falta saber qué manda el escenario |
+| F04 | Termostatos fuera de contrato | Se acepta lo que se entiende sin riesgo (`tC` numérico como texto, `ts` como texto o en milisegundos: `PayloadTermostatoTest`, T33); lo que el contrato no permite se descarta y se conserva la última lectura buena (`PerdidaMensajesTest`) |
 | F06 | Un switch que no apaga (error) | Se retiene el ON que superaría la contratada (`FallaSwitchTest.offFallido_noSeEnciendeLaSiguiente`) |
 | F07 | Switches fuera de contrato | `ClienteSwitchRestTest`: JSON con otro `Content-Type`, `estado` en minúscula, comando 2xx con cuerpo raro, consulta que no es JSON (T24d, T31) |
 | F08 | Un switch encendido que no se deja consultar | Lo que no confirmó OFF se cuenta como encendido (`CoreAdapter.excederiaLaContratada`) |
-| F09 | Un switch que no prende | **Abierto:** el core sigue eligiendo esa habitación y la potencia queda sin usar; arreglarlo bien necesita saber qué espera el escenario |
+| F09 | Un switch que no prende | La habitación queda `OFF` con `SWITCH_NO_RESPONDE` y su potencia pasa a otra; se reintenta con espera creciente (`CoreAdapterTest.switchQueNoPrende_cedeLaPotencia`, `onConError_seConsultaYCedeLaPotencia`, T34) |
 
 ## Después de la corrida
 
