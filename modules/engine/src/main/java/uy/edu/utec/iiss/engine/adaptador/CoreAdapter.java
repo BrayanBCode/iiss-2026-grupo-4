@@ -277,7 +277,15 @@ public class CoreAdapter implements AutoCloseable {
             return; // habitación desconocida: no se guarda nada
         }
         if (!core.lecturaValida(l.temperaturaC())) {
-            return; // sensor defectuoso: se conserva el último dato bueno
+            // Sensor defectuoso: se conserva el último dato bueno. Se cuenta y se loguea (D11):
+            // sin esto, un sensor roto no dejaba rastro y la habitación parecía no cambiar.
+            contarDescarte(id, MotivoDescarte.FUERA_DE_RANGO);
+            log.info(
+                    "Lectura de '{}' descartada ({}): {} °C, fuera del rango del sensor",
+                    id,
+                    MotivoDescarte.FUERA_DE_RANGO,
+                    l.temperaturaC());
+            return;
         }
         Instant anterior = instanteLectura.get(id);
         if (anterior != null && l.ts().isBefore(anterior)) {
