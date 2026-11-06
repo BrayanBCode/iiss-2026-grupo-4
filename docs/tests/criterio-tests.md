@@ -1,13 +1,15 @@
-# Criterio de adecuación del conjunto de tests — Iteración 4
+# Criterio de adecuación del conjunto de tests — Iteración 6
 
 Este documento explica **por qué** el conjunto de tests unitarios del core se considera adecuado,
-cómo se construyó con TDD y cómo se ejecuta. Los tests están en
-[`modules/core/src/test/java`](../../modules/core/src/test/java/uy/edu/utec/iiss/core).
+cómo se construyó con TDD y cómo se ejecuta. Se escribió en la iteración 4 y se actualizó en la 6, con
+el core sin estado: los tests de la decisión están en
+[`modules/core/src/test/java`](../../modules/core/src/test/java/uy/edu/utec/iiss/core), y los
+de los estímulos, en el engine ([`CoreAdapterEstimulosTest`](../../modules/engine/src/test/java/uy/edu/utec/iiss/engine/adaptador/CoreAdapterEstimulosTest.java)).
 
 ## 1. Qué se prueba
 
 El objeto bajo prueba es la **función de decisión del core**, `Core.decidir(sitio, habitaciones,
-estados, ahora, factorTiempo) → List<Decision>`: dada una situación (potencia contratada, franja
+estados, ahora) → List<Decision>`: dada una situación (potencia contratada, franja
 punta, hora del control y, por cada habitación, su temperatura esperada, su potencia, su última
 temperatura, cuándo se midió y si está encendida), qué habitaciones reciben energía y **por qué**
 (cada `Decision` lleva un `Motivo`).
@@ -19,8 +21,8 @@ procesado antes. Por eso hay dos niveles de tests, todos sin mocks:
   prenden. Ejemplo: *"5 habitaciones con déficit de 1 kW cada una y 3 kW contratados → prenden las
   3 de mayor déficit"*, *"la encendida con déficit 3.0 conserva la energía ante otra con 3.3"*,
   *"lunes 18:00, 3 con déficit → ninguna prende, tarifa punta"*.
-- **`CoreTest`**: arma la situación con estímulos (`NuevaLectura`, `Tick`,
-  `ConfiguracionActualizada`, `Sincronizacion`) a través de `Core.procesar`, que actualiza el
+- **`CoreAdapterEstimulosTest`** (engine): arma la situación con estímulos (`NuevaLectura`, `Tick`,
+  `ConfiguracionActualizada`, `Sincronizacion`) a través de `CoreAdapter.procesar`, que actualiza el
   estado y llama a `decidir`. Cubre lo que no es la decisión en sí: lecturas descartadas, reloj,
   configuración atómica y secuencias largas.
 
@@ -34,11 +36,11 @@ se cumplen; los cuatro se cumplen hoy.
 Cada característica que pide la letra para el core, y cada regla del estándar v2 que afecta la
 decisión, tiene al menos un test que la verifica en positivo **y** uno en negativo.
 
-Los grupos de `CoreTest` de la tabla tienen su contraparte por situación en `DecidirTest`
+Los grupos de `CoreAdapterEstimulosTest` de la tabla tienen su contraparte por situación en `DecidirTest`
 (`UnaHabitacion`, `TarifaPunta`, `RepartoDePotencia`, `TopeDePotencia`, `Criterio`, `Histeresis`,
 `LecturasVencidas`).
 
-| Requisito (letra / estándar) | Grupo en `CoreTest` | Ejemplos de casos |
+| Requisito (letra / estándar) | Grupo en `CoreAdapterEstimulosTest` | Ejemplos de casos |
 |---|---|---|
 | Decidir qué habitación recibe energía | 1. Decisión básica | bajo la esperada → ON; en la esperada → OFF; sin lectura → OFF; sin configuración → nada |
 | Cortar al entrar en punta y restituir al salir | 2. Tarifa punta | 16:59 ON / 17:00 OFF; 23:00 restituye; HABILES vs TODOS; viernes / sábado / domingo; zona del sitio vs zona de la JVM |
@@ -57,7 +59,7 @@ Para cada variable de entrada de la decisión se identificaron sus clases y se p
 | Hora vs franja punta `[desde, hasta)` | 16:59 (antes) · 17:00 (límite inclusivo) · 18:00 (dentro) · 22:59 (último minuto) · 23:00 (límite exclusivo) |
 | Día | hábil (lunes, viernes) · sábado · domingo, con `HABILES` y con `TODOS` |
 | Potencia | suma < · = · > contratada; habitación sola > contratada; error de redondeo binario |
-| Antigüedad de la lectura | dentro de la vigencia · exactamente en el límite (10 min) · vencida (11 min); escalada con factor ×60 |
+| Antigüedad de la lectura | dentro de la vigencia · exactamente en el límite (10 min) · vencida (11 min); sin escalar por el factor (T8c) · `ts` más viejo que la vigencia (D8) |
 | Calidad de la lectura | válida · NaN · ±∞ · < −40 °C · > 85 °C · fuera de orden · de habitación desconocida |
 | Configuración | válida · vacía · potencia 0/negativa · contratada 0/NaN · id vacío · id duplicado · temperatura NaN |
 
@@ -72,28 +74,28 @@ entorno defectuoso sin decidir mal. Cada escenario tiene su grupo de tests:
 | Sensor roto / mensaje corrupto | la lectura se descarta, se conserva el último dato bueno | 7 |
 | Mensajes MQTT desordenados (QoS 0/1) | una lectura más vieja que la conocida se descarta | 7 |
 | Ticks del temporizador atrasados | el reloj no retrocede (no "sale" de la punta por error) | 9 |
-| Re-INICIAR con otra fecha / acelerado | el reloj se mueve, la vigencia se escala con el factor, no se apaga todo | 8, 9 |
+| Re-INICIAR con otra fecha / acelerado | el reloj se mueve; las lecturas vencidas se olvidan y las vigentes se conservan (D7); la vigencia no se escala con el factor (T8c) | 8, 9 |
 | Lecturas que oscilan en torno a la esperada | histéresis: el relé no conmuta en cada lectura | 6 |
 | Dos habitaciones con déficit parecido y potencia para una | margen anti-oscilación: se turnan en vez de alternar en cada lectura | 4 |
 | Configuración inválida enviada en caliente | se rechaza entera, sigue la anterior | 5 |
 
 ### C4 — Invariantes sobre secuencias arbitrarias + cobertura estructural
 
-- **Invariantes** (grupo 10): una secuencia seudoaleatoria de 3000 estímulos (semilla fija → reproducible)
+- **Invariantes** (grupo 10, en `CoreAdapterEstimulosTest`): una secuencia seudoaleatoria de 3000 estímulos (semilla fija → reproducible)
   verifica tras **cada** paso que (a) la potencia encendida nunca supera la contratada, (b) nunca
   hay nada encendido en punta, (c) siempre hay una decisión por habitación. Otra prueba verifica
   **determinismo**: la misma secuencia produce exactamente las mismas decisiones.
-- **Cobertura estructural** (JaCoCo, `mvn -pl modules/core test`, reporte en
+- **Cobertura estructural** (JaCoCo, `mvn -pl modules/core verify`, reporte en
   `modules/core/target/site/jacoco/index.html`), resultado actual del módulo core:
 
   | Métrica | Cubierto | Total | % |
   |---|---|---|---|
-  | Líneas | 226 | 227 | 99 % |
-  | Ramas | 118 | 130 | 91 % |
+  | Líneas | 148 | 148 | 100 % |
+  | Ramas | 79 | 84 | 94 % |
 
-  Las ramas sin cubrir son comprobaciones defensivas (p. ej. `null` en campos que el engine nunca
-  envía, combinaciones `NaN`/`∞` ya cubiertas por otra rama de la misma condición). El umbral que
-  nos fijamos es **≥ 90 % de líneas y ≥ 85 % de ramas en el core**: por debajo de eso se agregan tests.
+  Las 5 ramas sin cubrir son combinaciones de condiciones compuestas que ningún test ejercita
+  (detalle en [`cobertura/`](../calidad/cobertura/README.md)). El umbral que
+  exige el build es **≥ 85 % de líneas y de ramas en el core**: por debajo, `mvn verify` falla.
 
 **Por qué alcanza:** C1 asegura que no falta ningún requisito; C2 que cada requisito se probó en
 sus bordes, que es donde aparecen los errores (el límite 17:00/23:00, la suma igual a la
@@ -135,25 +137,28 @@ El engine tiene sus propios tests (no son TDD del core, pero dan confianza en la
 
 | Clase de test | Qué verifica |
 |---|---|
-| `CoreAdapterTest` (21) | traducción decisión → comando, no repetir comandos, consulta §4 al habilitar, reconciliación (switch reiniciado o movido a mano), switch caído no bloquea a los demás, espera entre reintentos |
-| `ApiEstandarTest` (13) | contexto Spring completo: §5.1 (persistencia, GET no es eco, atómico, en caliente), §5.2 (estados, INICIAR/DETENER, todos los 400), 401, ABM |
-| `ValidadorInventarioTest` (9) | reglas de consistencia del §1 |
-| `RepositorioInventarioTest` (4) | persistencia sobrevive al reinicio, archivo corrupto, escritura atómica |
-| `RelojControlTest` (4), `PayloadTermostatoTest` (3), `RegistroEntornoTest` (2) | reloj acelerado §5.2, payload §2 (ts en segundos), broker del registro §6 |
+| `CoreAdapterEstimulosTest` (60) | los estímulos de la tabla del C1 (grupos 1 a 10), aplicados con `CoreAdapter.procesar` |
+| `CoreAdapterTest` (26) | traducción decisión → comando, no repetir comandos, consulta §4 al iniciar, reconciliación (switch reiniciado o movido a mano), switch caído no bloquea a los demás, espera entre reintentos, OFF antes que ON, estado de ejecución, lecturas descartadas |
+| `ApiEstandarTest` (14) | contexto Spring completo: §5.1 (persistencia, GET no es eco, atómico, en caliente), §5.2 (estados, INICIAR/DETENER, todos los 400, INICIAR sin offset en hora de Montevideo), 401, ABM |
+| `RelojControlTest` (12), `ControlServiceTest` (2) | reloj acelerado §5.2, conversión del `ts` en hora real y descarte del viejo (T8b, D8), tick escalado (T12) |
+| `ValidadorInventarioTest` (10), `RepositorioInventarioTest` (4) | reglas de consistencia del §1; persistencia que sobrevive al reinicio, archivo corrupto, escritura atómica |
+| `PayloadTermostatoTest` (5), `RegistroEntornoTest` (2) | payload §2 (ts en segundos), broker del registro §6 |
+| De integración (50): `ArranqueParadaTest`, `ControlCargaTest`, `CambioConfiguracionTest`, `TermostatoCaidoTest`, `PerdidaMensajesTest`, `FallaSwitchTest`, `FallaBrokerMqttTest`, `TiempoAceleradoTest` | el engine completo con un broker MQTT embebido y switches HTTP falsos: carga, arranque y parada, cambios en caliente y las fallas del entorno (C3) de punta a punta |
 
 ## 5. Ejecución y resultados
 
 ```bash
 ./scripts/test.sh core      # solo el core (Docker, sin Java local)
 ./scripts/test.sh           # todos los módulos
+mvn clean verify            # local: formato, tests y cobertura
 ```
 
-Resultado de la última ejecución (2026-10-14):
+Resultado de la última ejecución (2026-11-03):
 
 | Módulo | Tests | Fallas | Errores |
 |---|---|---|---|
-| core | 116 | 0 | 0 |
-| engine | 56 | 0 | 0 |
+| core | 54 | 0 | 0 |
+| engine | 185 | 0 | 0 |
 
 Los reportes quedan en `modules/*/target/surefire-reports/`. El detalle por clase de test está en
 [`resultados.md`](resultados.md).

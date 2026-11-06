@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,38 @@ class TermostatoCaidoTest extends IntegracionBase {
         assertEquals("CALEFACCIONANDO", motivo("living"));
         assertEquals(16.0, estado("living").temperaturaActual());
         assertSwitch("living", "ON");
+    }
+
+    @Test
+    @DisplayName(
+            "D7: INICIAR hacia atrás en ejecución olvida la lectura vencida y conserva la vigente,"
+                    + " marcada con la hora nueva")
+    void reiniciarHaciaAtras_conLecturasMezcladas() throws Exception {
+        cargarSitio(
+                POTENCIA_SITIO,
+                habitacion("living", 21.0, 1.0),
+                habitacion("dormitorio", 21.0, 1.0));
+        iniciar();
+        temperatura("living", 16.0);
+        esperarSwitch("living", "ON");
+        Thread.sleep(1500);
+        temperatura("dormitorio", 16.0); // sigue vigente cuando la de living ya venció
+        esperarSwitch("dormitorio", "ON");
+        esperarMotivo("living", "LECTURA_VENCIDA");
+
+        String haciaAtras = "2026-10-01T08:00:00Z"; // una hora antes de FECHA_INICIO
+        iniciar(haciaAtras, 1);
+
+        esperarMotivo("living", "SIN_LECTURA");
+        esperarSwitch("living", "OFF");
+        assertNull(estado("living").temperaturaActual());
+        assertEquals("CALEFACCIONANDO", motivo("dormitorio"));
+        assertEquals(16.0, estado("dormitorio").temperaturaActual());
+        assertEquals(Instant.parse(haciaAtras), estado("dormitorio").ultimaLectura());
+        assertSwitch("dormitorio", "ON");
+
+        temperatura("living", 16.0); // la lectura nueva no se toma como fuera de orden
+        esperarSwitch("living", "ON");
     }
 
     @Test

@@ -167,6 +167,65 @@ class RelojControlTest {
         }
     }
 
+    // ---------- ts ya en hora del control (simulador de la corrida del 2026-11-04) ----------
+
+    /**
+     * INICIAR de la corrida: fechaHora martes 10:00 en Montevideo, factor 60, a las 20:09:05
+     * reales.
+     */
+    private static final RelojControl CORRIDA =
+            new RelojControl(
+                    Instant.parse("2026-11-03T13:00:00Z"),
+                    60,
+                    Instant.parse("2026-11-04T23:09:05.851Z"),
+                    ZoneOffset.UTC);
+
+    @Test
+    @DisplayName(
+            "ts ya en hora del control (corrida del 2026-11-04): se usa tal cual, no se convierte"
+                    + " como si fuera hora real")
+    void tsEnHoraDelControl_seUsaTalCual() {
+        // Primera lectura: llegó a las 20:09:06.472 reales con ts 13:00:34.560Z. Convertido como
+        // hora real caía en agosto y se descartaba (TS_VENCIDO): todas las lecturas de la corrida.
+        Instant ts = Instant.parse("2026-11-03T13:00:34.560Z");
+        Clock llegada = real(Instant.parse("2026-11-04T23:09:06.472Z"));
+        assertEquals(Optional.of(ts), CORRIDA.instanteDeLectura(ts, VIGENCIA, llegada));
+
+        // Ochenta segundos reales después (80 min de control), después de la caída del broker.
+        Instant tsTarde = Instant.parse("2026-11-03T14:29:35.340Z");
+        Clock llegadaTarde = real(Instant.parse("2026-11-04T23:10:35.452Z"));
+        assertEquals(
+                Optional.of(tsTarde), CORRIDA.instanteDeLectura(tsTarde, VIGENCIA, llegadaTarde));
+    }
+
+    @Test
+    @DisplayName(
+            "ts en hora del control más viejo que la vigencia -> se descarta igual (D8 vale en las"
+                    + " dos escalas)")
+    void tsEnHoraDelControl_viejo_seDescarta() {
+        Clock llegada = real(Instant.parse("2026-11-04T23:10:35.452Z")); // control 14:29:36
+        Instant once = Instant.parse("2026-11-03T14:18:30Z"); // 11 min antes
+        assertEquals(Optional.empty(), CORRIDA.instanteDeLectura(once, VIGENCIA, llegada));
+        Instant nueve = Instant.parse("2026-11-03T14:20:30Z"); // 9 min antes
+        assertEquals(Optional.of(nueve), CORRIDA.instanteDeLectura(nueve, VIGENCIA, llegada));
+    }
+
+    @Test
+    @DisplayName(
+            "Las dos escalas con el mismo reloj: el ts en hora real se convierte y el que ya está"
+                    + " en hora del control se usa tal cual; los dos dan el mismo instante")
+    void lasDosEscalas_danElMismoInstante() {
+        Clock llegada = real(Instant.parse("2026-11-04T23:10:00Z")); // 54,149 s reales
+        Instant medidoReal = Instant.parse("2026-11-04T23:09:59Z");
+        Instant enHoraDelControl = CORRIDA.aTiempoDeControl(medidoReal);
+        assertEquals(
+                CORRIDA.instanteDeLectura(medidoReal, VIGENCIA, llegada),
+                CORRIDA.instanteDeLectura(enHoraDelControl, VIGENCIA, llegada));
+        assertEquals(
+                Optional.of(enHoraDelControl),
+                CORRIDA.instanteDeLectura(enHoraDelControl, VIGENCIA, llegada));
+    }
+
     @Test
     @DisplayName("Factor no positivo se rechaza")
     void factorInvalido() {

@@ -1,4 +1,4 @@
-# Resultados de la ejecución de las pruebas — Iteración 5
+# Resultados de la ejecución de las pruebas — Iteración 6
 
 Entregable "Ejecución de las pruebas unitarias, con sus resultados". El criterio por el que el
 conjunto se considera adecuado está en [`criterio-tests.md`](criterio-tests.md). La cobertura y la
@@ -16,73 +16,94 @@ Los reportes detallados quedan en `modules/<módulo>/target/surefire-reports/` y
 del core en `modules/core/target/site/jacoco/index.html` (copia en
 [`docs/calidad/cobertura/`](../calidad/cobertura/README.md)).
 
-## Última ejecución — 2026-10-27 (rama `implementacion5`, Java 25)
+## Última ejecución — 2026-11-03 (rama `iter6/t11-vista-fisica`, sobre `implementacion6`, Java 25)
 
-**Resultado: BUILD SUCCESS — 215 tests, 0 fallas, 0 errores, 0 omitidos.** Una primera
-corrida del mismo día había dado 1 falla en `FallaBrokerMqttTest`; se corrigió la causa en el
-código (ver [Falla corregida](#falla-corregida)).
+**Resultado: BUILD SUCCESS — 239 tests, 0 fallas, 0 errores, 0 omitidos** (`mvn clean verify`).
 
 | Módulo | Tests | Fallas |
 |---|---|---|
-| `core` | 116 | 0 |
-| `engine` | 99 | 0 |
-| **Total** | **215** | **0** |
+| `core` | 54 | 0 |
+| `engine` | 185 | 0 |
+| **Total** | **239** | **0** |
 
-### Módulo `core` (TDD de la función de decisión) — 116 tests
+**Por qué el core tiene menos tests que en la iteración 5 (116).** Con el core sin estado (T4/T5)
+quedó solo la función pura `decidir` y el modelo; los tests de estímulos que eran `CoreTest` (lectura,
+tick, configuración, INICIAR) pasaron al engine como `CoreAdapterEstimulosTest`, junto con el
+manejo de estímulos que verifican: esos casos no se perdieron, cambiaron de módulo. `CoreClientTest`
+sí se borró, junto con la fachada `CoreClient` que probaba.
+
+### Módulo `core` (TDD de la función de decisión) — 54 tests
 
 | Clase de test | Grupo | Tests | Fallas |
 |---|---|---|---|
-| `DecidirTest` | función `decidir` por situación: una habitación, reparto de potencia, criterio, histéresis, tarifa punta, lecturas vencidas, tope | 35 | 0 |
-| `CoreTest` | 1. Decisión básica | 8 | 0 |
-| `CoreTest` | 2. Tarifa punta: cortar y restituir | 10 | 0 |
-| `CoreTest` | 3. Nunca superar el consumo máximo | 7 | 0 |
-| `CoreTest` | 4. Criterio justificable y no azaroso | 6 | 0 |
-| `CoreTest` | 5. Configuración del sitio | 9 | 0 |
-| `CoreTest` | 6. Histéresis | 5 | 0 |
-| `CoreTest` | 7. Lecturas defectuosas | 4 | 0 |
-| `CoreTest` | 8. Lecturas vencidas (termostato caído) | 6 | 0 |
-| `CoreTest` | 9. Reloj del control | 5 | 0 |
-| `CoreTest` | 10. Invariantes | 3 | 0 |
+| `DecidirTest` | Una habitación | 6 | 0 |
+| `DecidirTest` | Reparto de potencia | 8 | 0 |
+| `DecidirTest` | Criterio de prioridad | 5 | 0 |
+| `DecidirTest` | Histéresis | 4 | 0 |
+| `DecidirTest` | Tarifa punta | 7 | 0 |
+| `DecidirTest` | Lecturas vencidas | 5 | 0 |
+| `DecidirTest` | Lectura válida y situación incompleta | 4 | 0 |
+| `DecidirTest` | Tope de potencia | 1 | 0 |
 | `MayorDeficitPrimeroTest` | criterio de prioridad | 9 | 0 |
-| `CoreClientTest` | fachada del core | 6 | 0 |
-| `ModeloTest` | validaciones del modelo | 3 | 0 |
-| **Total** | | **116** | **0** |
+| `ModeloTest` | validaciones del modelo | 5 | 0 |
+| **Total** | | **54** | **0** |
 
-Cobertura (JaCoCo) del módulo `core` — objetivo ≥ 85 % de líneas:
+Cobertura (JaCoCo) del módulo `core` — el build exige ≥ 85 % de líneas y de ramas:
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 237 | 238 | 99,6 % |
-| Ramas | 118 | 130 | 90,8 % |
+| Líneas | 148 | 148 | 100 % |
+| Ramas | 79 | 84 | 94,0 % |
 
-### Módulo `engine` — 99 tests
+### Módulo `engine` — 185 tests
+
+Estímulos (antes `CoreTest`, en el core):
+
+| Clase de test | Grupo | Tests | Fallas |
+|---|---|---|---|
+| `CoreAdapterEstimulosTest` | Decisión básica | 8 | 0 |
+| `CoreAdapterEstimulosTest` | Tarifa punta: cortar y restituir | 10 | 0 |
+| `CoreAdapterEstimulosTest` | Nunca superar el consumo máximo | 7 | 0 |
+| `CoreAdapterEstimulosTest` | Criterio de selección | 6 | 0 |
+| `CoreAdapterEstimulosTest` | Configuración del sitio | 5 | 0 |
+| `CoreAdapterEstimulosTest` | Histéresis | 5 | 0 |
+| `CoreAdapterEstimulosTest` | Lecturas defectuosas | 4 | 0 |
+| `CoreAdapterEstimulosTest` | Lecturas vencidas (termostato caído) | 6 | 0 |
+| `CoreAdapterEstimulosTest` | Reloj del control y re-sincronización | 6 | 0 |
+| `CoreAdapterEstimulosTest` | Invariantes | 3 | 0 |
 
 Unitarios y de API:
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON | 21 | 0 |
-| `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM) | 13 | 0 |
-| `ValidadorInventarioTest` | reglas de consistencia del §1 | 9 | 0 |
+| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON, estado de ejecución, lecturas descartadas | 26 | 0 |
+| `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM, INICIAR sin offset en hora de Montevideo) | 14 | 0 |
+| `RelojControlTest` | reloj del control con aceleración (§5.2) y conversión del `ts` en hora real (T8b, D8) | 12 | 0 |
+| `ValidadorInventarioTest` | reglas de consistencia del §1 | 10 | 0 |
+| `PayloadTermostatoTest` | mensaje MQTT del termostato (§2) | 5 | 0 |
 | `RepositorioInventarioTest` | persistencia del inventario | 4 | 0 |
-| `RelojControlTest` | reloj del control con aceleración (§5.2) | 4 | 0 |
-| `PayloadTermostatoTest` | mensaje MQTT del termostato (§2) | 3 | 0 |
+| `ControlServiceTest` | período del tick escalado por el factor y su mínimo (T12) | 2 | 0 |
 | `RegistroEntornoTest` | broker informado por el registro (§6) | 2 | 0 |
 
-De integración (broker MQTT embebido + switches HTTP falsos, nuevos en la iteración 5):
+De integración (broker MQTT embebido + switches HTTP falsos):
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `ControlCargaTest` | la carga total limita / no limita; nunca se supera la potencia contratada | 6 | 0 |
-| `ArranqueParadaTest` | distintas situaciones iniciales; qué se hace con la calefacción al iniciar y al detener | 11 | 0 |
+| `ArranqueParadaTest` | distintas situaciones iniciales; qué se hace con la calefacción al iniciar y al detener | 12 | 0 |
+| `ControlCargaTest` | la carga total limita / no limita; nunca se supera la potencia contratada; franja punta en hora de Montevideo | 7 | 0 |
 | `CambioConfiguracionTest` | cambios de configuración con el control en ejecución | 7 | 0 |
-| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | 0 |
-| `PerdidaMensajesTest` | pérdida de mensajes de los termostatos | 5 | 0 |
+| `TermostatoCaidoTest` | un termostato deja de publicar; re-INICIAR no revive lecturas vencidas (D7) | 7 | 0 |
+| `PerdidaMensajesTest` | pérdida de mensajes; `ts` fuera de orden o vencido se descarta y se cuenta | 6 | 0 |
 | `FallaSwitchTest` | switch que no responde o falla; sin superar la contratada si falla un OFF | 5 | 0 |
-| `TermostatoCaidoTest` | un termostato deja de publicar | 5 | 0 |
-| **Total engine** | | **99** | **0** |
+| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | 0 |
+| `TiempoAceleradoTest` | a ×600 el corte y la restitución de la punta llegan en menos de 1 s real (T12) | 2 | 0 |
+| **Total engine** | | **185** | **0** |
+
+Los mensajes `ERROR` del log de la corrida son esperados: ver la última sección.
 
 ### Falla corregida
+
+Esta falla apareció en una corrida de la iteración 5 (2026-10-27) y quedó corregida; se conserva como registro.
 
 En la primera corrida falló `FallaBrokerMqttTest.caidaLarga_seReconectaEnSegundos`:
 
