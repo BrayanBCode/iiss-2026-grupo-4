@@ -676,6 +676,7 @@ las pasadas.
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | `CONTROLADOR_BASE_URL` que el entorno no puede alcanzar (`localhost` con el entorno en otra máquina, IP mal escrita) | aviso `WARN` al arrancar, antes de registrarse: el registro igual responde 201 y el error solo se notaría porque nunca llega el `PUT /sitio` (corrida del 2026-10-28) | `main` | `RegistroEntornoTest` |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
+| Un switch que no prende (acepta el ON y sigue apagado, o el ON falla y la consulta lo muestra apagado) | la habitación queda `OFF` con `SWITCH_NO_RESPONDE` y su potencia pasa a las demás; se reintenta tras una espera que se duplica (30 s, hasta 10 min) (A17) | `switches` | `CoreAdapterTest` |
 
 ### 3.2 Qué deja el log de una corrida
 
@@ -754,7 +755,7 @@ Un INICIAR sobre un control en ejecución no es error: re-sincroniza (§5.2). `C
 
 ### 4.6 Qué dice la letra y qué decidimos
 
-La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop-v2.md). Lo que ella no dice son **decisiones del equipo** y se documentan como tales.
+La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop-v2.md). Lo que ella no dice son **decisiones del equipo** y se documentan como tales. El registro completo de decisiones, con contexto, alternativas y consecuencias, está en [`decisiones.md`](decisiones.md).
 
 | Tema | Qué dice la letra (fuente) | Decisión del equipo | Motivo |
 |---|---|---|---|
