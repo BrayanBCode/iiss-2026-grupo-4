@@ -72,7 +72,28 @@ class PayloadTermostatoTest {
     }
 
     @Test
-    @DisplayName("Sin tC numérico, o lo que no es JSON, se descarta")
+    @DisplayName(
+            "Fuera de contrato pero entendible (F04): tC numérico como texto, ts como texto o en"
+                    + " milisegundos")
+    void fueraDeContrato_entendible() {
+        assertEquals(
+                21.5,
+                PayloadTermostato.parsear(b("{\"tC\":\" 21.5 \"}")).orElseThrow().temperaturaC());
+        Instant esperado = Instant.ofEpochSecond(1786840680, 123_000_000);
+        assertEquals(
+                esperado,
+                PayloadTermostato.parsear(b("{\"tC\":20,\"ts\":\"1786840680.123\"}"))
+                        .orElseThrow()
+                        .ts());
+        assertEquals(
+                esperado,
+                PayloadTermostato.parsear(b("{\"tC\":20,\"ts\":1786840680123}"))
+                        .orElseThrow()
+                        .ts());
+    }
+
+    @Test
+    @DisplayName("Sin tC que se entienda (aunque venga tF), o lo que no es JSON, se descarta")
     void invalidos() {
         assertTrue(PayloadTermostato.parsear(b("{\"id\":0,\"tF\":70.5}")).isEmpty());
         assertTrue(PayloadTermostato.parsear(b("{\"tC\":\"veinte\"}")).isEmpty());

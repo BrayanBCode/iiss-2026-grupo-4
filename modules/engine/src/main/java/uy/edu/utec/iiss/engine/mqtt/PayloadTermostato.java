@@ -29,15 +29,52 @@ public record PayloadTermostato(double temperaturaC, Instant ts) {
     public static Optional<PayloadTermostato> parsear(byte[] payload) {
         try {
             JsonNode json = JSON.readTree(new String(payload, StandardCharsets.UTF_8));
-            if (json == null || !json.path("tC").isNumber()) {
+            if (json == null) {
                 return Optional.empty();
             }
-            JsonNode ts = json.path("ts");
-            Instant instante = ts.isNumber() ? deEpoch(ts.decimalValue()) : null;
-            return Optional.of(new PayloadTermostato(json.path("tC").asDouble(), instante));
+            // Termostatos fuera de contrato (F04): se acepta lo que se entiende sin riesgo, un tC
+            // numérico escrito como texto y un ts como texto o en milisegundos. Sin tC se descarta
+            // (el §2 lo exige; tF solo no alcanza). El rango del sensor se controla después
+            // igual (Core.lecturaValida).
+            BigDecimal temperaturaC = decimal(json.path("tC"));
+            if (temperaturaC == null) {
+                return Optional.empty();
+            }
+            BigDecimal ts = decimal(json.path("ts"));
+            Instant instante = null;
+            if (ts != null) {
+                instante = deEpoch(enSegundos(ts));
+            }
+            return Optional.of(new PayloadTermostato(temperaturaC.doubleValue(), instante));
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    /** El número del campo, sea un número JSON o un texto con un número; null si no hay. */
+    private static BigDecimal decimal(JsonNode campo) {
+        if (campo.isNumber()) {
+            return campo.decimalValue();
+        }
+        if (campo.isTextual()) {
+            try {
+                return new BigDecimal(campo.asText().strip());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * El estándar manda segundos; un epoch de más de 11 cifras son milisegundos (en segundos sería
+     * después del año 5000).
+     */
+    private static BigDecimal enSegundos(BigDecimal ts) {
+        if (ts.compareTo(BigDecimal.valueOf(100_000_000_000L)) > 0) {
+            return ts.movePointLeft(3);
+        }
+        return ts;
     }
 
     /**
