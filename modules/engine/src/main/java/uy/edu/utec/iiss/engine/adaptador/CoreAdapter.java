@@ -69,6 +69,8 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
 public class CoreAdapter implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(CoreAdapter.class);
+    // Tope de la espera antes de reintentar un switch que no prende (F09).
+    private static final Duration ESPERA_MAXIMA_NO_PRENDE = Duration.ofMinutes(10);
 
     /** Una habitación tal como la necesita el core, más el switch que la calefacciona. */
     public record HabitacionControlada(
@@ -123,6 +125,11 @@ public class CoreAdapter implements AutoCloseable {
     private final Map<String, EstadoSwitch> estadoConocido = new HashMap<>();
     private final Map<String, Instant> noReintentarAntesDe = new HashMap<>();
     private final Set<String> retenidas = new HashSet<>(); // ON esperando potencia confirmada
+    // Habitaciones cuyo switch no prendió (F09): hasta cuándo se las deja afuera de la decisión, y
+    // cuántas veces seguidas falló, para duplicar la espera.
+    private final Map<String, Instant> noPrendeHasta = new HashMap<>();
+    private final Map<String, Integer> vecesQueNoPrendio = new HashMap<>();
+    private final Set<String> onFallido = new HashSet<>(); // ON que falló: falta saber si prendió
     private boolean pasadaEncolada;
     private boolean consultaPendiente;
 
@@ -349,16 +356,62 @@ public class CoreAdapter implements AutoCloseable {
         ahora = s.ahora();
     }
 
-    /** Arma la situación con el estado propio y le pide al core que decida. */
+    /**
+     * Arma la situación con el estado propio y le pide al core que decida. Las habitaciones cuyo
+     * switch no prende quedan afuera mientras esperan para reintentar (OFF con {@code
+     * SWITCH_NO_RESPONDE}): así el core reparte su potencia entre las demás (F09).
+     */
     private List<Decision> decidir() {
         if (sitio == null) {
             return List.of();
         }
+        List<ConfiguracionHabitacion> disponibles = new ArrayList<>();
+        List<Decision> enEsperaDeReintento = new ArrayList<>();
         Map<String, EstadoHabitacion> estados = new HashMap<>();
         for (ConfiguracionHabitacion h : configuracion) {
-            estados.put(h.id(), estadoDe(h.id()));
+            if (noPrende(h.id())) {
+                enEsperaDeReintento.add(
+                        new Decision(h.id(), Accion.OFF, Motivo.SWITCH_NO_RESPONDE));
+            } else {
+                disponibles.add(h);
+                estados.put(h.id(), estadoDe(h.id()));
+            }
         }
-        return core.decidir(sitio, configuracion, estados, ahora);
+        List<Decision> decisiones =
+                new ArrayList<>(core.decidir(sitio, disponibles, estados, ahora));
+        decisiones.addAll(enEsperaDeReintento);
+        return decisiones;
+    }
+
+    private boolean noPrende(String idHabitacion) {
+        Instant hasta = noPrendeHasta.get(idHabitacion);
+        return hasta != null && relojEsperas.instant().isBefore(hasta);
+    }
+
+    /**
+     * El ON no se aplicó (el switch lo aceptó y sigue apagado, o falló y una consulta lo muestra
+     * apagado): la habitación sale de la decisión durante una espera que se duplica en cada falla
+     * seguida (6 esperas de reintento, hasta 10 min), para que las vecinas no conmuten cada pocos
+     * segundos. Se vuelve a decidir enseguida para darle su potencia a otra. Se llama con el
+     * bloqueo tomado.
+     */
+    private void marcarQueNoPrende(HabitacionControlada h) {
+        int veces = vecesQueNoPrendio.merge(h.id(), 1, Integer::sum);
+        Duration espera = esperaReintento.multipliedBy(6L << Math.min(veces - 1, 10));
+        if (espera.compareTo(ESPERA_MAXIMA_NO_PRENDE) > 0) {
+            espera = ESPERA_MAXIMA_NO_PRENDE;
+        }
+        if (espera.compareTo(Duration.ofSeconds(1)) < 0) {
+            espera = Duration.ofSeconds(1); // nunca un reintento inmediato en bucle
+        }
+        noPrendeHasta.put(h.id(), relojEsperas.instant().plus(espera));
+        log.warn(
+                "El switch '{}' (habitación '{}') no prende: su potencia queda para las demás y se"
+                        + " reintenta en {} s.",
+                h.idSwitch(),
+                h.id(),
+                espera.toSeconds());
+        aplicar(decidir());
     }
 
     private boolean estaConfigurada(String idHabitacion) {
@@ -399,6 +452,9 @@ public class CoreAdapter implements AutoCloseable {
     public synchronized void iniciar() {
         enEjecucion = true;
         noReintentarAntesDe.clear();
+        noPrendeHasta.clear();
+        vecesQueNoPrendio.clear();
+        onFallido.clear();
         // Antes de aplicar: así la pasada que pide aplicar ya consulta antes de comandar, aun con
         // un executor sincrónico.
         consultaPendiente = true;
@@ -485,11 +541,16 @@ public class CoreAdapter implements AutoCloseable {
                 if (!enEjecucion) {
                     return;
                 }
-                if (consultar) {
-                    for (HabitacionControlada h : habitaciones.values()) {
-                        if (!enEspera(h.id())) {
-                            aConsultar.add(h);
-                        }
+                // Se consulta todo si se pidió (INICIAR, reconciliación) y, en cualquier pasada,
+                // los
+                // switches de estado desconocido (un comando que falló): así se sabe pronto si el
+                // que no prendió está apagado y su potencia se puede usar (F09).
+                for (HabitacionControlada h : habitaciones.values()) {
+                    if (enEspera(h.id())) {
+                        continue;
+                    }
+                    if (consultar || !estadoConocido.containsKey(h.id())) {
+                        aConsultar.add(h);
                     }
                 }
             }
@@ -525,6 +586,9 @@ public class CoreAdapter implements AutoCloseable {
                         estadoConocido.get(h.id()));
             }
             estadoConocido.put(h.id(), real);
+            if (onFallido.remove(h.id()) && real == EstadoSwitch.OFF) {
+                marcarQueNoPrende(h); // el ON falló y el switch sigue apagado
+            }
         }
     }
 
@@ -572,6 +636,14 @@ public class CoreAdapter implements AutoCloseable {
                                 h.idSwitch(),
                                 h.id());
                     }
+                    if (accion == Accion.ON && resultado == EstadoSwitch.OFF) {
+                        marcarQueNoPrende(h); // aceptó el ON pero sigue apagado
+                        continue;
+                    }
+                    if (accion == Accion.ON) {
+                        noPrendeHasta.remove(h.id());
+                        vecesQueNoPrendio.remove(h.id());
+                    }
                 }
                 log.info("Switch '{}' (habitación '{}') -> {}", h.idSwitch(), h.id(), accion);
             } catch (RuntimeException e) {
@@ -579,6 +651,10 @@ public class CoreAdapter implements AutoCloseable {
                     if (vigente(h)) {
                         estadoConocido.remove(h.id());
                         registrarFalla(h, "enviar " + accion + " a", e);
+                        if (accion == Accion.ON) {
+                            // No se sabe si prendió: la próxima consulta lo dice (consultar).
+                            onFallido.add(h.id());
+                        }
                     }
                 }
             }
