@@ -483,9 +483,9 @@ sequenceDiagram
 
 Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageArrived`, callback de Paho con el único try/catch; (2) `procesarMensaje`, que resuelve la habitación por el topic y parsea el payload (se prueba sin broker); (3) `ControlService.alRecibirLectura`, dueño del reloj del control; (4) `CoreAdapter.procesar`, dueño del estado y del estado de ejecución (T7b); (5) `Core.decidir`, la función pura. Antes eran 10: `CoreClient` y el `procesar` del core, que guardaba un estado duplicado, se eliminaron (tarjetas T4, T5 y T7).
 
-**Instante de la lectura (`ts`, tarjetas T8 y T8b).** El simulador envía el `ts` (epoch con 3 decimales, §2) en **hora real**, el reloj real de su máquina. Se lee exacto con `BigDecimal` y **siempre** se lleva a la hora del control con la fórmula del §5.2: `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo`, donde `iniciadoEn` es la hora real en que llegó el INICIAR. La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min × 2 = 10 min, así que su hora del control es 13:10 (con `fechaHora = 08:00` daría 08:10). Ese instante es el que se usa para el vencimiento y para descartar las lecturas fuera de orden. Las reglas (`RelojControl.instanteDeLectura`):
+**Instante de la lectura (`ts`, tarjetas T8, T8b y T24b).** El `ts` (epoch con 3 decimales, §2) se lee exacto con `BigDecimal` y se lleva a la hora del control. El estándar no fija su escala y llegan las dos: en **hora real**, que se convierte con la fórmula del §5.2 `tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo` (donde `iniciadoEn` es la hora real en que llegó el INICIAR), o **ya en hora del control**, como lo manda el simulador de la corrida del 2026-11-04. `RelojControl.tsEnHoraDelControl` se queda con la interpretación más cercana a la hora actual del control: a ×60 las dos quedan a horas o meses de distancia, así que la equivocada nunca gana (ver §4.2). La multiplicación es sobre el tiempo transcurrido, no sobre la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2; una lectura con `ts = 13:05` reales son 5 min × 2 = 10 min, así que su hora del control es 13:10 (con `fechaHora = 08:00` daría 08:10). Ese instante es el que se usa para el vencimiento y para descartar las lecturas fuera de orden. Las reglas (`RelojControl.instanteDeLectura`):
 
-| `ts` (ya convertido) | Qué pasa | Por qué |
+| `ts` (ya en hora del control) | Qué pasa | Por qué |
 |---|---|---|
 | no vino | se guarda con la hora del control | la temperatura vale igual |
 | en el futuro | se guarda con la hora del control | reloj del termostato adelantado: guardado tal cual, no vencería a tiempo |
@@ -493,7 +493,7 @@ Una lectura recorre **5 pasos**, cada uno con una responsabilidad: (1) `messageA
 | más viejo que la vigencia | **se descarta** y se cuenta en `/diagnostico` (`TS_VENCIDO`, D8) | un dato obsoleto no sostiene la calefacción; sellarlo con la hora actual haría que la próxima lectura buena pareciera fuera de orden |
 | anterior a la última guardada | **se descarta** y se cuenta (`FUERA_DE_ORDEN`) | hay un dato más nuevo |
 
-Cada descarte deja además una línea INFO en el log (son excepcionales): habitación, motivo, el `ts` original en hora real y su conversión a hora del control (en `TS_VENCIDO`; en `FUERA_DE_ORDEN` el adaptador solo conoce el instante ya convertido) y la hora del control en ese momento.
+Cada descarte deja además una línea INFO en el log (son excepcionales): habitación, motivo, el `ts` original y su valor en hora del control (en `TS_VENCIDO`; en `FUERA_DE_ORDEN` el adaptador solo conoce el instante ya convertido) y la hora del control en ese momento.
 
 La vigencia se mide en tiempo de control, sin escalar por el factor (T8c), tanto acá como en `Core.decidir`. Un desfase entre el reloj real del simulador y el del controlador se multiplica por el factor (2 s con factor 30 son 1 min de control): `RelojControlTest.desfaseDeReloj_noDescartaNiDesordena` muestra que con ±2 s a ×30 ninguna lectura se descarta ni retrocede; en Docker sobre el mismo host los dos comparten el reloj, y se verifica contra el simulador en T13.
 
@@ -705,7 +705,7 @@ El tiempo del sistema es simulado: el simulador genera las lecturas y puede pasa
         |  única fuente de "qué hora es" para decidir (tarifa, vencimiento, ticks)
         ^
 (c) ts del termostato   solo fecha la medición, nunca mueve la hora del control
-                        (hora real del simulador, se convierte a la escala de (b))
+                        (en hora real o ya en la escala de (b): se toma la que cae más cerca de ahora)
 ```
 
 **Fórmula** (estándar v2 §5.2), válida desde el INICIAR:
@@ -719,11 +719,15 @@ tiempoRealTranscurrido = Duration.between(iniciadoEn, relojReal.instant())
 
 ### 4.2 Instante de una lectura (`ts`)
 
-El simulador escribe el `ts` en **hora real** (epoch del reloj de su máquina, con 3 decimales). Se parsea exacto con `BigDecimal` y **siempre** se lleva a la hora del control con la misma fórmula:
+El `ts` es un epoch con 3 decimales; se parsea exacto con `BigDecimal`. El estándar no dice en qué escala viene, y en la práctica llegaron las dos:
 
-```
-tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo
-```
+- en **hora real** (lo que nos indicó el docente): se lleva a la hora del control con la misma fórmula,
+  ```
+  tsControl = fechaHora + (ts − iniciadoEn) × factorTiempo
+  ```
+- **ya en hora del control** (lo que mandó el simulador en la corrida del 2026-11-04: `ts` 13:00:34Z con `fechaHora` 13:00:00Z a ×60): se usa tal cual.
+
+`RelojControl.tsEnHoraDelControl` calcula las dos y se queda con la más cercana a `ahora` (T24b). A ×60 la equivocada queda a horas o meses de distancia; con factor 1 y `fechaHora` igual a la hora real coinciden. Antes de T24b el `ts` se convertía siempre: con ese simulador cada lectura caía en agosto y se descartaba como `TS_VENCIDO`, y el control pasó toda la corrida sin lecturas (`RelojControlTest.tsEnHoraDelControl_seUsaTalCual` usa esos `ts`; `FallaBrokerMqttTest.caidaCorta_tsEnHoraDelControl_noVencenLasLecturas` reproduce la corrida con una caída corta del broker).
 
 La multiplicación se aplica al **tiempo transcurrido** desde el INICIAR, no a la hora entera. Ejemplo: INICIAR a las 13:00 reales con `fechaHora = 13:00` y factor 2. Una lectura con `ts = 13:05` reales lleva 5 min transcurridos × 2 = 10 min, así que su hora del control es 13:10. Con `fechaHora = 08:00` sería 08:10 (`RelojControlTest.conversion_factorDos_mismaHora` y `conversion_factorDos_otraFechaHora`).
 
@@ -766,7 +770,7 @@ La letra son los PDF de las iteraciones 1 a 5 y [`interop-v2.md`](../api/interop
 | Tarifa punta | Por hora y día de semana, en "hora local" (it. 1 a 5) | Igual que la letra | — |
 | Corte y restitución | Cortar al entrar en punta y restituir al salir (it. 1 a 5) | Igual que la letra | — |
 | Formato del `ts` | Epoch en segundos con 3 decimales (§6) | Se parsea exacto con `BigDecimal` | Evitar el redondeo que marcó el docente |
-| Escala del `ts` | No la define (§2) | Hora real del simulador, convertida a la hora del control con la fórmula del §5.2 | Confirmado con el docente |
+| Escala del `ts` | No la define (§2) | Se aceptan las dos: hora real (convertida con la fórmula del §5.2) o ya en hora del control; se toma la más cercana a `ahora` (T24b) | El docente indicó hora real, pero el simulador del 2026-11-04 lo mandó en hora del control y con la conversión fija se descartaban todas las lecturas |
 | Hora local | "Hora local del sistema" | Uruguay (`America/Montevideo`), fija, sin `systemDefault()` | Confirmado por el docente y por la [corrida del 2026-10-28](../tests/corrida-simulador/2026-10-28/README.md): el simulador cruza la punta con `fechaHora` en hora de Montevideo |
 | Vigencia de lecturas | No la define | 600 s de tiempo de control, sin escalar por el factor | Un solo reloj; escalada, con factor 30 ninguna lectura vence en 5 h simuladas |
 | Frecuencia de publicación | Depende del escenario del simulador (docente) | No se asume ninguna | El simulador provoca atrasos y caídas a propósito |

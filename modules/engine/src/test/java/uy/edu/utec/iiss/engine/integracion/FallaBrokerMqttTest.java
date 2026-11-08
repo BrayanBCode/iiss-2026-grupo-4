@@ -7,10 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
+import uy.edu.utec.iiss.engine.control.EstadoControl;
 import uy.edu.utec.iiss.engine.mqtt.LecturaMqttListener;
 
 /**
@@ -106,6 +110,43 @@ class FallaBrokerMqttTest extends IntegracionBase {
                 () -> "faltan suscripciones tras la reconexión");
         temperatura("cocina", 15.0);
         esperarSwitch("cocina", "ON");
+    }
+
+    @Test
+    @DisplayName(
+            "Como el simulador (×60, ts en hora del control): el broker se cae unos segundos y al"
+                + " volver las lecturas siguen valiendo, sin descartes (corrida del 2026-11-04)")
+    void caidaCorta_tsEnHoraDelControl_noVencenLasLecturas() throws Exception {
+        cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
+        iniciar("2026-11-03T13:00:00Z", 60); // martes 10:00 en Montevideo
+        esperar(() -> BROKER.haySuscriptor(topic("living")), () -> "no se suscribió");
+        BROKER.publicar(topic("living"), payloadEnHoraDelControl(16.0));
+        esperarSwitch("living", "ON");
+
+        BROKER.detener(); // 3 s reales = 3 min de control: menos que la vigencia
+        Thread.sleep(3000);
+        BROKER.iniciar();
+        esperar(
+                RECONEXION,
+                () -> mqtt.conectado() && BROKER.haySuscriptor(topic("living")),
+                () -> "no se reconectó");
+
+        BROKER.publicar(topic("living"), payloadEnHoraDelControl(25.0));
+        esperarSwitch("living", "OFF");
+        assertEquals("SATISFECHA", motivo("living"));
+        assertEquals(Map.of(), estado("living").lecturasDescartadas());
+    }
+
+    /** Lectura con el ts como lo escribe el simulador: la hora del control, no la real. */
+    private String payloadEnHoraDelControl(double temperaturaC) {
+        EstadoControl c = control.estado();
+        long transcurrido = Duration.between(c.iniciadoEn(), Instant.now()).toMillis();
+        Instant ts =
+                c.fechaHora()
+                        .plusMillis(Math.round(transcurrido * c.factorTiempo()))
+                        .truncatedTo(ChronoUnit.MILLIS);
+        return "{\"id\":0,\"tC\":%s,\"ts\":%d.%03d}"
+                .formatted(temperaturaC, ts.getEpochSecond(), ts.getNano() / 1_000_000);
     }
 
     @Test
