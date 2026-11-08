@@ -41,7 +41,7 @@ en [limitaciones y roadmap](roadmap.md).
 | D8 | Una lectura con `ts` más viejo que la vigencia se descarta y se cuenta | Vigente |
 | D9 | Qué hace DETENER con los switches | A decidir (T22) |
 | D10 | Qué pasa al reiniciar el contenedor | A decidir (T22) |
-| D11 | Mejoras pendientes de T20 | A decidir (T22) |
+| D11 | Contar y loguear las temperaturas fuera de rango (mejora de T20) | Vigente (T29) |
 | D12 | Congelamiento antes de la aceptación | A decidir (T22) |
 
 ---
@@ -299,13 +299,25 @@ en [limitaciones y roadmap](roadmap.md).
 - **Consecuencias.** Un dato obsoleto no sostiene la calefacción. Los descartes dejan una línea INFO
   en el log con el `ts` y la hora del control.
 
-### D9 a D12 · A decidir en la reunión de planning (T22)
+### D11 · Las temperaturas fuera de rango se cuentan y se loguean
+
+- **Contexto.** Una temperatura fuera del rango del sensor (-40 a 85 °C) o `NaN` se descartaba sin
+  dejar rastro: ni una línea en el log ni un contador en `/diagnostico`. En una corrida, una
+  habitación con el sensor roto parecía simplemente "no cambiar". Era la mejora pendiente de T20.
+- **Decisión.** Se descarta igual que antes (se conserva la última lectura buena mientras esté
+  vigente), pero además se cuenta por habitación en `/diagnostico` como `FUERA_DE_RANGO`, junto a
+  `TS_VENCIDO` y `FUERA_DE_ORDEN` (D8), y deja una línea INFO en el log con el valor recibido (T29).
+- **Alternativas.** Un rango "razonable" para interiores, más angosto que el del sensor: cambiaría
+  qué se acepta y no solo qué se ve, así que queda en el roadmap (R4).
+- **Consecuencias.** No cambia ninguna decisión del control. Un sensor roto se ve en el log y en
+  `/diagnostico`. Lo prueba `PerdidaMensajesTest.lecturaFueraDeRango`.
+
+### D9, D10 y D12 · A decidir en la reunión de planning (T22)
 
 | Id | Qué hay que decidir | Hoy | Propuesta |
 |---|---|---|---|
 | D9 | Qué hace DETENER con los switches | Los deja como están (el §5.2 no exige apagar) | Configurable, por defecto como hoy; el default lo valida el docente |
 | D10 | Qué pasa al reiniciar el contenedor | Arranca DETENIDO hasta el próximo INICIAR | Mantenerlo y dejarlo como limitación (L2) |
-| D11 | Mejoras pendientes de T20 | Una temperatura fuera de rango (-40 a 85 °C) se descarta sin log ni contador | Contarla en `/diagnostico` y loguearla; el resto al roadmap |
 | D12 | Congelamiento antes de la aceptación | — | Después de T13 solo entran correcciones |
 
 Cuando se decidan, cada una pasa a tener su propia sección con el mismo formato.
