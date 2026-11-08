@@ -23,6 +23,7 @@ Los tests se citan como `Clase.método`. "Equipo" indica un punto que detectamos
 | Tick fijo con tiempo acelerado (equipo) | El período del tick es `max(10 ms, tickMs / factor)` y se rearma en cada INICIAR. El corte de la punta se atrasa como mucho un tick de tiempo de control | T12 | `bfd8495` (PR #7) | `ControlServiceTest.periodoEscalado`, `TiempoAceleradoTest.cortaAlEntrarEnPunta`, `TiempoAceleradoTest.restituyeAlSalirDePunta` | Hecho |
 | Re-sincronización que revivía lecturas (equipo) | Un INICIAR repetido olvida las lecturas ya vencidas con el reloj anterior (la habitación queda `SIN_LECTURA`) y marca las vigentes con la hora nueva (D7) | D7 | `83dbc1b` (PR #7) | `CoreAdapterEstimulosTest.resincronizar_noReviveLecturasVencidas`, `TermostatoCaidoTest.reiniciarDespuesDeLaVigencia_noReviveLaLectura`, `TermostatoCaidoTest.reiniciarEnseguida_conservaLaLectura` | Hecho |
 | Código difícil de leer (equipo) | Loops e `if` en lugar de streams y ternarios largos, aplicado solo en `CoreAdapter`. Falta la guía "Java que usamos" y el resto del engine | T10, T2 | — | — (no cambia el comportamiento: los tests siguen igual) | Parcial (ver Diferido) |
+| El simulador manda el `ts` en hora del control (corrida del 2026-11-04) | Con la conversión fija de T8b, todas las lecturas caían meses atrás y se descartaban (`TS_VENCIDO`): el control no tuvo lecturas en toda la corrida. Ahora se aceptan las dos escalas y se toma la más cercana a `ahora` (D3) | T24b | — | `RelojControlTest.tsEnHoraDelControl_seUsaTalCual` (`ts` reales del log), `RelojControlTest.lasDosEscalas_danElMismoInstante`, `FallaBrokerMqttTest.caidaCorta_tsEnHoraDelControl_noVencenLasLecturas` | Hecho |
 | Documentación de las decisiones sobre el tiempo | Sección "Tiempo del control" en el 4+1: tres relojes, fórmula, `ts`, vigencia, tick, re-sincronización y la tabla letra frente a decisión | T14 | — | — | Hecho |
 
 ## Decisiones del equipo
@@ -31,7 +32,7 @@ Los tests se citan como `Clase.método`. "Equipo" indica un punto que detectamos
 |---|---|---|
 | D1 | El core queda sin estado: solo el modelo y `decidir` | Sugerencia del docente; elimina el estado duplicado entre core y engine |
 | D2 | `Estimulo` queda en el core como modelo y lo procesa `CoreAdapter` | La letra de la iteración 4 pide el "modelo de los estímulos" |
-| D3 | El `ts` es el instante de la lectura: llega en hora real y se convierte a la hora del control | Un solo reloj para decidir; regla confirmada con el docente |
+| D3 | El `ts` es el instante de la lectura, llevado a la hora del control: si llega en hora real se convierte, si llega ya en hora del control se usa tal cual (se toma la interpretación más cercana a `ahora`, T24b) | Un solo reloj para decidir. El docente indicó hora real, pero el simulador del 2026-11-04 mandó el `ts` en hora del control y con la conversión fija se descartaban todas las lecturas |
 | D4 | Zona fija del sitio, `America/Montevideo` | El sitio es de Uruguay (confirmado por el docente); no depende de la zona del contenedor |
 | D5 | Una rama por tarjeta, con PR hacia `implementacion5` | Cada cambio se revisa y se verifica en la CI por separado |
 | D6 | El estado de ejecución lo administra `CoreAdapter` | La dependencia va en un solo sentido (`ControlService` → `CoreAdapter`), sin ciclos escondidos |

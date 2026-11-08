@@ -6,7 +6,7 @@
 #
 # Uso:
 #   ./scripts/test.sh              -> corre los tests de TODOS los módulos
-#   ./scripts/test.sh core           -> corre solo los tests del core (CoreTest)
+#   ./scripts/test.sh core           -> corre solo los tests del core
 #   ./scripts/test.sh engine         -> corre solo los tests de engine
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

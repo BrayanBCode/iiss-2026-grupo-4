@@ -53,8 +53,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *
  * <p><b>Tiempo.</b> La hora del control es {@code fechaHora + (real − iniciadoEn) × factor} y es la
  * única fuente de "qué hora es"; el reloj del sistema solo mide duraciones. Por eso el {@code ts}
- * de las lecturas (en hora real) se convierte con {@link RelojControl#aTiempoDeControl}, y la
- * vigencia de una lectura se mide en tiempo de control, sin escalar por el factor.
+ * de las lecturas se lleva a la hora del control ({@link RelojControl#tsEnHoraDelControl}: puede
+ * llegar en hora real o ya en hora del control), y la vigencia de una lectura se mide en tiempo de
+ * control, sin escalar por el factor.
  */
 @Service
 public class ControlService {
@@ -162,12 +163,12 @@ public class ControlService {
 
     /**
      * Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. Se guarda con
-     * el instante que dice el termostato ({@code ts}, en hora real, puede ser null) convertido a la
-     * hora del control, con las salvedades de {@link RelojControl#instanteDeLectura}. Se descarta
-     * (y se cuenta en {@code /diagnostico}) si su {@code ts} es más viejo que la vigencia (D8); el
-     * adaptador descarta además la que es más vieja que la última. Un error se propaga: lo atrapa
-     * {@code LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la
-     * conexión si el callback lanza).
+     * el instante que dice el termostato ({@code ts}, puede ser null) en la hora del control, con
+     * las salvedades de {@link RelojControl#instanteDeLectura}. Se descarta (y se cuenta en {@code
+     * /diagnostico}) si su {@code ts} es más viejo que la vigencia (D8); el adaptador descarta
+     * además la que es más vieja que la última. Un error se propaga: lo atrapa {@code
+     * LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la conexión
+     * si el callback lanza).
      *
      * <p>{@code synchronized} como {@link #iniciar}: así una lectura sellada con el reloj viejo no
      * se procesa después de que INICIAR re-sincronizó el reloj (lo dejaría en la línea de tiempo
@@ -183,15 +184,16 @@ public class ControlService {
             adaptador.descartarLectura(idHabitacion, MotivoDescarte.TS_VENCIDO); // D8
             // INFO porque es excepcional: con el ts original y su conversión se ve si el problema
             // es el termostato o el reloj del control.
+            Instant ahora = reloj.ahora(relojReal);
             log.info(
-                    "Lectura de '{}' descartada ({}): ts {} (hora real) = {} (hora del control),"
-                            + " más vieja que la vigencia de {} s; hora del control {}",
+                    "Lectura de '{}' descartada ({}): ts {} = {} (hora del control), más vieja que"
+                            + " la vigencia de {} s; hora del control {}",
                     idHabitacion,
                     MotivoDescarte.TS_VENCIDO,
                     ts,
-                    horaLocal(reloj.aTiempoDeControl(ts)),
+                    horaLocal(reloj.tsEnHoraDelControl(ts, ahora)),
                     vigenciaLectura.toSeconds(),
-                    horaLocal(reloj.ahora(relojReal)));
+                    horaLocal(ahora));
             return;
         }
         adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante.get()));
