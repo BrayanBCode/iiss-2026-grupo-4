@@ -29,7 +29,7 @@ Cada limitación tiene un id (`L…`) que el roadmap usa para decir qué resuelv
 
 | Id | Limitación | Impacto | Qué hay hoy |
 |---|---|---|---|
-| L9 | **Las pasadas a los switches son secuenciales.** Un switch colgado demora a los demás hasta su timeout (2 s de conexión + 3 s de lectura). | Con varios switches caídos a la vez, los comandos a los sanos se atrasan varios segundos. | Al switch que falló no se le reintenta por 5 s. Se decidió no paralelizar (4+1 §3). |
+| L9 | **Las pasadas a los switches son secuenciales.** Un switch colgado demora a los demás hasta su timeout (2 s de conexión + 10 s de lectura: hasta 12 s). | Con varios switches colgados a la vez, los comandos a los sanos se atrasan decenas de segundos (12 s por cada uno colgado). | Al switch que falló no se le reintenta por 5 s. Se decidió no paralelizar (4+1 §3). |
 | L10 | **MQTT con sesión limpia y QoS 1.** Lo publicado mientras el controlador estaba desconectado se pierde. | Tras una caída del broker, la decisión espera a la primera lectura nueva de cada habitación. | Reconexión cada 5 s con re-suscripción (`FallaBrokerMqttTest`). Si la caída supera la vigencia, la habitación se apaga por `LECTURA_VENCIDA`, que es lo seguro. |
 | L11 | **Sin TLS ni usuario en MQTT; HTTP sin TLS.** La `X-API-Key` viaja en texto plano. | Solo apto para una red de confianza (la del laboratorio o la de la casa). | Una clave por dirección (controlador, entorno, switches), configurables por variables de entorno. |
 | L12 | **Una sola clave de API** para todo el API del controlador, sin roles. | Quien puede consultar también puede DETENER o cambiar el sitio. | `ApiKeyFilter` exige la clave en todas las operaciones, como pide el estándar v2. |

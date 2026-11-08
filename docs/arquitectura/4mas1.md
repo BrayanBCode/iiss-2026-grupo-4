@@ -661,7 +661,7 @@ responder, y es él mismo quien sirve los switches: esperar ahí era un bloqueo 
 lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pasada se juntan en una
 sola pasada siguiente, que usa la decisión vigente en ese momento. Las pasadas son secuenciales: un
 switch lento todavía demora a los demás switches hasta su timeout (la espera entre reintentos lo
-acota): 2 s de conexión más 3 s de lectura, o sea hasta 5 s por switch. Decidimos no paralelizar
+acota): 2 s de conexión más 10 s de lectura, o sea hasta 12 s por switch. Decidimos no paralelizar
 las pasadas.
 
 ### 3.1 Manejo de fallas
@@ -672,7 +672,7 @@ las pasadas.
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
 | Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango, una lectura fuera de orden o con `ts` más viejo que la vigencia también (estas dos se cuentan en `/diagnostico`); la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
-| Switch no responde o da error | timeout corto; no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
+| Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta); no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
 | Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar; a ×60, en segundos reales (T36) | `switches` | `CoreAdapterTest`, `ReconciliacionEscaladaTest` |
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
