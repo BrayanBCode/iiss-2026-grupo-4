@@ -1,0 +1,523 @@
+{
+  "id" : "20261108-163931-1",
+  "simulador" : "ecowarm-run",
+  "controlador" : "ecowarm-grupo4",
+  "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+  "terminada" : true,
+  "conteo" : {
+    "corridas" : 9,
+    "pendientes" : 0,
+    "pasan" : 9,
+    "noPasan" : 0,
+    "sinExpectativas" : 0,
+    "abortadas" : 0,
+    "fallidas" : 0,
+    "canceladas" : 0
+  },
+  "corridas" : [
+    {
+      "id" : "20261108-163931-2-E02",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E02",
+        "nombre" : "1 habitación, entra todo",
+        "hash" : "9b0d459cd684d9da14fdd0dd0a10b2981390cc30687fadbd3ffd5b2cd974f858"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:39:31.624-03:00",
+      "termino" : "2026-11-08T16:41:31.915-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 4,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-3-E04",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E04",
+        "nombre" : "2 habitaciones, no entran juntas",
+        "hash" : "73b851b2b13c36676b4656400fe156b7a2e2271e5732beee70eed140e2c2a832"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:41:31.934-03:00",
+      "termino" : "2026-11-08T16:43:31.994-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 4,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-4-E11",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E11",
+        "nombre" : "Entrar en punta",
+        "hash" : "5794aaf06a2a34d70a032c2889c33a767c4da829d7d6db5d69a98c33763e7637"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:43:32.005-03:00",
+      "termino" : "2026-11-08T16:45:32.104-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 5,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-5-E14",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E14",
+        "nombre" : "Subir la temperatura de 2 habitaciones",
+        "hash" : "d2004265623adeb9c530ea6e8cdfb3771751ad5894e6c9a8fcb503a07b27aff7"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:45:32.115-03:00",
+      "termino" : "2026-11-08T16:48:32.207-03:00",
+      "estimacionRealSegundos" : 185,
+      "progreso" : {
+        "virtualTranscurrido" : "3h",
+        "virtualTotal" : "3h",
+        "fraccion" : 1.0,
+        "pasos" : "1/1",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 5,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-6-E18",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E18",
+        "nombre" : "Bajar la contratada",
+        "hash" : "58bb278b887820b8e5383d3c0fced1331a8b4614a990a0ef4a5d3dee32fd0c62"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:48:32.228-03:00",
+      "termino" : "2026-11-08T16:50:32.294-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "1/1",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 2,
+          "fallan" : 1,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 5,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 2,
+          "fallan" : 1,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-7-E19",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "E19",
+        "nombre" : "Un switch ya encendido",
+        "hash" : "a0b251bea03055afbd26b527d1dc2c3119eb0963c45cc5ee04ca0dfffcb415a9"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:50:32.307-03:00",
+      "termino" : "2026-11-08T16:51:32.342-03:00",
+      "estimacionRealSegundos" : 65,
+      "progreso" : {
+        "virtualTranscurrido" : "1h",
+        "virtualTotal" : "1h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 4,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-8-F01",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "F01",
+        "nombre" : "Se cae el broker y vuelve",
+        "hash" : "ec3749124231496947902277ccc37c49a6941869dea81109f3d748962d3d8493"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:51:32.352-03:00",
+      "termino" : "2026-11-08T16:53:02.420-03:00",
+      "estimacionRealSegundos" : 95,
+      "progreso" : {
+        "virtualTranscurrido" : "1h30m",
+        "virtualTotal" : "1h30m",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 3,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 1,
+          "fallan" : 0,
+          "noAplican" : 1
+        },
+        "obligatorias" : {
+          "cumplen" : 5,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 1,
+          "fallan" : 0,
+          "noAplican" : 1
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-9-F03",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "F03",
+        "nombre" : "Un termostato deja de publicar",
+        "hash" : "8922387da4d52292469514d7ee6e72d000c671da182dc8fc3887c075800fa171"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:53:02.427-03:00",
+      "termino" : "2026-11-08T16:55:02.479-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "mejora" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 4,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "informativas" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    },
+    {
+      "id" : "20261108-163931-10-F05",
+      "simulador" : "ecowarm-run",
+      "tanda" : "20261108-163931-1",
+      "escenario" : {
+        "id" : "F05",
+        "nombre" : "Se pierden los OFF",
+        "hash" : "e0190c3302f95ff6efddb657ab98daecb705233bc7b8dd987f08a13108104f84"
+      },
+      "controlador" : "ecowarm-grupo4",
+      "estado" : "terminada",
+      "motivo" : null,
+      "creadaEn" : "2026-11-08T16:39:31.624-03:00",
+      "empezo" : "2026-11-08T16:55:02.490-03:00",
+      "termino" : "2026-11-08T16:57:02.564-03:00",
+      "estimacionRealSegundos" : 125,
+      "progreso" : {
+        "virtualTranscurrido" : "2h",
+        "virtualTotal" : "2h",
+        "fraccion" : 1.0,
+        "pasos" : "0/0",
+        "realRestanteSegundos" : 0
+      },
+      "resultado" : "pasa",
+      "expectativas" : {
+        "contrato" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 0
+        },
+        "riesgo" : {
+          "cumplen" : 2,
+          "fallan" : 0,
+          "noAplican" : 1
+        },
+        "mejora" : {
+          "cumplen" : 0,
+          "fallan" : 1,
+          "noAplican" : 0
+        },
+        "obligatorias" : {
+          "cumplen" : 4,
+          "fallan" : 0,
+          "noAplican" : 1
+        },
+        "informativas" : {
+          "cumplen" : 0,
+          "fallan" : 1,
+          "noAplican" : 0
+        },
+        "observaciones" : {
+          "graves" : 0,
+          "menores" : 0
+        }
+      }
+    }
+  ]
+}
