@@ -31,6 +31,7 @@ en [limitaciones y roadmap](roadmap.md).
 | A16 | Cortar la franja punta un poco antes de que empiece | Vigente (T24e) |
 | A17 | Una habitación cuyo switch no prende cede su potencia mientras espera | Vigente (T34) |
 | A18 | De lo que está fuera de contrato, tolerar lo que se entiende sin riesgo | Vigente (T24d, T31, T33) |
+| A19 | Un switch colgado no traba a los demás: timeout en tiempo de control y sanos primero | Vigente (T37) |
 | D1 | El core queda sin estado: modelo y función pura `decidir` | Vigente |
 | D2 | `Estimulo` es modelo del core y lo procesa `CoreAdapter` | Vigente |
 | D3 | El `ts` es el instante de la lectura, llevado a la hora del control | Vigente (cambió en T24b) |
@@ -98,7 +99,8 @@ en [limitaciones y roadmap](roadmap.md).
 - **Alternativas.** Pasadas en paralelo: más rápidas con switches caídos, pero complican el orden OFF
   antes que ON (A6).
 - **Consecuencias.** INICIAR y `PUT /sitio` responden sin esperar a los switches. Un switch colgado
-  atrasa a los demás hasta su timeout (A15; limitación L9, paso R7 del roadmap).
+  atrasa a los que vienen detrás en la pasada hasta su timeout; A19 lo acota a una sola llamada en
+  curso (limitación L9, paso R7 del roadmap).
 
 ### A6 · Nunca superar la contratada, tampoco por un instante
 
@@ -187,9 +189,11 @@ en [limitaciones y roadmap](roadmap.md).
 - **Decisión.** 2 s para conectar, 10 s para recibir la respuesta y 5 s antes de reintentar a un
   switch que falló (`switch.timeout-conexion-ms`, `switch.timeout-lectura-ms`,
   `switch.espera-reintento-segundos`). La respuesta pasó de 3 s a 10 s para que un switch lento del
-  simulador no cuente como caído.
-- **Consecuencias.** Un switch colgado se da por caído a los 12 s y, por las pasadas secuenciales
-  (A5), atrasa a los demás en esa pasada.
+  simulador no cuente como caído. Son tiempos con factor 1: con el control acelerado se dividen por
+  el factor, con un piso de 0,5 s (A19).
+- **Consecuencias.** Con factor 1, un switch colgado se da por caído a los 12 s; a ×60, a los 0,5 s
+  reales (30 s de control). Por las pasadas de a una (A5) atrasa a los que vienen detrás; A19 pone a
+  los sanos adelante.
 
 ### A16 · Cortar la franja punta un poco antes de que empiece
 
@@ -238,6 +242,35 @@ en [limitaciones y roadmap](roadmap.md).
 - **Consecuencias.** Más tolerante sin bajar la seguridad: todo lo aceptado pasa por las mismas
   reglas (rango del sensor, vigencia, contratada). Lo prueban `PayloadTermostatoTest`,
   `ClienteSwitchRestTest` y `PerdidaMensajesTest.payloadInvalido`.
+
+### A19 · Un switch colgado no traba a los demás
+
+- **Contexto.** Una prueba de estrés propia (`EstresTest`, T37), más dura que los escenarios de la
+  clase y que `ecowarm-run`: a ×60, con 3 switches que dejan de responder a las 16:54, el switch
+  sano seguía encendido a las 17:54 de control, una hora entera en punta. Las llamadas de la pasada
+  son de a una (A5): cada colgado trababa el hilo 10 s reales (10 min de control), la espera de 5 s
+  entre reintentos vencía antes de terminar la pasada, y la siguiente volvía a empezar por ellos.
+- **Decisión.** Sin agregar concurrencia, tres reglas:
+  1. Los timeouts de los switches (A15) se miden en tiempo de control: se dividen por el factor en
+     cada INICIAR, con un piso de 0,5 s reales y nunca más que lo configurado
+     (`ClienteSwitchRest.ajustarAlFactor`). Es el mismo criterio que el tick (T12) y la
+     reconciliación (T36).
+  2. Cada pasada atiende primero (consulta, OFF, ON) los switches sanos y después los que fallaron y
+     todavía no volvieron a responder.
+  3. Antes de llamar a un switch que viene fallando, si cambió la acción decidida de alguna
+     habitación, la pasada se corta y la siguiente empieza de nuevo por los sanos.
+- **Alternativas.** Una tarea por switch, o un cliente HTTP asíncrono: un colgado no atrasaría a
+  nadie, pero los comandos saldrían en paralelo y habría que extender la retención del ON (A6) a los
+  ON en vuelo, en la clase central y a días de la aceptación (queda como R7). Dos hilos fijos (sanos
+  y fallados): un colgado que falla por primera vez igual traba a los sanos un timeout completo.
+  Solo acortar el timeout: con varios colgados el atraso se suma.
+- **Consecuencias.** Un switch sano espera, como mucho, una llamada en curso a uno que no responde:
+  0,5 s reales a ×60, dentro del minuto de corte anticipado (A16). Un switch lento pero vivo, que a
+  ×60 tarda más de 0,5 s, se toma como caído: se reintenta a los 5 s y, mientras tanto, cuenta
+  como encendido para la contratada (A6). Con factor 1 el atraso por switch colgado sigue siendo de
+  hasta 12 s (L9). Lo prueban `EstresTest` (switches colgados, ×600, ×3600, 50 habitaciones y
+  fallas combinadas cruzando las 17:00), `CoreAdapterTest.switchQueFalla_seAtiendeDespuesDeLosSanos`
+  y `ClienteSwitchRestTest.conFactorAlto_noEsperaElTimeoutConfigurado`.
 
 ---
 

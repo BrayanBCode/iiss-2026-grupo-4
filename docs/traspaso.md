@@ -37,7 +37,7 @@ que ya encontramos.
 | El criterio de prioridad | `core/MayorDeficitPrimero` (implementa `CriterioPrioridad`) | `MayorDeficitPrimeroTest` |
 | Histéresis, vigencia, rango válido de temperatura | `core/model/ParametrosControl` y `application.properties` | `DecidirTest` |
 | Cómo se aplica una lectura, un tick, un INICIAR | `engine/adaptador/CoreAdapter.procesar` | `CoreAdapterEstimulosTest` |
-| Cuándo y cómo se comandan los switches | `engine/adaptador/CoreAdapter` (pasadas, OFF antes que ON, reconciliación) | `CoreAdapterTest`, `FallaSwitchTest` |
+| Cuándo y cómo se comandan los switches | `engine/adaptador/CoreAdapter` (pasadas con los sanos primero, OFF antes que ON, reconciliación) y `engine/switches/ClienteSwitchRest` (timeouts escalados con el factor) | `CoreAdapterTest`, `FallaSwitchTest`, `ClienteSwitchRestTest`, `EstresTest` |
 | La hora del control, el `ts`, el tick | `engine/control/RelojControl`, `ControlService` | `RelojControlTest`, `ControlServiceTest`, `TiempoAceleradoTest` |
 | La conexión MQTT y el parseo de las lecturas | `engine/mqtt/LecturaMqttListener`, `PayloadTermostato` | `FallaBrokerMqttTest`, `PerdidaMensajesTest`, `PayloadTermostatoTest` |
 | El registro ante el entorno (§6) | `engine/registro/RegistroEntorno` | `RegistroEntornoTest` |
@@ -110,6 +110,7 @@ Todos aparecieron en corridas reales del equipo.
 | Con el checker no prende nada aunque haga frío | El checker manda la hora real; entre las 17:00 y las 23:00 de un día hábil es franja punta (`TARIFA_PUNTA`) | Es correcto. Para ver ON y OFF, probar fuera de ese horario |
 | Todas las lecturas se descartan como `TS_VENCIDO` | El `ts` llega en una escala que no se reconoce | Desde T24b se aceptan las dos escalas (hora real y hora del control). Si vuelve a pasar, mirar en el log la línea del descarte: muestra el `ts` y la hora del control |
 | Errores de switch con `text/plain`, `respuesta sin 'estado' válido` o timeouts | El escenario de switch caído del simulador | Es esperado: se reintenta a los 5 s y la reconciliación corrige. Buscar `volvió a responder` en el log |
+| A ×60, un switch que sí responde aparece como caído (timeouts de 0,5 s en el log) | Tarda más de medio segundo real en contestar: el timeout se divide por el factor (A19) | Con factor 60, 0,5 s reales son 30 s de control: un switch así está lento de verdad. Si la red es lenta, subir `switch.timeout-*` no alcanza (el piso es 0,5 s): bajar el factor o mejorar la red. La línea `Timeouts de los switches con factor …` del log, en cada INICIAR, muestra los valores en uso |
 | Todos los tests del engine dan 500 | Se corrió `mvn test -pl modules/engine` sin `-am` y se usó un `core` viejo de `~/.m2` | Correr desde la raíz o con `-am` |
 | El contenedor no toma un cambio del código o de `application.properties` | La imagen se reusa: `--force-recreate` no recompila | `docker compose -f docker/docker-compose.yml up -d --build` |
 | El log se llena de lecturas `[TEMPERATURA]` | El nivel DEBUG está activado (o la imagen es anterior a T16) | Comentar la línea de DEBUG en `application.properties` y reconstruir con `--build` |

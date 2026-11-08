@@ -144,6 +144,7 @@ El engine tiene sus propios tests (no son TDD del core, pero dan confianza en la
 | `ValidadorInventarioTest` (10), `RepositorioInventarioTest` (4) | reglas de consistencia del §1; persistencia que sobrevive al reinicio, archivo corrupto, escritura atómica |
 | `PayloadTermostatoTest` (5), `RegistroEntornoTest` (2) | payload §2 (ts en segundos), broker del registro §6 |
 | De integración (50): `ArranqueParadaTest`, `ControlCargaTest`, `CambioConfiguracionTest`, `TermostatoCaidoTest`, `PerdidaMensajesTest`, `FallaSwitchTest`, `FallaBrokerMqttTest`, `TiempoAceleradoTest` | el engine completo con un broker MQTT embebido y switches HTTP falsos: carga, arranque y parada, cambios en caliente y las fallas del entorno (C3) de punta a punta |
+| De estrés: `EstresTest`, `ReconciliacionEscaladaTest` (iteración 6, T36 y T37) | más duros que los escenarios de la clase y que `ecowarm-run`, con los tiempos de producción de los switches y siempre cruzando el inicio de la punta: 3 switches colgados a ×60, factores ×600 y ×3600, 50 habitaciones con la contratada limitada, broker caído y switch con error a la vez, y un switch prendido a mano a mitad de corrida. El criterio es el de la letra para la aceptación: a las 17:00 no queda nada encendido y nunca se supera la contratada |
 
 ## 5. Ejecución y resultados
 

@@ -9,8 +9,8 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 
 | Entregable de la letra | Tarjetas |
 |---|---|
-| Versión final del componente | T23, T24a–T24e (y las que salgan de T28), T29 |
-| Tests de integración mejorados | T25, T17 |
+| Versión final del componente | T23, T24a–T24e, T31–T37 (y las que salgan de T28), T29 |
+| Tests de integración mejorados | T25, T17, T32, T36, T37 (pruebas de estrés) |
 | 4+1 completo (al menos un diagrama por vista) | T11 |
 | Limitaciones conocidas y roadmap | T21 |
 | Documentación para el traspaso (README, decisiones, problemas conocidos) | T26, T27, T2 |
@@ -35,6 +35,8 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T33 · `G1234-170` | Payload del termostato con `tC` o `ts` como texto y `ts` en milisegundos (F04) | Hecha, falta PR | `iter6/t33-termostato-fuera-de-contrato` |
 | T34 · `G1234-171` | Una habitación cuyo switch no prende cede su potencia (F09, A17) | Hecha, falta PR | `iter6/t34-switch-no-prende` |
 | T35 · `G1234-172` | Cliente MQTT con versión 3.1.1 fija e identificador de 23 caracteres como máximo (visto en F01 de `ecowarm-run`) | Hecha, falta PR | `iter6/t35-mqtt-client-id` |
+| T36 · `G1234-173` | Reconciliación de switches escalada con el factor: un switch prendido a mano a ×60 vuelve a OFF en 1 s real (antes, hasta 15 min de control) | Hecha, falta PR | `iter6/t36-reconciliacion-escalada` |
+| T37 · `G1234-174` | Un switch colgado no traba a los demás (A19): timeout en tiempo de control, sanos primero y corte de la pasada; `EstresTest` (switches colgados, ×600, ×3600, 50 habitaciones, fallas combinadas) | Hecha, falta PR | `iter6/t37-switch-colgado` |
 | T25 · `G1234-157` | `EscenariosSimuladorTest` (3 tests como corre el simulador) y mapa escenario → test | Mergeada | `iter6/t25-tests-escenarios` |
 | T17 · `G1234-146` | Tests de re-INICIAR con otro factor y hacia atrás | Mergeada | `revision/t17-tests-reinicio` |
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
@@ -51,8 +53,8 @@ Vamos en cuatro etapas; el orden crítico es T22 → T13 → T28 → T30. Lo que
 decisiones avanza en paralelo.
 
 1. **Decidir e integrar.** Reunión T22 (D9–D12). En paralelo, revisar y mergear los PR hacia
-   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T31 → T32 → T33 → T34 → T35 → T26 → T27 (ya están mergeadas
-   T21, T11, T23, T24a, T25 y T17).
+   `implementacion6` en este orden: T24b → T24c → T24d → T24e → T31 → T32 → T33 → T34 → T35 → T36 → T37 (ya están mergeadas
+   T21, T11, T23, T24a, T25, T17, T26 y T27).
 2. **Completar el producto y la documentación.** T29 si las decisiones cambian el comportamiento.
    T26 (decisiones) depende de T22. T27 (traspaso) depende de T21 y T26.
 3. **Validar con el simulador.** T13: la corrida con evidencia, sobre todo switch caído, lecturas
@@ -114,7 +116,7 @@ siga.
 
 - [ ] Reunión T22, con una postura sobre D9–D12
 - [x] Revisar los PR de T21, T11, T23, T24a y T25 (y T17)
-- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T31, T32, T33, T34, T35, T26 y T27, en ese orden
+- [ ] Revisar y mergear los PR de T24b, T24c, T24d, T24e, T31, T32, T33, T34, T35, T36 y T37, en ese orden (T26 y T27 ya están)
 - [ ] Pasar a "to test" en el Jira las tarjetas con PR abierto y a "Listo" las mergeadas
 - [x] Correr el simulador oficial `ecowarm-run` (9 de 9, 2026-11-06)
 - [ ] Coordinar con el docente la corrida T13 en el laboratorio y los escenarios nuevos (T28)
