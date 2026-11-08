@@ -42,7 +42,7 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T2 · `G1234-129` | Guía "Java que usamos" | En curso | — |
 | T26 · `G1234-158` | [`decisiones.md`](../arquitectura/decisiones.md) (A1–A18 de arquitectura, D1–D12 del equipo) | Hecha, falta PR | `iter6/t26-decisiones` |
 | T27 · `G1234-159` | README final, [guía de traspaso](../traspaso.md) y roadmap como traspaso | Hecha, falta PR | `iter6/t27-traspaso` |
-| T29 · `G1234-161` | Lo que decida T22. Ya hecho, por si se aprueba D11: contar las temperaturas fuera de rango | Espera T22 | `iter6/t29-fuera-de-rango` |
+| T29 · `G1234-161` | D11: contar en `/diagnostico` y loguear las temperaturas fuera de rango; documentación al día (D11, L18, R4) | PR #26, se mergea con D11 aprobada | `iter6/t29-fuera-de-rango` |
 | T13 · `G1234-149` | Corrida contra el simulador con evidencia | En curso: [simulador oficial, 9 de 9](../tests/corrida-simulador/2026-11-06-ecowarm-run/README.md); falta la del laboratorio | — |
 | T28 · `G1234-160` | Ensayo de aceptación con los escenarios nuevos | Pendiente | `iter6/t28-aceptacion` |
 | T30 · `G1234-162` | Cierre: evidencia final, limpieza de `docs/`, tag `version6` y zip | Pendiente | `iter6/t30-cierre` |
@@ -78,7 +78,7 @@ el equipo; se registran en [`revision-docente.md`](revision-docente.md) y despu�
 |---|---|---|---|---|
 | D9 | Qué hace DETENER con los switches | Los deja como están (el §5.2 no exige apagar) | Configurable, por defecto como hoy; el default lo valida el docente | T29, roadmap L1/R1 |
 | D10 | Qué pasa al reiniciar el contenedor | Arranca DETENIDO hasta el próximo INICIAR | Dejarlo así y documentarlo como limitación | T29, roadmap L2/R2 |
-| D11 | Mejoras pendientes de T20 | No están | Contar en `/diagnostico` las lecturas fuera de rango (ayuda en la prueba); el resto al roadmap | T29 |
+| D11 | Mejoras pendientes de T20 | Hecho en T29 (PR #26), se mergea si se aprueba | Contar en `/diagnostico` las lecturas fuera de rango (ayuda en la prueba); el rango razonable al roadmap (R4) | T29 |
 | D12 | Congelamiento antes de la aceptación | — | Después de T13 solo entran correcciones | T13, T28 |
 
 ## Cómo trabajamos

@@ -41,7 +41,9 @@ class PerdidaMensajesTest extends IntegracionBase {
     }
 
     @Test
-    @DisplayName("Una lectura fuera del rango físico del sensor (-40..85 °C) se descarta")
+    @DisplayName(
+            "Una lectura fuera del rango físico del sensor (-40..85 °C) se descarta, se cuenta en"
+                    + " /diagnostico y se loguea (D11)")
     void lecturaFueraDeRango() throws Exception {
         cargarSitio(POTENCIA_SITIO, habitacion("living", 21.0, 1.0));
         iniciar();
@@ -57,6 +59,8 @@ class PerdidaMensajesTest extends IntegracionBase {
                         estado("living").temperaturaActual() == 16.0
                                 && SWITCHES.estado("sw-living").equals("ON"),
                 () -> "una lectura imposible cambió la decisión: " + estado("living"));
+        assertEquals(
+                Map.of(MotivoDescarte.FUERA_DE_RANGO, 2), estado("living").lecturasDescartadas());
     }
 
     @Test
