@@ -668,7 +668,7 @@ las pasadas.
 |---|---|---|---|
 | Broker caído al arrancar | reintenta cada 5 s; al conectar se suscribe a los topics del inventario | `mqtt-conexion` | `ApiEstandarTest`, `FallaBrokerMqttTest` |
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
-| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango, una lectura fuera de orden o con `ts` más viejo que la vigencia también (estas dos se cuentan en `/diagnostico`); la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
+| Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango, una lectura fuera de orden o con `ts` más viejo que la vigencia también, y estas tres se cuentan en `/diagnostico` (`FUERA_DE_RANGO`, `FUERA_DE_ORDEN`, `TS_VENCIDO`); la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta); no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
@@ -685,7 +685,7 @@ Una corrida contra el simulador tiene que poder verificarse después solo con el
 
 - **Sitio aplicado** (`CoreAdapter.configurar`, en cada `PUT /sitio` o ABM y en cada INICIAR): potencia contratada, franja punta (desde-hasta y días), zona y, por habitación, temperatura esperada, kW y switch.
 - **Decisión** por habitación cuando cambia la acción **o el motivo**: así se ve la entrada a la punta (`SATISFECHA` → `TARIFA_PUNTA`) o la carga limitada (`SIN_POTENCIA_DISPONIBLE`) aunque el switch siga en OFF.
-- **Lecturas descartadas** (`TS_VENCIDO`, `FUERA_DE_ORDEN`), con el `ts` y la hora del control (ver [§2.2](#22-llega-una-lectura-de-temperatura-evento-mqtt)).
+- **Lecturas descartadas** (`TS_VENCIDO`, `FUERA_DE_ORDEN`), con el `ts` y la hora del control (ver [§2.2](#22-llega-una-lectura-de-temperatura-evento-mqtt)), y las fuera del rango del sensor (`FUERA_DE_RANGO`), con el valor recibido (D11).
 - **Resumen** cada `control.resumen-segundos` reales (30 por defecto, 0 lo desactiva), solo en ejecución: hora del control con el día de la semana, habitaciones en ON, potencia comprometida contra la contratada y habitaciones por motivo.
 - Comandos y fallas de switches, conexión MQTT, INICIAR y DETENER.
 
