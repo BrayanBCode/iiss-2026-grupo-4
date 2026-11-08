@@ -75,13 +75,22 @@ class CoreAdapterTest {
         final List<String> consultas = new ArrayList<>();
         final Map<String, EstadoSwitch> estado = new HashMap<>();
         final Set<String> caidos = new HashSet<>();
+        final Set<String> noPrenden = new HashSet<>(); // aceptan el ON pero siguen apagados
+        final Set<String> rechazanOn = new HashSet<>(); // el ON da error; consultarlos anda
 
         @Override
         public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
             if (caidos.contains(idSwitch)) {
                 throw new SwitchNoDisponibleException(idSwitch, "caído", null);
             }
+            if (accion == Accion.ON && rechazanOn.contains(idSwitch)) {
+                throw new SwitchNoDisponibleException(idSwitch, "500", null);
+            }
             comandos.add(idSwitch + ":" + accion);
+            if (accion == Accion.ON && noPrenden.contains(idSwitch)) {
+                estado.put(idSwitch, EstadoSwitch.OFF);
+                return EstadoSwitch.OFF;
+            }
             EstadoSwitch nuevo = accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
             estado.put(idSwitch, nuevo);
             return nuevo;
@@ -481,6 +490,76 @@ class CoreAdapterTest {
         relojEsperas.ahora = relojEsperas.ahora.plusSeconds(6);
         tick(lunes(10, 1));
         assertEquals(List.of("sw-living:OFF"), switches.comandos);
+    }
+
+    @Test
+    @DisplayName(
+            "Un switch que no prende (F09): su habitación queda en espera con SWITCH_NO_RESPONDE y"
+                    + " la potencia pasa a la siguiente; cuando vence la espera se reintenta y, si"
+                    + " prende, vuelve a tener prioridad")
+    void switchQueNoPrende_cedeLaPotencia() {
+        adaptador =
+                new CoreAdapter(
+                        new Core(new MayorDeficitPrimero()),
+                        switches,
+                        relojEsperas,
+                        Duration.ofSeconds(5),
+                        Runnable::run);
+        // 1,3 kW: el living (1,2) o el dormitorio (0,8), no los dos.
+        adaptador.configurar(sitio(1.3), List.of(LIVING, DORMITORIO));
+        iniciarControl();
+        switches.noPrenden.add("sw-living");
+        leer("living", 15.0, lunes(10, 0)); // más déficit: el core lo elige a él
+        leer("dormitorio", 18.0, lunes(10, 0));
+
+        assertEquals(EstadoSwitch.ON, switches.estado.get("sw-dorm"), "la potencia no pasó");
+        assertEquals("SWITCH_NO_RESPONDE", motivoDe("living"));
+        assertEquals(EstadoSwitch.OFF, switches.estado.get("sw-living"));
+
+        // Se arregla el switch; antes de que venza la espera (6 × 5 s) no se reintenta.
+        switches.noPrenden.clear();
+        relojEsperas.ahora = relojEsperas.ahora.plusSeconds(20);
+        tick(lunes(10, 1));
+        assertEquals(EstadoSwitch.ON, switches.estado.get("sw-dorm"));
+        relojEsperas.ahora = relojEsperas.ahora.plusSeconds(11);
+        tick(lunes(10, 2));
+        assertEquals(EstadoSwitch.ON, switches.estado.get("sw-living"), "no se reintentó");
+        assertEquals(EstadoSwitch.OFF, switches.estado.get("sw-dorm"));
+        assertEquals("CALEFACCIONANDO", motivoDe("living"));
+    }
+
+    @Test
+    @DisplayName(
+            "Un switch cuyo ON da error (F09): cuando vence la espera de reintento se lo consulta,"
+                    + " está apagado, y su potencia pasa a la siguiente")
+    void onConError_seConsultaYCedeLaPotencia() {
+        adaptador =
+                new CoreAdapter(
+                        new Core(new MayorDeficitPrimero()),
+                        switches,
+                        relojEsperas,
+                        Duration.ofSeconds(5),
+                        Runnable::run);
+        adaptador.configurar(sitio(1.3), List.of(LIVING, DORMITORIO));
+        iniciarControl();
+        switches.rechazanOn.add("sw-living");
+        leer("living", 15.0, lunes(10, 0));
+        leer("dormitorio", 18.0, lunes(10, 0));
+        assertEquals("CALEFACCIONANDO", motivoDe("living")); // todavía no se sabe
+
+        relojEsperas.ahora = relojEsperas.ahora.plusSeconds(6); // vence la espera de 5 s
+        tick(lunes(10, 1));
+        assertEquals("SWITCH_NO_RESPONDE", motivoDe("living"));
+        assertEquals(EstadoSwitch.ON, switches.estado.get("sw-dorm"), "la potencia no pasó");
+    }
+
+    private String motivoDe(String idHabitacion) {
+        for (CoreAdapter.EstadoControlado e : adaptador.estados()) {
+            if (e.idHabitacion().equals(idHabitacion)) {
+                return e.motivo();
+            }
+        }
+        throw new AssertionError("no existe " + idHabitacion);
     }
 
     @Test
