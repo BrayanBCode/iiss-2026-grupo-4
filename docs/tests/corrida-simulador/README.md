@@ -1,6 +1,6 @@
 # Corrida contra el simulador (tarjeta T13)
 
-Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas) [2026-11-06](2026-11-06-ecowarm-run/README.md) (simulador oficial `ecowarm-run`: 9 de 9 escenarios) y [2026-11-08](2026-11-08-ecowarm-run-t37/README.md) (regresión de T37, timeouts escalados y switches sanos primero: 9 de 9). Las pruebas más duras que el simulador (switches colgados, factores ×600 y ×3600, 50 habitaciones, fallas combinadas) están en `EstresTest`.
+Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas) [2026-11-06](2026-11-06-ecowarm-run/README.md) (simulador oficial `ecowarm-run`: 9 de 9 escenarios) [2026-11-08](2026-11-08-ecowarm-run-t37/README.md) (regresión de T37, timeouts escalados y switches sanos primero: 9 de 9) y [2026-11-08, `implementacion6`](2026-11-08-implementacion6/README.md) (todo lo de la iteración 6 integrado: 9 de 9). Las pruebas más duras que el simulador (switches colgados, factores ×600 y ×3600, 50 habitaciones, fallas combinadas) están en `EstresTest`.
 
 Guía para la prueba con el simulador real. Cada escenario se captura con
 `scripts/captura-simulador.sh`, que guarda en `docs/tests/corrida-simulador/<fecha>-<escenario>/`:
