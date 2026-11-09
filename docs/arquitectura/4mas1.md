@@ -432,7 +432,7 @@ sequenceDiagram
     Note over Ad: D7: las lecturas vencidas con el reloj anterior se olvidan (SIN_LECTURA)<br/>y las vigentes se re-sellan con la hora nueva
     Ctl->>Ad: iniciar() → en ejecución, decide y pide una pasada con consulta al hilo switches
     Ad->>Core: decidir(situación)
-    Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales,<br/>reconciliación 15 s, resumen en el log 30 s
+    Ctl->>Ctl: (re)arma el temporizador: tick cada max(10 ms, 1 s / factor) reales,<br/>reconciliación cada max(1 s, 15 s / factor) reales, resumen en el log 30 s
     Ctl-->>Env: 200 EN_EJECUCION (sin esperar a los switches)
     Env-->>Eng: 201 {mqtt: {host, puerto}}
     Eng->>Mq: conectar(tcp://host:puerto)
@@ -637,7 +637,7 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | Tomcat (HTTP) | requests REST | `PUT /sitio`, `INICIAR`/`DETENER`, consultas |
 | Paho callback | broker MQTT | `messageArrived` → `procesarMensaje` → `ControlService.alRecibirLectura` |
 | `mqtt-conexion` | propio (`LecturaMqttListener`) | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
-| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), reconciliación cada 15 s reales y un resumen en el log cada `control.resumen-segundos` (30 s) reales; existe solo mientras el control está en ejecución |
+| `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), reconciliación cada `control.reconciliacion-segundos` (15 s) de tiempo de control, o sea cada `max(1 s, 15 s / factor)` reales (T36), y un resumen en el log cada `control.resumen-segundos` (30 s) reales; existe solo mientras el control está en ejecución |
 | `registro-entorno` | propio (`RegistroEntorno`) | registro §6 con reintentos exponenciales |
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
 | `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |
@@ -674,7 +674,7 @@ las pasadas.
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
 | Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta); no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
-| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar | `switches` | `CoreAdapterTest` |
+| Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar; a ×60, en segundos reales (T36) | `switches` | `CoreAdapterTest`, `ReconciliacionEscaladaTest` |
 | Switch que responde fuera de contrato (no JSON, `estado` en minúscula, otro `Content-Type`) | una consulta que no es JSON cuenta como falla y el log muestra lo que mandó; un comando que responde 2xx se toma como aplicado aunque el cuerpo no sea JSON (la reconciliación lo verifica); el `estado` se lee sin importar mayúsculas y un JSON con otro `Content-Type` se acepta | `switches` | `ClienteSwitchRestTest` |
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | `CONTROLADOR_BASE_URL` que el entorno no puede alcanzar (`localhost` con el entorno en otra máquina, IP mal escrita) | aviso `WARN` al arrancar, antes de registrarse: el registro igual responde 201 y el error solo se notaría porque nunca llega el `PUT /sitio` (corrida del 2026-10-28) | `main` | `RegistroEntornoTest` |

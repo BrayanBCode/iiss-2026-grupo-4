@@ -41,8 +41,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} de tiempo de control, o sea
  *       cada {@code max(10 ms, tickMs / factor)} reales (T12), para cortar y restituir en los
  *       cambios de franja y vencer lecturas; reconcilia los switches cada {@code
- *       control.reconciliacion-segundos} reales, y deja un resumen en el log cada {@code
- *       control.resumen-segundos} reales (0 = sin resumen).
+ *       control.reconciliacion-segundos} de tiempo de control, o sea cada {@code max(1 s, segundos
+ *       / factor)} reales (T36), y deja un resumen en el log cada {@code control.resumen-segundos}
+ *       reales (0 = sin resumen).
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
@@ -324,6 +325,26 @@ public class ControlService {
     }
 
     /**
+     * Período mínimo de la reconciliación en tiempo real: cada una consulta todos los switches
+     * (§4), así que no puede ir al ritmo del tick.
+     */
+    static final long RECONCILIACION_MINIMA_MS = 1000;
+
+    /**
+     * Período REAL de la reconciliación (T36): {@code control.reconciliacion-segundos} son de
+     * tiempo de control, como el tick, así que se dividen por el factor, con un mínimo de 1 s real.
+     * Sin escalar, a ×60 un switch prendido a mano tardaba hasta 15 min de control en volver a OFF,
+     * y podía pasar la potencia contratada todo ese tiempo. Con 15 s y factor 60 la reconciliación
+     * corre cada 1 s real (1 min de control); con factor 1, cada 15 s, como antes. Las pasadas no
+     * se superponen: si la anterior sigue en curso, la nueva se junta con la que está esperando.
+     */
+    static long periodoReconciliacionMs(long reconciliacionSegundos, double factorTiempo) {
+        return Math.max(
+                RECONCILIACION_MINIMA_MS,
+                Math.round(reconciliacionSegundos * 1000.0 / factorTiempo));
+    }
+
+    /**
      * (Re)arma el temporizador con el período que corresponde al factor. Se llama en cada INICIAR,
      * así un INICIAR con otro factor reprograma el tick.
      */
@@ -342,11 +363,9 @@ public class ControlService {
         long periodo = periodoTickMs(tickMs, factorTiempo);
         temporizador.scheduleWithFixedDelay(this::tick, periodo, periodo, TimeUnit.MILLISECONDS);
         if (reconciliacionSegundos > 0) {
+            long reconciliacion = periodoReconciliacionMs(reconciliacionSegundos, factorTiempo);
             temporizador.scheduleWithFixedDelay(
-                    this::reconciliar,
-                    reconciliacionSegundos,
-                    reconciliacionSegundos,
-                    TimeUnit.SECONDS);
+                    this::reconciliar, reconciliacion, reconciliacion, TimeUnit.MILLISECONDS);
         }
         if (resumenSegundos > 0) {
             temporizador.scheduleWithFixedDelay(

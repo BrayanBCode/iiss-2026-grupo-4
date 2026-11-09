@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ControlService: período del tick escalado con el factor (T12)")
+@DisplayName("ControlService: períodos del tick (T12) y la reconciliación (T36) escalados")
 class ControlServiceTest {
 
     @Test
@@ -24,5 +24,19 @@ class ControlServiceTest {
         assertEquals(10, ControlService.periodoTickMs(1000, 600));
         assertEquals(10, ControlService.periodoTickMs(100, 600));
         assertEquals(ControlService.TICK_MINIMO_MS, ControlService.periodoTickMs(1000, 1_000_000));
+    }
+
+    @Test
+    @DisplayName(
+            "La reconciliación también se escala con el factor (T36), sin bajar de 1 s real: a ×60"
+                    + " cada 1 s real, con factor 1 cada 15 s como antes")
+    void reconciliacionEscalada() {
+        assertEquals(15_000, ControlService.periodoReconciliacionMs(15, 1));
+        assertEquals(5_000, ControlService.periodoReconciliacionMs(15, 3));
+        assertEquals(30_000, ControlService.periodoReconciliacionMs(15, 0.5));
+        assertEquals(1_000, ControlService.periodoReconciliacionMs(15, 60));
+        assertEquals(
+                ControlService.RECONCILIACION_MINIMA_MS,
+                ControlService.periodoReconciliacionMs(15, 3600));
     }
 }

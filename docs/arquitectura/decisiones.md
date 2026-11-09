@@ -114,7 +114,10 @@ en [limitaciones y roadmap](roadmap.md).
 - **Contexto.** El estado real de un switch puede no ser el que creemos: lo reinicia el simulador
   entre escenarios (`DESCONOCIDO`), alguien lo mueve a mano o falla un comando.
 - **Decisión.** Al INICIAR la primera pasada consulta cada switch antes de comandar. Cada 15 s
-  (`control.reconciliacion-segundos`) se vuelve a consultar y se corrige lo que no coincida.
+  (`control.reconciliacion-segundos`) se vuelve a consultar y se corrige lo que no coincida. Los
+  15 s son de tiempo de control, como el tick: con factor 60 la reconciliación corre cada 1 s
+  real, que es el mínimo (T36). Sin escalarla, a ×60 un switch prendido a mano seguía prendido
+  hasta 15 min de control, aunque se pasara de la contratada.
 - **Consecuencias.** El control se recupera solo de switches reiniciados o caídos. La consulta solo
   deja una línea en el log cuando hay que corregir algo.
 
