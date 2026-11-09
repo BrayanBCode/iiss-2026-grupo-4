@@ -6,11 +6,11 @@ core,uy.edu.utec.iiss.core.model,ConfiguracionHabitacion,0,15,0,0,0,1,0,1,0,1
 core,uy.edu.utec.iiss.core.model,Estimulo.NuevaLectura,0,20,0,0,0,4,0,1,0,1
 core,uy.edu.utec.iiss.core.model,Accion,0,15,0,0,0,3,0,1,0,1
 core,uy.edu.utec.iiss.core.model,Estimulo.Sincronizacion,0,25,0,4,0,5,0,3,0,1
-core,uy.edu.utec.iiss.core.model,ParametrosControl,0,61,1,9,0,11,1,6,0,2
+core,uy.edu.utec.iiss.core.model,ParametrosControl,0,84,1,11,0,16,1,8,0,3
 core,uy.edu.utec.iiss.core.model,DiasTarifa,0,15,0,0,0,3,0,1,0,1
-core,uy.edu.utec.iiss.core.model,Motivo,0,45,0,0,0,8,0,1,0,1
+core,uy.edu.utec.iiss.core.model,Motivo,0,51,0,0,0,9,0,1,0,1
 core,uy.edu.utec.iiss.core.model,Sitio,0,30,0,2,0,7,0,4,0,3
 core,uy.edu.utec.iiss.core.model,Decision,0,24,0,0,0,5,0,1,0,1
 core,uy.edu.utec.iiss.core.model,FranjaHoraria,0,70,1,13,0,10,1,8,0,2
-core,uy.edu.utec.iiss.core,Core,0,292,0,40,0,59,0,28,0,8
+core,uy.edu.utec.iiss.core,Core,0,308,0,44,0,62,0,31,0,9
 core,uy.edu.utec.iiss.core,MayorDeficitPrimero,0,82,3,11,0,22,3,9,0,5
