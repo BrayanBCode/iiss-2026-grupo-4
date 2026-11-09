@@ -37,6 +37,13 @@ class ModeloTest {
                 IllegalArgumentException.class,
                 () -> new ParametrosControl(0.3, Duration.ofMinutes(1), 50, 10));
         assertDoesNotThrow(() -> new ParametrosControl(0, Duration.ofSeconds(1), -40, 85));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new ParametrosControl(
+                                0.3, Duration.ofMinutes(1), -40, 85, Duration.ofSeconds(-1)));
+        assertDoesNotThrow(
+                () -> new ParametrosControl(0.3, Duration.ofMinutes(1), -40, 85, Duration.ZERO));
     }
 
     @Test

@@ -102,7 +102,9 @@ public class Core {
         }
 
         // 2. Tarifa  /  3. Reparto de la potencia contratada
-        if (enPunta(sitio, ahora)) {
+        // La punta se corta un poco antes de que empiece (anticipacionPunta): así los OFF ya
+        // llegaron a los switches cuando empieza. La salida no se adelanta.
+        if (enPunta(sitio, ahora) || enPunta(sitio, sumar(ahora, parametros.anticipacionPunta()))) {
             conDeficit.forEach(h -> motivos.put(h.id(), Motivo.TARIFA_PUNTA));
 
         } else {
@@ -163,6 +165,13 @@ public class Core {
             return false;
         }
         return Duration.between(instante, ahora).compareTo(parametros.vigenciaLectura()) > 0;
+    }
+
+    private static Instant sumar(Instant instante, Duration duracion) {
+        if (instante == null) {
+            return null;
+        }
+        return instante.plus(duracion);
     }
 
     private static boolean enPunta(Sitio sitio, Instant ahora) {

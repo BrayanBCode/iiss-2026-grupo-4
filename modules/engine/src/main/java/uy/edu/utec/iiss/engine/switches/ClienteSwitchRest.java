@@ -3,7 +3,10 @@ package uy.edu.utec.iiss.engine.switches;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +32,7 @@ import uy.edu.utec.iiss.core.model.Accion;
 public class ClienteSwitchRest implements ClienteSwitch {
 
     static final String HEADER_API_KEY = "X-API-Key";
+    private static final Logger log = LoggerFactory.getLogger(ClienteSwitchRest.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAXIMO_EN_EL_LOG = 120;
 
@@ -54,9 +58,15 @@ public class ClienteSwitchRest implements ClienteSwitch {
                 UriComponentsBuilder.fromUriString(urlSwitch)
                         .pathSegment("switches", idSwitch, "comandos")
                         .toUriString();
-        JsonNode respuesta =
-                llamar(idSwitch, url, HttpMethod.POST, Map.of("accion", accion.name()));
-        EstadoSwitch estado = estado(respuesta);
+        String respuesta = pedir(idSwitch, url, HttpMethod.POST, Map.of("accion", accion.name()));
+        EstadoSwitch estado = null;
+        try {
+            estado = estado(leerJson(idSwitch, "POST " + url, respuesta));
+        } catch (SwitchNoDisponibleException e) {
+            // Respondió 2xx (aceptó el comando) con un cuerpo que no es JSON: se toma como
+            // aplicado, igual que con el cuerpo vacío. La reconciliación lo verifica después.
+            log.warn("{}; se toma el comando {} como aplicado.", e.getMessage(), accion);
+        }
         if (estado != null) {
             return estado;
         }
@@ -77,22 +87,24 @@ public class ClienteSwitchRest implements ClienteSwitch {
     }
 
     private JsonNode llamar(String idSwitch, String url, HttpMethod metodo, Object cuerpo) {
+        return leerJson(idSwitch, metodo + " " + url, pedir(idSwitch, url, metodo, cuerpo));
+    }
+
+    /** El pedido HTTP; una respuesta que no es 2xx o la falta de respuesta lanzan. */
+    private String pedir(String idSwitch, String url, HttpMethod metodo, Object cuerpo) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
         if (apiKey != null && !apiKey.isBlank()) {
             headers.set(HEADER_API_KEY, apiKey);
         }
-        String respuesta;
         try {
-            respuesta =
-                    http.exchange(url, metodo, new HttpEntity<>(cuerpo, headers), String.class)
-                            .getBody();
+            return http.exchange(url, metodo, new HttpEntity<>(cuerpo, headers), String.class)
+                    .getBody();
         } catch (RestClientException e) {
             throw new SwitchNoDisponibleException(
                     idSwitch, metodo + " " + url + " -> " + e.getMessage(), e);
         }
-        return leerJson(idSwitch, metodo + " " + url, respuesta);
     }
 
     /**
@@ -121,8 +133,10 @@ public class ClienteSwitchRest implements ClienteSwitch {
         if (respuesta == null || !respuesta.path("estado").isTextual()) {
             return null;
         }
+        // Sin importar mayúsculas ni espacios: "on" o " OFF " son el mismo estado (F07).
+        String texto = respuesta.path("estado").asText().strip().toUpperCase(Locale.ROOT);
         try {
-            return EstadoSwitch.valueOf(respuesta.path("estado").asText());
+            return EstadoSwitch.valueOf(texto);
         } catch (IllegalArgumentException e) {
             return null;
         }

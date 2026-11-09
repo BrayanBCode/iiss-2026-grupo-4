@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static uy.edu.utec.iiss.core.CoreTestFixtures.*;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -22,6 +23,7 @@ import uy.edu.utec.iiss.core.model.DiasTarifa;
 import uy.edu.utec.iiss.core.model.EstadoHabitacion;
 import uy.edu.utec.iiss.core.model.FranjaHoraria;
 import uy.edu.utec.iiss.core.model.Motivo;
+import uy.edu.utec.iiss.core.model.ParametrosControl;
 import uy.edu.utec.iiss.core.model.Sitio;
 
 /**
@@ -75,6 +77,11 @@ class DecidirTest {
     }
 
     private List<Decision> decidir(Sitio sitio, Instant ahora, Hab... habitaciones) {
+        return decidirCon(core, sitio, ahora, habitaciones);
+    }
+
+    private static List<Decision> decidirCon(
+            Core core, Sitio sitio, Instant ahora, Hab... habitaciones) {
         List<ConfiguracionHabitacion> config =
                 Arrays.stream(habitaciones)
                         .map(
@@ -541,6 +548,58 @@ class DecidirTest {
         @DisplayName("Sin hora del control conocida no se considera punta")
         void sinHora_noHayPunta() {
             assertEquals(3, prendidas(decidir(10.0, null, cinco)).size());
+        }
+
+        @Test
+        @DisplayName(
+                "Con 1 min de anticipación: 16:58 todavía prenden, 16:59 ya cortan (los OFF llegan"
+                        + " antes de las 17:00); la salida no se adelanta: 22:59 sigue cortado y"
+                        + " 23:00 se restituye")
+        void anticipacion_cortaAntesYRestituyeALaHora() {
+            Core anticipado =
+                    new Core(
+                            new MayorDeficitPrimero(),
+                            new ParametrosControl(
+                                    0.3, Duration.ofMinutes(10), -40, 85, Duration.ofMinutes(1)));
+            Sitio sitio = new Sitio("sitio-test", 10.0, PUNTA);
+
+            assertEquals(
+                    List.of("a", "b", "c"),
+                    prendidas(
+                            decidirCon(anticipado, sitio, lunes(16, 58), leidasEn(lunes(16, 58)))));
+            List<Decision> antes =
+                    decidirCon(anticipado, sitio, lunes(16, 59), leidasEn(lunes(16, 59)));
+            assertEquals(List.of(), prendidas(antes));
+            assertEquals(Motivo.TARIFA_PUNTA, motivoDe(antes, "a"));
+            assertEquals(
+                    List.of(),
+                    prendidas(
+                            decidirCon(anticipado, sitio, lunes(22, 59), leidasEn(lunes(22, 59)))));
+            assertEquals(
+                    List.of("a", "b", "c"),
+                    prendidas(decidirCon(anticipado, sitio, lunes(23, 0), leidasEn(lunes(23, 0)))));
+        }
+
+        @Test
+        @DisplayName(
+                "Anticipación sobre el fin de un día hábil: viernes 23:59 + 1 min es sábado, sin"
+                        + " punta y siguen prendidas")
+        void anticipacion_respetaLosDias() {
+            Core anticipado =
+                    new Core(
+                            new MayorDeficitPrimero(),
+                            new ParametrosControl(
+                                    0.3, Duration.ofMinutes(10), -40, 85, Duration.ofMinutes(1)));
+            Sitio sitio = new Sitio("sitio-test", 10.0, PUNTA);
+            assertEquals(
+                    3,
+                    prendidas(
+                                    decidirCon(
+                                            anticipado,
+                                            sitio,
+                                            viernes(23, 59),
+                                            leidasEn(viernes(23, 59))))
+                            .size());
         }
     }
 

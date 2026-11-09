@@ -20,5 +20,10 @@ public enum Motivo {
      */
     SIN_POTENCIA_DISPONIBLE,
     /** OFF: su potencia sola ya supera la contratada; encenderla haría saltar la llave. */
-    EXCEDE_CONTRATADA
+    EXCEDE_CONTRATADA,
+    /**
+     * OFF: su switch no prende (el ON falló o sigue apagado). Lo decide el engine, no {@code
+     * decidir}: mientras espera para reintentar, su potencia queda para las demás.
+     */
+    SWITCH_NO_RESPONDE
 }

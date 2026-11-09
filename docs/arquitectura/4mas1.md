@@ -535,6 +535,8 @@ sequenceDiagram
 
 Con el tick fijo de antes (1 s real) el atraso era de un tick real: 30 s de control a ×30 y 10 min a ×600. `TiempoAceleradoTest` arranca a ×600 cinco minutos antes de la punta y verifica el corte en menos de 1 s real (y con menos de 1 min de control de atraso); y lo mismo con la restitución al salir. Con el tick sin escalar los dos tests fallan (el corte llega a los ~1025 ms reales).
 
+**Corte anticipado (T24e).** Aun con el tick escalado, el corte llegaba tarde: en el escenario E11 del simulador oficial (`ecowarm-run`, ×60) la pasada consultó y apagó los 5 switches entre las 17:00:00 y las 17:00:02 de control, porque a ×60 cada milisegundo real son 60 ms simulados, y la expectativa "en punta no se enciende nada" falló. Por eso el core trata la punta como si empezara `control.anticipacion-punta-segundos` antes (60 s de tiempo de control por defecto, 1 s real a ×60): a las 16:59 ya decide `TARIFA_PUNTA` y los OFF llegan antes de las 17:00. La salida **no** se adelanta: a las 23:00 se restituye como antes (`DecidirTest.anticipacion_cortaAntesYRestituyeALaHora`). El costo es calefaccionar un minuto menos antes de cada punta.
+
 ### 2.4 Cambio de configuración en caliente (`PUT /sitio` con el control en ejecución)
 
 ```mermaid
@@ -673,7 +675,7 @@ las pasadas.
 | Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta); no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
 | Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar; a ×60, en segundos reales (T36) | `switches` | `CoreAdapterTest`, `ReconciliacionEscaladaTest` |
-| Switch que responde algo que no es JSON (escenario de switch caído del simulador) | cuenta como falla y el log muestra lo que mandó; un JSON válido con otro `Content-Type` se acepta | `switches` | `ClienteSwitchRestTest` |
+| Switch que responde fuera de contrato (no JSON, `estado` en minúscula, otro `Content-Type`) | una consulta que no es JSON cuenta como falla y el log muestra lo que mandó; un comando que responde 2xx se toma como aplicado aunque el cuerpo no sea JSON (la reconciliación lo verifica); el `estado` se lee sin importar mayúsculas y un JSON con otro `Content-Type` se acepta | `switches` | `ClienteSwitchRestTest` |
 | Entorno que tarda en levantar | el registro reintenta con espera exponencial (2, 4, 8 … 30 s) | `registro-entorno` | — |
 | `CONTROLADOR_BASE_URL` que el entorno no puede alcanzar (`localhost` con el entorno en otra máquina, IP mal escrita) | aviso `WARN` al arrancar, antes de registrarse: el registro igual responde 201 y el error solo se notaría porque nunca llega el `PUT /sitio` (corrida del 2026-10-28) | `main` | `RegistroEntornoTest` |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
