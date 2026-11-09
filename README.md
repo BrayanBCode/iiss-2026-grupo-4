@@ -125,8 +125,19 @@ reintenta solo (2, 4, 8 … 30 s).
 
 ### A. Con el verificador `ecowarm-check` (recomendado para el primer intento)
 
-El `ecowarm-check.jar` lo entrega la cátedra y no está en el repo: copiarlo a la raíz del proyecto
-(está en el `.gitignore`).
+Las herramientas de prueba son de la cátedra y no están en el repo (están en el `.gitignore`): se
+le piden al docente del curso y se copian a la raíz del proyecto. Estas son las versiones con las
+que se validó la versión final:
+
+| Herramienta | Para qué | Versión | SHA-256 (primeros 16) |
+|---|---|---|---|
+| `ecowarm-check.jar` | Verificador del estándar v2: registro, API y comunicación (8 verificaciones) | `f3d46f4` (interop-v2) | `bb316f9aeaf6a401` |
+| `ecowarm-run.jar` | Simulador oficial: 9 escenarios firmados de control y fallas | `c95d037` (interop-v2) | `3e38a7e09c274445` |
+
+Sin ellas igual se puede verificar todo lo que hacen: `mvn verify` corre los tests de integración,
+que levantan un broker MQTT y switches HTTP dentro del proceso (`IntegracionBase`), incluidos los
+escenarios como los corre el simulador (`EscenariosSimuladorTest`) y las pruebas de estrés
+(`EstresTest`).
 
 ```bash
 # terminal 1: el entorno (broker MQTT, switches e inventario en :9090)

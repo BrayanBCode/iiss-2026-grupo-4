@@ -1,0 +1,364 @@
+2026-11-09T16:27:34.812-03:00  INFO 1 --- [main] u.e.utec.iiss.engine.EngineApplication   : Starting EngineApplication using Java 25.0.5 with PID 1 (/app/engine.jar started by root in /app)
+2026-11-09T16:27:34.817-03:00  INFO 1 --- [main] u.e.utec.iiss.engine.EngineApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-11-09T16:27:35.783-03:00  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-11-09T16:27:35.797-03:00  INFO 1 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-09T16:27:35.798-03:00  INFO 1 --- [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.46]
+2026-11-09T16:27:35.820-03:00  INFO 1 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-11-09T16:27:35.822-03:00  INFO 1 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 947 ms
+2026-11-09T16:27:36.287-03:00  INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-11-09T16:27:36.304-03:00  INFO 1 --- [main] u.e.utec.iiss.engine.EngineApplication   : Started EngineApplication in 2.112 seconds (process running for 2.608)
+2026-11-09T16:27:36.401-03:00  WARN 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : No se pudo registrar ante el entorno http://host.docker.internal:9090: I/O error on POST request for "http://host.docker.internal:9090/controladores": Connection refused (connect failed). Reintento en 2 s.
+2026-11-09T16:27:38.406-03:00  WARN 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : No se pudo registrar ante el entorno http://host.docker.internal:9090: I/O error on POST request for "http://host.docker.internal:9090/controladores": Connection refused (connect failed). Reintento en 4 s.
+2026-11-09T16:27:42.410-03:00  WARN 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : No se pudo registrar ante el entorno http://host.docker.internal:9090: I/O error on POST request for "http://host.docker.internal:9090/controladores": Connection refused (connect failed). Reintento en 8 s.
+2026-11-09T16:27:50.419-03:00  WARN 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : No se pudo registrar ante el entorno http://host.docker.internal:9090: I/O error on POST request for "http://host.docker.internal:9090/controladores": Connection refused (connect failed). Reintento en 16 s.
+2026-11-09T16:28:06.603-03:00  INFO 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : Registrado ante el entorno http://host.docker.internal:9090 como 'ecowarm-grupo4' (baseUrl http://localhost:8080).
+2026-11-09T16:28:06.696-03:00  INFO 1 --- [registro-entorno] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-0-holgado-s1' aplicado (0 habitaciones).
+2026-11-09T16:28:06.698-03:00  INFO 1 --- [registro-entorno] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-0-holgado-s1': contratada 3.7 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 0
+2026-11-09T16:28:06.702-03:00  INFO 1 --- [registro-entorno] u.e.u.i.engine.registro.RegistroEntorno  : Sitio obtenido del entorno (GET http://host.docker.internal:9090/sitio).
+2026-11-09T16:28:06.713-03:00  INFO 1 --- [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-09T16:28:06.714-03:00  INFO 1 --- [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-09T16:28:06.716-03:00  INFO 1 --- [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-11-09T16:28:06.811-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-1-holgado-s1' aplicado (1 habitaciones).
+2026-11-09T16:28:06.812-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-1-holgado-s1': contratada 1.7 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 1
+2026-11-09T16:28:06.813-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:28:06.839-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-1-holgado-s1': contratada 1.7 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 1
+2026-11-09T16:28:06.840-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:28:06.842-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:28:06.847-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SIN_LECTURA)
+2026-11-09T16:28:06.856-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:28:06.971-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Conectado al broker MQTT en tcp://host.docker.internal:1884.
+2026-11-09T16:28:06.978-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room1/status/temperature:0' (habitación 'room1').
+2026-11-09T16:28:07.594-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:28:07.614-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:28:36.850-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 1/1 | potencia 1.20 de 1.70 kW | {CALEFACCIONANDO=[room1]}
+2026-11-09T16:29:06.851-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 1/1 | potencia 1.20 de 1.70 kW | {CALEFACCIONANDO=[room1]}
+2026-11-09T16:29:31.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:29:31.556-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:29:36.851-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 0/1 | potencia 0.00 de 1.70 kW | {SATISFECHA=[room1]}
+2026-11-09T16:30:06.851-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 0/1 | potencia 0.00 de 1.70 kW | {SATISFECHA=[room1]}
+2026-11-09T16:30:06.972-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:30:07.010-03:00  INFO 1 --- [http-nio-8080-exec-9] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-2-limitante-s1' aplicado (2 habitaciones).
+2026-11-09T16:30:07.011-03:00  INFO 1 --- [http-nio-8080-exec-9] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-2-limitante-s1': contratada 1.2 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 2
+2026-11-09T16:30:07.012-03:00  INFO 1 --- [http-nio-8080-exec-9] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:30:07.013-03:00  INFO 1 --- [http-nio-8080-exec-9] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:30:07.016-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room2/status/temperature:0' (habitación 'room2').
+2026-11-09T16:30:07.024-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-2-limitante-s1': contratada 1.2 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 2
+2026-11-09T16:30:07.025-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:30:07.026-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:30:07.028-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:30:07.028-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-11-09T16:30:07.029-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:30:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:30:07.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:30:07.556-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:30:37.028-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 1/2 | potencia 1.20 de 1.20 kW | {CALEFACCIONANDO=[room1], SIN_POTENCIA_DISPONIBLE=[room2]}
+2026-11-09T16:31:07.028-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 1/2 | potencia 1.20 de 1.20 kW | {CALEFACCIONANDO=[room1], SIN_POTENCIA_DISPONIBLE=[room2]}
+2026-11-09T16:31:31.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:31:31.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:31:31.554-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:31:31.559-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:31:37.029-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 1/2 | potencia 0.90 de 1.20 kW | {CALEFACCIONANDO=[room2], SATISFECHA=[room1]}
+2026-11-09T16:32:07.029-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 1/2 | potencia 0.90 de 1.20 kW | {CALEFACCIONANDO=[room2], SATISFECHA=[room1]}
+2026-11-09T16:32:07.066-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:32:07.091-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-5-holgado-s1' aplicado (5 habitaciones).
+2026-11-09T16:32:07.092-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-holgado-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:32:07.093-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:32:07.093-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:32:07.094-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:32:07.094-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:32:07.095-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:32:07.098-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room3/status/temperature:0' (habitación 'room3').
+2026-11-09T16:32:07.101-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room5/status/temperature:0' (habitación 'room5').
+2026-11-09T16:32:07.104-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room4/status/temperature:0' (habitación 'room4').
+2026-11-09T16:32:07.106-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-holgado-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:32:07.107-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:32:07.107-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:32:07.108-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:32:07.108-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:32:07.109-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:32:07.110-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:32:07.111-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SIN_LECTURA)
+2026-11-09T16:32:07.112-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SIN_LECTURA)
+2026-11-09T16:32:07.112-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (SIN_LECTURA)
+2026-11-09T16:32:07.113-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T19:00:00Z (martes 2026-11-03 16:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:32:07.118-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') está OFF y se creía ON: se corrige.
+2026-11-09T16:32:07.131-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:32:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:32:07.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:32:07.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-11-09T16:32:07.552-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-11-09T16:32:07.554-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:32:07.559-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:32:07.564-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-11-09T16:32:07.573-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> ON
+2026-11-09T16:32:37.112-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 16:30:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:33:06.097-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (TARIFA_PUNTA)
+2026-11-09T16:33:06.098-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (TARIFA_PUNTA)
+2026-11-09T16:33:06.098-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (TARIFA_PUNTA)
+2026-11-09T16:33:06.099-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (TARIFA_PUNTA)
+2026-11-09T16:33:06.099-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (TARIFA_PUNTA)
+2026-11-09T16:33:06.105-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:33:06.110-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-11-09T16:33:06.114-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-11-09T16:33:06.117-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:33:06.118-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-11-09T16:33:06.119-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SATISFECHA)
+2026-11-09T16:33:06.119-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SATISFECHA)
+2026-11-09T16:33:06.120-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-11-09T16:33:06.124-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-11-09T16:33:07.112-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 17:00:00 | ON 0/5 | potencia 0.00 de 6.00 kW | {SATISFECHA=[room1, room2, room3, room4], TARIFA_PUNTA=[room5]}
+2026-11-09T16:33:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (SATISFECHA)
+2026-11-09T16:33:37.113-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 17:30:00 | ON 0/5 | potencia 0.00 de 6.00 kW | {SATISFECHA=[room1, room2, room3, room4, room5]}
+2026-11-09T16:34:07.113-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 18:00:00 | ON 0/5 | potencia 0.00 de 6.00 kW | {SATISFECHA=[room1, room2, room3, room4, room5]}
+2026-11-09T16:34:07.195-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:34:07.223-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-5-holgado-s1' aplicado (5 habitaciones).
+2026-11-09T16:34:07.224-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-holgado-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:34:07.225-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:34:07.225-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:34:07.226-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:34:07.226-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:34:07.227-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:34:07.237-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-holgado-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:34:07.238-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:34:07.238-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:34:07.239-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:34:07.239-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:34:07.240-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:34:07.241-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:34:07.243-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:34:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:34:07.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:34:07.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:34:07.551-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-11-09T16:34:07.552-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-11-09T16:34:07.554-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:34:07.559-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:34:07.564-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:34:07.568-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-11-09T16:34:07.573-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> ON
+2026-11-09T16:34:37.242-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:35:07.242-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:35:07.310-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-5-holgado-s1' aplicado (5 habitaciones).
+2026-11-09T16:35:07.311-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-holgado-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:35:07.312-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 21.8 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:35:07.312-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 23.3 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:35:07.313-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:35:07.314-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:35:07.314-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:35:37.243-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:35:44.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SATISFECHA)
+2026-11-09T16:35:44.552-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-11-09T16:35:56.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SATISFECHA)
+2026-11-09T16:35:56.552-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-11-09T16:36:05.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (SATISFECHA)
+2026-11-09T16:36:05.552-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-11-09T16:36:07.244-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 2/5 | potencia 2.10 de 6.00 kW | {CALEFACCIONANDO=[room1, room2], SATISFECHA=[room3, room4, room5]}
+2026-11-09T16:36:37.244-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:30:00 | ON 2/5 | potencia 2.10 de 6.00 kW | {CALEFACCIONANDO=[room1, room2], SATISFECHA=[room3, room4, room5]}
+2026-11-09T16:37:07.244-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 13:00:00 | ON 2/5 | potencia 2.10 de 6.00 kW | {CALEFACCIONANDO=[room1, room2], SATISFECHA=[room3, room4, room5]}
+2026-11-09T16:37:07.313-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:37:07.353-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-5-explicita-s1' aplicado (5 habitaciones).
+2026-11-09T16:37:07.354-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-explicita-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:37:07.355-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:37:07.356-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:37:07.356-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:37:07.357-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:37:07.358-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:37:07.369-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-explicita-s1': contratada 6.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:37:07.370-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:37:07.370-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:37:07.371-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:37:07.371-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:37:07.372-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:37:07.374-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:37:07.375-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:37:07.376-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-11-09T16:37:07.377-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:37:07.379-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') está OFF y se creía ON: se corrige.
+2026-11-09T16:37:07.382-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') está OFF y se creía ON: se corrige.
+2026-11-09T16:37:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:37:07.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:37:07.551-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:37:07.551-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-11-09T16:37:07.552-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> ON (CALEFACCIONANDO)
+2026-11-09T16:37:07.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:37:07.558-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:37:07.562-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:37:07.566-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-11-09T16:37:07.570-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> ON
+2026-11-09T16:37:37.376-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:38:07.377-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 5/5 | potencia 4.80 de 6.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4, room5]}
+2026-11-09T16:38:07.439-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-5-explicita-s1' aplicado (5 habitaciones).
+2026-11-09T16:38:07.440-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-5-explicita-s1': contratada 3.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:38:07.441-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:38:07.442-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:38:07.442-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:38:07.443-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:38:07.443-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 20.9 °C, 0.8 kW, switch 'sw-sim-room5'
+2026-11-09T16:38:07.444-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:38:07.445-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:38:07.448-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:38:07.449-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SATISFECHA)
+2026-11-09T16:38:07.450-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:38:07.454-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-11-09T16:38:37.378-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 3/5 | potencia 2.60 de 3.00 kW | {CALEFACCIONANDO=[room2, room3, room5], SATISFECHA=[room1, room4]}
+2026-11-09T16:38:55.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SATISFECHA)
+2026-11-09T16:38:55.551-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-11-09T16:38:56.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SATISFECHA)
+2026-11-09T16:38:56.552-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-11-09T16:39:05.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (SATISFECHA)
+2026-11-09T16:39:05.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-11-09T16:39:07.378-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 0/5 | potencia 0.00 de 3.00 kW | {SATISFECHA=[room1, room2, room3, room4, room5]}
+2026-11-09T16:39:07.430-03:00  INFO 1 --- [http-nio-8080-exec-9] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:39:07.456-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.i.e.inventario.InventarioService   : Inventario 'e19-switch-encendido' aplicado (5 habitaciones).
+2026-11-09T16:39:07.457-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'e19-switch-encendido': contratada 4.5 kW, punta 18:00-22:00 TODOS, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:39:07.458-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room1'
+2026-11-09T16:39:07.458-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room2'
+2026-11-09T16:39:07.459-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room3'
+2026-11-09T16:39:07.459-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:39:07.459-03:00  INFO 1 --- [http-nio-8080-exec-1] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room5'
+2026-11-09T16:39:07.469-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'e19-switch-encendido': contratada 4.5 kW, punta 18:00-22:00 TODOS, zona America/Montevideo, habitaciones: 5
+2026-11-09T16:39:07.470-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room1'
+2026-11-09T16:39:07.471-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room2'
+2026-11-09T16:39:07.471-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room3'
+2026-11-09T16:39:07.472-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:39:07.472-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room5': esperada 21.0 °C, 1.0 kW, switch 'sw-sim-room5'
+2026-11-09T16:39:07.474-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:39:07.475-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:39:07.476-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-11-09T16:39:07.477-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:39:07.484-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') está ON y se creía OFF: se corrige.
+2026-11-09T16:39:07.490-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room5' (habitación 'room5') -> OFF
+2026-11-09T16:39:07.495-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:39:07.499-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-11-09T16:39:07.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:39:07.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:39:07.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:39:07.558-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:39:37.476-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 4/5 | potencia 4.00 de 4.50 kW | {CALEFACCIONANDO=[room1, room2, room3, room4], SATISFECHA=[room5]}
+2026-11-09T16:40:05.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room5' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:40:07.476-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 4/5 | potencia 4.00 de 4.50 kW | {CALEFACCIONANDO=[room1, room2, room3, room4], SIN_POTENCIA_DISPONIBLE=[room5]}
+2026-11-09T16:40:07.541-03:00  INFO 1 --- [http-nio-8080-exec-6] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:40:07.565-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-3-holgado-s1' aplicado (3 habitaciones).
+2026-11-09T16:40:07.566-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-3-holgado-s1': contratada 3.8 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 3
+2026-11-09T16:40:07.566-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:40:07.567-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:40:07.567-03:00  INFO 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:40:07.568-03:00  WARN 1 --- [http-nio-8080-exec-8] u.e.u.iiss.engine.adaptador.CoreAdapter  : La habitación 'room4' dejó de usar el switch 'sw-sim-room4' y quedó encendido: no se lo comanda porque ya no es del sitio vigente (1.0 kW fuera de control).
+2026-11-09T16:40:07.575-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Desuscrito de 'ht-sim-room5/status/temperature:0'.
+2026-11-09T16:40:07.577-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-3-holgado-s1': contratada 3.8 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 3
+2026-11-09T16:40:07.578-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Desuscrito de 'ht-sim-room4/status/temperature:0'.
+2026-11-09T16:40:07.578-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:40:07.579-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:40:07.579-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:40:07.580-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:40:07.581-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:40:07.582-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:40:07.583-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') está OFF y se creía ON: se corrige.
+2026-11-09T16:40:07.586-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') está OFF y se creía ON: se corrige.
+2026-11-09T16:40:07.588-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') está OFF y se creía ON: se corrige.
+2026-11-09T16:40:07.594-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:40:07.598-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:40:08.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-d718affb4924] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:40:08.551-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:40:37.581-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 3/3 | potencia 3.00 de 3.80 kW | {CALEFACCIONANDO=[room1, room2, room3]}
+2026-11-09T16:40:37.602-03:00 ERROR 1 --- [MQTT Rec: ecowarm-gr-d718affb4924] u.e.u.i.engine.mqtt.LecturaMqttListener  : Conexión perdida con el broker MQTT (tcp://host.docker.internal:1884): Connection lost. Reintento en 5 s.
+2026-11-09T16:40:42.608-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
+2026-11-09T16:40:47.552-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (LECTURA_VENCIDA)
+2026-11-09T16:40:47.553-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (LECTURA_VENCIDA)
+2026-11-09T16:40:47.553-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (LECTURA_VENCIDA)
+2026-11-09T16:40:47.557-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:40:47.562-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-11-09T16:40:47.566-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-11-09T16:40:47.613-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
+2026-11-09T16:40:52.922-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Reconectado al broker MQTT (tcp://host.docker.internal:1884). Se restablecen las suscripciones.
+2026-11-09T16:40:52.925-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room2/status/temperature:0' (habitación 'room2').
+2026-11-09T16:40:52.927-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room3/status/temperature:0' (habitación 'room3').
+2026-11-09T16:40:52.929-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room1/status/temperature:0' (habitación 'room1').
+2026-11-09T16:40:53.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:40:53.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:40:53.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:40:53.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:40:53.556-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:41:07.581-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 2/3 | potencia 1.80 de 3.80 kW | {CALEFACCIONANDO=[room2, room3], SATISFECHA=[room1]}
+2026-11-09T16:41:37.581-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 2/3 | potencia 1.80 de 3.80 kW | {CALEFACCIONANDO=[room2, room3], SATISFECHA=[room1]}
+2026-11-09T16:41:37.615-03:00  INFO 1 --- [http-nio-8080-exec-3] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:41:37.636-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-4-holgado-s1' aplicado (4 habitaciones).
+2026-11-09T16:41:37.637-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-4-holgado-s1': contratada 5.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 4
+2026-11-09T16:41:37.638-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:41:37.638-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:41:37.639-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:41:37.639-03:00  INFO 1 --- [http-nio-8080-exec-5] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:41:37.642-03:00  INFO 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : Suscrito a 'ht-sim-room4/status/temperature:0' (habitación 'room4').
+2026-11-09T16:41:37.648-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-4-holgado-s1': contratada 5.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 4
+2026-11-09T16:41:37.648-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:41:37.649-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:41:37.649-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:41:37.650-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:41:37.651-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:41:37.651-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SIN_LECTURA)
+2026-11-09T16:41:37.652-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:41:37.655-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') está OFF y se creía ON: se corrige.
+2026-11-09T16:41:37.658-03:00  WARN 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') está OFF y se creía ON: se corrige.
+2026-11-09T16:41:37.665-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:41:37.669-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:41:38.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:41:38.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> ON (CALEFACCIONANDO)
+2026-11-09T16:41:38.551-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:41:38.555-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> ON
+2026-11-09T16:42:07.652-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 4/4 | potencia 4.00 de 5.00 kW | {CALEFACCIONANDO=[room1, room2, room3, room4]}
+2026-11-09T16:42:17.551-03:00  INFO 1 --- [control-temporizador] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (LECTURA_VENCIDA)
+2026-11-09T16:42:17.555-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> OFF
+2026-11-09T16:42:37.651-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 3/4 | potencia 3.10 de 5.00 kW | {CALEFACCIONANDO=[room1, room3, room4], LECTURA_VENCIDA=[room2]}
+2026-11-09T16:43:02.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:43:02.552-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:43:07.651-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 2/4 | potencia 1.90 de 5.00 kW | {CALEFACCIONANDO=[room3, room4], SATISFECHA=[room1], LECTURA_VENCIDA=[room2]}
+2026-11-09T16:43:15.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SATISFECHA)
+2026-11-09T16:43:15.551-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') -> OFF
+2026-11-09T16:43:27.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SATISFECHA)
+2026-11-09T16:43:27.551-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> OFF
+2026-11-09T16:43:37.651-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 0/4 | potencia 0.00 de 5.00 kW | {SATISFECHA=[room1, room3, room4], LECTURA_VENCIDA=[room2]}
+2026-11-09T16:43:37.686-03:00  INFO 1 --- [http-nio-8080-exec-10] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:43:37.709-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.i.e.inventario.InventarioService   : Inventario 'gen-4-limitante-s1' aplicado (4 habitaciones).
+2026-11-09T16:43:37.710-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-4-limitante-s1': contratada 2.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 4
+2026-11-09T16:43:37.710-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:43:37.711-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:43:37.711-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:43:37.712-03:00  INFO 1 --- [http-nio-8080-exec-2] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:43:37.721-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Sitio aplicado 'gen-4-limitante-s1': contratada 2.0 kW, punta 17:00-23:00 HABILES, zona America/Montevideo, habitaciones: 4
+2026-11-09T16:43:37.722-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room1': esperada 20.3 °C, 1.2 kW, switch 'sw-sim-room1'
+2026-11-09T16:43:37.722-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room2': esperada 21.8 °C, 0.9 kW, switch 'sw-sim-room2'
+2026-11-09T16:43:37.723-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room3': esperada 22.1 °C, 0.9 kW, switch 'sw-sim-room3'
+2026-11-09T16:43:37.723-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  :   habitación 'room4': esperada 20.4 °C, 1.0 kW, switch 'sw-sim-room4'
+2026-11-09T16:43:37.724-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.e.switches.ClienteSwitchRest     : Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de respuesta.
+2026-11-09T16:43:37.725-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SIN_LECTURA)
+2026-11-09T16:43:37.726-03:00  INFO 1 --- [http-nio-8080-exec-4] u.e.u.i.engine.control.ControlService    : Control INICIADO: fechaHora=2026-11-03T13:00:00Z (martes 2026-11-03 10:00:00) factorTiempo=60.0 zona=America/Montevideo
+2026-11-09T16:43:38.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> ON (CALEFACCIONANDO)
+2026-11-09T16:43:38.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:43:38.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:43:38.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room4' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:43:38.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> ON
+2026-11-09T16:44:07.726-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 10:30:00 | ON 1/4 | potencia 1.20 de 2.00 kW | {CALEFACCIONANDO=[room1], SIN_POTENCIA_DISPONIBLE=[room2, room3, room4]}
+2026-11-09T16:44:08.235-03:00 ERROR 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : No se pudo consultar el switch 'sw-sim-room2' (habitación 'room2'); se reintenta: Switch 'sw-sim-room2' no disponible: GET http://host.docker.internal:9090/switches/sw-sim-room2 -> I/O error on GET request for "http://host.docker.internal:9090/switches/sw-sim-room2": Read timed out
+2026-11-09T16:44:08.739-03:00 ERROR 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : No se pudo consultar el switch 'sw-sim-room3' (habitación 'room3'); se reintenta: Switch 'sw-sim-room3' no disponible: GET http://host.docker.internal:9090/switches/sw-sim-room3 -> I/O error on GET request for "http://host.docker.internal:9090/switches/sw-sim-room3": Read timed out
+2026-11-09T16:44:09.242-03:00 ERROR 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : No se pudo consultar el switch 'sw-sim-room4' (habitación 'room4'); se reintenta: Switch 'sw-sim-room4' no disponible: GET http://host.docker.internal:9090/switches/sw-sim-room4 -> I/O error on GET request for "http://host.docker.internal:9090/switches/sw-sim-room4": Read timed out
+2026-11-09T16:44:09.746-03:00 ERROR 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : No se pudo consultar el switch 'sw-sim-room1' (habitación 'room1'); se reintenta: Switch 'sw-sim-room1' no disponible: GET http://host.docker.internal:9090/switches/sw-sim-room1 -> I/O error on GET request for "http://host.docker.internal:9090/switches/sw-sim-room1": Read timed out
+2026-11-09T16:44:25.736-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') volvió a responder.
+2026-11-09T16:44:25.739-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') volvió a responder.
+2026-11-09T16:44:26.735-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room4' (habitación 'room4') volvió a responder.
+2026-11-09T16:44:27.737-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') volvió a responder.
+2026-11-09T16:44:37.726-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:00:00 | ON 1/4 | potencia 1.20 de 2.00 kW | {CALEFACCIONANDO=[room1], SIN_POTENCIA_DISPONIBLE=[room2, room3, room4]}
+2026-11-09T16:45:02.547-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SIN_POTENCIA_DISPONIBLE)
+2026-11-09T16:45:02.548-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room2' -> ON (CALEFACCIONANDO)
+2026-11-09T16:45:02.549-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room3' -> ON (CALEFACCIONANDO)
+2026-11-09T16:45:02.550-03:00  INFO 1 --- [MQTT Call: ecowarm-gr-9b5788e4ec4e] u.e.u.iiss.engine.adaptador.CoreAdapter  : Decisión: habitación 'room1' -> OFF (SATISFECHA)
+2026-11-09T16:45:02.553-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room1' (habitación 'room1') -> OFF
+2026-11-09T16:45:02.557-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room2' (habitación 'room2') -> ON
+2026-11-09T16:45:02.560-03:00  INFO 1 --- [switches] u.e.u.iiss.engine.adaptador.CoreAdapter  : Switch 'sw-sim-room3' (habitación 'room3') -> ON
+2026-11-09T16:45:07.726-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 11:30:00 | ON 2/4 | potencia 1.80 de 2.00 kW | {CALEFACCIONANDO=[room2, room3], SATISFECHA=[room1], SIN_POTENCIA_DISPONIBLE=[room4]}
+2026-11-09T16:45:37.726-03:00  INFO 1 --- [control-temporizador] u.e.u.i.engine.control.ControlService    : Resumen: hora del control martes 2026-11-03 12:00:00 | ON 2/4 | potencia 1.80 de 2.00 kW | {CALEFACCIONANDO=[room2, room3], SATISFECHA=[room1], SIN_POTENCIA_DISPONIBLE=[room4]}
+2026-11-09T16:45:37.786-03:00  INFO 1 --- [http-nio-8080-exec-7] u.e.u.i.engine.control.ControlService    : Control DETENIDO: no se comandan más switches.
+2026-11-09T16:45:38.370-03:00 ERROR 1 --- [MQTT Rec: ecowarm-gr-9b5788e4ec4e] u.e.u.i.engine.mqtt.LecturaMqttListener  : Conexión perdida con el broker MQTT (tcp://host.docker.internal:1884): Connection lost. Reintento en 5 s.
+2026-11-09T16:45:43.374-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
+2026-11-09T16:45:48.377-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
+2026-11-09T16:45:53.381-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
+2026-11-09T16:45:58.385-03:00 ERROR 1 --- [mqtt-conexion] u.e.u.i.engine.mqtt.LecturaMqttListener  : No se pudo conectar al broker MQTT en tcp://host.docker.internal:1884: Unable to connect to server. Reintento en 5 s.
