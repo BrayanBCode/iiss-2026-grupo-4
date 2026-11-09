@@ -82,6 +82,12 @@ class DecidirTest {
 
     private static List<Decision> decidirCon(
             Core core, Sitio sitio, Instant ahora, Hab... habitaciones) {
+        return decidirCon(core, sitio, ahora, null, habitaciones);
+    }
+
+    /** Con {@code anticipacion} null usa la de los parámetros; si no, la ampliada (T39). */
+    private static List<Decision> decidirCon(
+            Core core, Sitio sitio, Instant ahora, Duration anticipacion, Hab... habitaciones) {
         List<ConfiguracionHabitacion> config =
                 Arrays.stream(habitaciones)
                         .map(
@@ -94,7 +100,10 @@ class DecidirTest {
             estados.put(
                     h.id(), new EstadoHabitacion(h.id(), h.actual(), h.lectura(), h.encendida()));
         }
-        return core.decidir(sitio, config, estados, ahora);
+        if (anticipacion == null) {
+            return core.decidir(sitio, config, estados, ahora);
+        }
+        return core.decidir(sitio, config, estados, ahora, anticipacion);
     }
 
     private static List<String> prendidas(List<Decision> decisiones) {
@@ -600,6 +609,44 @@ class DecidirTest {
                                             viernes(23, 59),
                                             leidasEn(viernes(23, 59))))
                             .size());
+        }
+
+        @Test
+        @DisplayName(
+                "La anticipación se puede ampliar en cada llamada (switches lentos, T39): con 15"
+                        + " min a las 16:50 ya corta; una menor que la configurada no la achica")
+        void anticipacionAmpliada_cortaAntesYNuncaMenos() {
+            Core anticipado =
+                    new Core(
+                            new MayorDeficitPrimero(),
+                            new ParametrosControl(
+                                    0.3, Duration.ofMinutes(10), -40, 85, Duration.ofMinutes(1)));
+            Sitio sitio = new Sitio("sitio-test", 10.0, PUNTA);
+
+            assertEquals(Duration.ofMinutes(1), anticipado.anticipacionPunta());
+            assertEquals(
+                    List.of("a", "b", "c"),
+                    prendidas(
+                            decidirCon(anticipado, sitio, lunes(16, 50), leidasEn(lunes(16, 50)))));
+            List<Decision> ampliada =
+                    decidirCon(
+                            anticipado,
+                            sitio,
+                            lunes(16, 50),
+                            Duration.ofMinutes(15),
+                            leidasEn(lunes(16, 50)));
+            assertEquals(List.of(), prendidas(ampliada));
+            assertEquals(Motivo.TARIFA_PUNTA, motivoDe(ampliada, "a"));
+            // Más chica que la configurada: rige la configurada (16:59 + 1 min ya es punta).
+            assertEquals(
+                    List.of(),
+                    prendidas(
+                            decidirCon(
+                                    anticipado,
+                                    sitio,
+                                    lunes(16, 59),
+                                    Duration.ZERO,
+                                    leidasEn(lunes(16, 59)))));
         }
     }
 

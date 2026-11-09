@@ -77,9 +77,23 @@ class CoreAdapterTest {
         final Set<String> caidos = new HashSet<>();
         final Set<String> noPrenden = new HashSet<>(); // aceptan el ON pero siguen apagados
         final Set<String> rechazanOn = new HashSet<>(); // el ON da error; consultarlos anda
+        // Aceptan el comando y responden lo pedido, pero no cambian: la consulta dice la verdad
+        // (S3, T40).
+        final Set<String> mienten = new HashSet<>();
+        long demoraMs; // lo que tarda cada pedido, en tiempo real (S1, T39)
 
         final List<String> intentos = new ArrayList<>(); // todo pedido, responda o no
         double factor = 1;
+
+        private void demorar() {
+            if (demoraMs > 0) {
+                try {
+                    Thread.sleep(demoraMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
 
         @Override
         public void ajustarAlFactor(double factorTiempo) {
@@ -89,6 +103,7 @@ class CoreAdapterTest {
         @Override
         public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
             intentos.add(idSwitch + ":" + accion);
+            demorar();
             if (caidos.contains(idSwitch)) {
                 throw new SwitchNoDisponibleException(idSwitch, "caído", null);
             }
@@ -96,6 +111,9 @@ class CoreAdapterTest {
                 throw new SwitchNoDisponibleException(idSwitch, "500", null);
             }
             comandos.add(idSwitch + ":" + accion);
+            if (mienten.contains(idSwitch)) {
+                return accion == Accion.ON ? EstadoSwitch.ON : EstadoSwitch.OFF;
+            }
             if (accion == Accion.ON && noPrenden.contains(idSwitch)) {
                 estado.put(idSwitch, EstadoSwitch.OFF);
                 return EstadoSwitch.OFF;
@@ -108,6 +126,7 @@ class CoreAdapterTest {
         @Override
         public EstadoSwitch consultar(String url, String idSwitch) {
             intentos.add(idSwitch + ":?");
+            demorar();
             if (caidos.contains(idSwitch)) {
                 throw new SwitchNoDisponibleException(idSwitch, "caído", null);
             }
@@ -754,5 +773,141 @@ class CoreAdapterTest {
     void sincronizar_ajustaLosTimeoutsAlFactor() {
         sincronizar(lunes(10, 0), 60);
         assertEquals(60, switches.factor, 1e-9);
+    }
+
+    // ------------------------------------------------------------------
+    // Casos extremos (T38–T40)
+    // ------------------------------------------------------------------
+
+    private List<String> avisos(String texto) {
+        return logAdaptador.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(m -> m.contains(texto))
+                .toList();
+    }
+
+    @Test
+    @DisplayName(
+            "Sacar del sitio una habitación con el switch encendido (A1, T38): no se le manda nada"
+                    + " porque ya no es del sitio vigente, pero queda avisado en el log y en el"
+                    + " diagnóstico")
+    void quitarHabitacionEncendida_noSeComandaYSeAvisa() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(10, 0)); // ON
+        switches.intentos.clear();
+
+        adaptador.configurar(sitio(3.7), List.of(DORMITORIO));
+        adaptador.reconciliar();
+
+        assertFalse(
+                switches.intentos.stream().anyMatch(i -> i.startsWith("sw-living")),
+                "comandó o consultó un switch que salió del sitio: " + switches.intentos);
+        assertEquals(List.of("sw-living"), adaptador.switchesFueraDelSitio());
+        assertEquals(1, avisos("sw-living").size(), "falta el aviso en el log");
+
+        // Si vuelve al sitio, se lo controla de nuevo y deja de figurar como fuera del sitio.
+        adaptador.configurar(sitio(3.7), List.of(LIVING, DORMITORIO));
+        assertEquals(List.of(), adaptador.switchesFueraDelSitio());
+    }
+
+    @Test
+    @DisplayName("Sacar del sitio una habitación con el switch apagado no deja ningún aviso")
+    void quitarHabitacionApagada_noAvisa() {
+        configurarEIniciar(); // las dos OFF (sin lecturas)
+
+        adaptador.configurar(sitio(3.7), List.of(DORMITORIO));
+
+        assertEquals(List.of(), adaptador.switchesFueraDelSitio());
+        assertEquals(List.of(), avisos("sw-living"));
+    }
+
+    @Test
+    @DisplayName(
+            "Si una habitación encendida cambia de switch, el viejo queda avisado como fuera del"
+                    + " sitio y el nuevo recibe la decisión")
+    void cambiarDeSwitchEncendido_elViejoQuedaAvisado() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(10, 0)); // ON
+        switches.comandos.clear();
+
+        adaptador.configurar(
+                sitio(3.7),
+                List.of(
+                        new HabitacionControlada("living", 21.0, 1.2, "sw-nuevo", URL),
+                        DORMITORIO));
+
+        assertEquals(List.of("sw-nuevo:ON"), switches.comandos);
+        assertEquals(List.of("sw-living"), adaptador.switchesFueraDelSitio());
+    }
+
+    @Test
+    @DisplayName(
+            "Un switch que acepta el OFF pero la consulta lo sigue mostrando ON (S3, T40): tras 3"
+                    + " correcciones seguidas se lo deja de comandar durante una espera, en vez de"
+                    + " repetir el OFF en cada reconciliación")
+    void switchQueMienteConElOff_seDejaDeComandarUnaEspera() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(10, 0)); // ON
+        switches.mienten.add("sw-living");
+        leer("living", 25.0, lunes(10, 1)); // OFF: lo acepta pero sigue ON
+
+        for (int i = 0; i < 6; i++) {
+            adaptador.reconciliar();
+        }
+
+        long offs = switches.comandos.stream().filter("sw-living:OFF"::equals).count();
+        assertEquals(3, offs, "comandos: " + switches.comandos);
+        assertEquals(1, avisos("no obedece").size(), "falta el aviso en el log");
+        // Para la contratada sigue contando como posiblemente encendido.
+        assertEquals(EstadoSwitch.ON, adaptador.estados().get(0).estadoSwitch());
+
+        // Pasada la espera se vuelve a intentar.
+        relojEsperas.ahora = relojEsperas.ahora.plusSeconds(60);
+        adaptador.reconciliar();
+        assertEquals(
+                4,
+                switches.comandos.stream().filter("sw-living:OFF"::equals).count(),
+                "comandos: " + switches.comandos);
+    }
+
+    @Test
+    @DisplayName(
+            "Un switch que acepta el ON pero la consulta lo sigue mostrando OFF: tras 3"
+                    + " correcciones cede su potencia como uno que no prende (A17)")
+    void switchQueMienteConElOn_cedeLaPotencia() {
+        configurarEIniciar();
+        switches.mienten.add("sw-living");
+        leer("living", 15.0, lunes(10, 0)); // ON: lo acepta pero sigue OFF
+
+        for (int i = 0; i < 6; i++) {
+            adaptador.reconciliar();
+        }
+
+        long ons = switches.comandos.stream().filter("sw-living:ON"::equals).count();
+        assertEquals(3, ons, "comandos: " + switches.comandos);
+        assertEquals("SWITCH_NO_RESPONDE", adaptador.estados().get(0).motivo());
+    }
+
+    @Test
+    @DisplayName(
+            "Con switches lentos la punta se corta antes (S1, T39): a ×600 con 2 switches de"
+                    + " 200 ms, a las 16:55 ya se corta para que los OFF lleguen antes de las"
+                    + " 17:00")
+    void switchesLentos_amplianLaAnticipacionDeLaPunta() {
+        configurarEIniciar();
+        sincronizar(lunes(16, 50), 600);
+        switches.demoraMs = 200;
+        leer("living", 15.0, lunes(16, 50));
+        leer("dormitorio", 15.0, lunes(16, 50));
+        assertEquals(Accion.ON, adaptador.estados().get(0).decision());
+        assertEquals(Accion.ON, adaptador.estados().get(1).decision());
+
+        // 2 OFF de 0,2 s reales a ×600 son 4 min de control; con el margen de 1,5, 6 min: a las
+        // 16:55 ya se corta. Sin switches lentos (este core no tiene anticipación) no se cortaría.
+        tick(lunes(16, 55));
+
+        assertEquals(Accion.OFF, adaptador.estados().get(0).decision());
+        assertEquals("TARIFA_PUNTA", adaptador.estados().get(0).motivo());
     }
 }
