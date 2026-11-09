@@ -1,4 +1,4 @@
-# EcoWarm — controlador de calefacción (grupo 4), Iteración 5.
+# EcoWarm — controlador de calefacción (grupo 4), Iteración 6 (versión final).
 #
 # Levanta SOLO el controlador ("engine"). El entorno —broker MQTT, termostatos,
 # switches e inventario— lo pone el simulador de la cátedra o el ecowarm-check,
