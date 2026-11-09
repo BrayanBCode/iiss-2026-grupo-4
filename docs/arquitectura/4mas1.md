@@ -840,7 +840,8 @@ modules/
                    │                escalado con el factor)
                    ├── inventario/  ValidadorInventarioTest, RepositorioInventarioTest,
                    │                InventarioEjemplo
-                   ├── mqtt/        PayloadTermostatoTest
+                   ├── mqtt/        PayloadTermostatoTest, LecturaMqttListenerTest
+                   │                (identificador del cliente MQTT)
                    ├── registro/    RegistroEntornoTest
                    ├── rest/        ApiEstandarTest
                    └── integracion/

@@ -1,4 +1,4 @@
-# mvn spotless:check — rama iter6/t11-vista-fisica (sobre implementacion6), 2026-11-03 23:48
+# mvn spotless:check — rama iter6/t30-cierre (sobre implementacion6, commit 748ce87), 2026-11-09 01:57
 # Java: java version "25.0.4" 2026-07-21 LTS
 
 [INFO] Scanning for projects...
@@ -30,16 +30,16 @@
 [INFO] --------------------------------[ jar ]---------------------------------
 [INFO] 
 [INFO] --- spotless:2.46.1:check (default-cli) @ engine ---
-[INFO] Spotless.Java is keeping 53 files clean - 0 needs changes to be clean, 0 were already clean, 53 were skipped because caching determined they were already clean
+[INFO] Spotless.Java is keeping 58 files clean - 0 needs changes to be clean, 0 were already clean, 58 were skipped because caching determined they were already clean
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary for ecowarm-parent 1.0.0:
 [INFO] 
-[INFO] ecowarm-parent ..................................... SUCCESS [  0.410 s]
-[INFO] core ............................................... SUCCESS [  0.181 s]
-[INFO] engine ............................................. SUCCESS [  0.076 s]
+[INFO] ecowarm-parent ..................................... SUCCESS [  0.404 s]
+[INFO] core ............................................... SUCCESS [  0.198 s]
+[INFO] engine ............................................. SUCCESS [  0.078 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  0.973 s
-[INFO] Finished at: 2026-11-03T23:48:50-03:00
+[INFO] Total time:  0.993 s
+[INFO] Finished at: 2026-11-08T22:57:41-03:00
 [INFO] ------------------------------------------------------------------------

@@ -40,10 +40,10 @@ en [limitaciones y roadmap](roadmap.md).
 | D6 | El estado de ejecución lo administra `CoreAdapter` | Vigente |
 | D7 | Al re-sincronizar, las lecturas vencidas se olvidan | Vigente |
 | D8 | Una lectura con `ts` más viejo que la vigencia se descarta y se cuenta | Vigente |
-| D9 | Qué hace DETENER con los switches | A decidir (T22) |
-| D10 | Qué pasa al reiniciar el contenedor | A decidir (T22) |
-| D11 | Contar y loguear las temperaturas fuera de rango (mejora de T20) | Vigente (T29) |
-| D12 | Congelamiento antes de la aceptación | A decidir (T22) |
+| D9 | DETENER deja los switches como están; apagar al detener queda configurable en el roadmap | Vigente (T22) |
+| D10 | Tras reiniciar el contenedor, el control arranca DETENIDO hasta el próximo INICIAR | Vigente (T22, L2) |
+| D11 | Contar y loguear las temperaturas fuera de rango (mejora de T20) | Vigente (T29, confirmada en T22) |
+| D12 | Después de T13 solo entran correcciones | Vigente (T22) |
 
 ---
 
@@ -343,17 +343,34 @@ en [limitaciones y roadmap](roadmap.md).
 - **Alternativas.** Un rango "razonable" para interiores, más angosto que el del sensor: cambiaría
   qué se acepta y no solo qué se ve, así que queda en el roadmap (R4).
 - **Consecuencias.** No cambia ninguna decisión del control. Un sensor roto se ve en el log y en
-  `/diagnostico`. Lo prueba `PerdidaMensajesTest.lecturaFueraDeRango`.
+  `/diagnostico`. Lo prueba `PerdidaMensajesTest.lecturaFueraDeRango`. El equipo la confirmó en T22.
 
-### D9, D10 y D12 · A decidir en la reunión de planning (T22)
+### D9 · DETENER deja los switches como están
 
-| Id | Qué hay que decidir | Hoy | Propuesta |
-|---|---|---|---|
-| D9 | Qué hace DETENER con los switches | Los deja como están (el §5.2 no exige apagar) | Configurable, por defecto como hoy; el default lo valida el docente |
-| D10 | Qué pasa al reiniciar el contenedor | Arranca DETENIDO hasta el próximo INICIAR | Mantenerlo y dejarlo como limitación (L2) |
-| D12 | Congelamiento antes de la aceptación | — | Después de T13 solo entran correcciones |
+- **Contexto.** El §5.2 no dice qué hacer con los switches al recibir DETENER. Apagarlos deja la casa
+  sin calefacción si el entorno se detiene por un problema propio; no apagarlos deja calefactores
+  prendidos sin control.
+- **Decisión.** Se mantiene el comportamiento de siempre: DETENER deja de comandar y los switches
+  quedan como estaban (T22).
+- **Alternativas.** Apagar todo al detener, o hacerlo configurable (`control.al-detener=DEJAR|APAGAR`).
+  La opción configurable, con el default actual, queda como paso R1 del roadmap.
+- **Consecuencias.** Es la limitación L1. Lo prueba `ArranqueParadaTest.detenerDejaDeComandar`.
 
-Cuando se decidan, cada una pasa a tener su propia sección con el mismo formato.
+### D10 · Tras reiniciar el contenedor, el control arranca DETENIDO
+
+- **Contexto.** El inventario sobrevive al reinicio (A10), pero la fecha, el factor y el instante del
+  INICIAR no se guardan.
+- **Decisión.** Después de un reinicio el control arranca DETENIDO y espera el próximo INICIAR del
+  entorno (T22). Se documenta como limitación.
+- **Alternativas.** Guardar el reloj junto al inventario y retomar solo (paso R2 del roadmap).
+- **Consecuencias.** Es la limitación L2. Lo fija `ApiEstandarTest.controlArrancaDetenido`.
+
+### D12 · Después de T13 solo entran correcciones
+
+- **Decisión.** Desde la validación con el simulador (T13) hasta la entrega solo se mergean
+  correcciones de problemas encontrados, no funcionalidades nuevas (T22).
+- **Consecuencias.** Lo que entró después de la corrida del 2026-11-06 (T31–T37) son correcciones
+  de comportamientos vistos en el simulador oficial o en las pruebas de estrés.
 
 ## Cómo agregar una decisión
 

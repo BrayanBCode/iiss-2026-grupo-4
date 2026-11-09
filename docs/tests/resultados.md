@@ -16,15 +16,21 @@ Los reportes detallados quedan en `modules/<módulo>/target/surefire-reports/` y
 del core en `modules/core/target/site/jacoco/index.html` (copia en
 [`docs/calidad/cobertura/`](../calidad/cobertura/README.md)).
 
-## Última ejecución — 2026-11-03 (rama `iter6/t11-vista-fisica`, sobre `implementacion6`, Java 25)
+## Última ejecución — 2026-11-08 (`implementacion6` en `36843a5`, con todo el código de la iteración 6, Java 25)
 
-**Resultado: BUILD SUCCESS — 239 tests, 0 fallas, 0 errores, 0 omitidos** (`mvn clean verify`).
+**Resultado: BUILD SUCCESS — 281 tests, 0 fallas, 0 errores, 0 omitidos** (`mvn clean verify`).
 
 | Módulo | Tests | Fallas |
 |---|---|---|
-| `core` | 54 | 0 |
-| `engine` | 185 | 0 |
-| **Total** | **239** | **0** |
+| `core` | 56 | 0 |
+| `engine` | 225 | 0 |
+| **Total** | **281** | **0** |
+
+Respecto de la ejecución anterior (2026-11-03: 54 + 185 = 239) se sumaron 42 tests, todos de las
+correcciones de la iteración 6: el corte de la punta anticipado (T24e), el `ts` en dos escalas
+(T24b), las respuestas de switch y de termostato fuera de contrato (T24d, T31, T33), el switch que no
+prende (T34), el cliente MQTT 3.1.1 (T35), la reconciliación escalada (T36), el switch colgado y
+las pruebas de estrés (T37) y el sitio que crece y se achica (T32).
 
 **Por qué el core tiene menos tests que en la iteración 5 (116).** Con el core sin estado (T4/T5)
 quedó solo la función pura `decidir` y el modelo; los tests de estímulos que eran `CoreTest` (lectura,
@@ -32,7 +38,7 @@ tick, configuración, INICIAR) pasaron al engine como `CoreAdapterEstimulosTest`
 manejo de estímulos que verifican: esos casos no se perdieron, cambiaron de módulo. `CoreClientTest`
 sí se borró, junto con la fachada `CoreClient` que probaba.
 
-### Módulo `core` (TDD de la función de decisión) — 54 tests
+### Módulo `core` (TDD de la función de decisión) — 56 tests
 
 | Clase de test | Grupo | Tests | Fallas |
 |---|---|---|---|
@@ -40,22 +46,22 @@ sí se borró, junto con la fachada `CoreClient` que probaba.
 | `DecidirTest` | Reparto de potencia | 8 | 0 |
 | `DecidirTest` | Criterio de prioridad | 5 | 0 |
 | `DecidirTest` | Histéresis | 4 | 0 |
-| `DecidirTest` | Tarifa punta | 7 | 0 |
+| `DecidirTest` | Tarifa punta (con el corte anticipado, T24e) | 9 | 0 |
 | `DecidirTest` | Lecturas vencidas | 5 | 0 |
 | `DecidirTest` | Lectura válida y situación incompleta | 4 | 0 |
 | `DecidirTest` | Tope de potencia | 1 | 0 |
 | `MayorDeficitPrimeroTest` | criterio de prioridad | 9 | 0 |
 | `ModeloTest` | validaciones del modelo | 5 | 0 |
-| **Total** | | **54** | **0** |
+| **Total** | | **56** | **0** |
 
 Cobertura (JaCoCo) del módulo `core` — el build exige ≥ 85 % de líneas y de ramas:
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 148 | 148 | 100 % |
-| Ramas | 79 | 84 | 94,0 % |
+| Líneas | 157 | 157 | 100 % |
+| Ramas | 85 | 90 | 94,4 % |
 
-### Módulo `engine` — 185 tests
+### Módulo `engine` — 225 tests
 
 Estímulos (antes `CoreTest`, en el core):
 
@@ -69,35 +75,40 @@ Estímulos (antes `CoreTest`, en el core):
 | `CoreAdapterEstimulosTest` | Histéresis | 5 | 0 |
 | `CoreAdapterEstimulosTest` | Lecturas defectuosas | 4 | 0 |
 | `CoreAdapterEstimulosTest` | Lecturas vencidas (termostato caído) | 6 | 0 |
-| `CoreAdapterEstimulosTest` | Reloj del control y re-sincronización | 6 | 0 |
+| `CoreAdapterEstimulosTest` | Reloj del control y re-sincronización | 7 | 0 |
 | `CoreAdapterEstimulosTest` | Invariantes | 3 | 0 |
 
 Unitarios y de API:
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON, estado de ejecución, lecturas descartadas | 26 | 0 |
+| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON, estado de ejecución, lecturas descartadas; el switch que no prende cede su potencia (T34); los sanos antes que los que fallan y los timeouts ajustados al factor (T37) | 31 | 0 |
+| `RelojControlTest` | reloj del control con aceleración (§5.2), conversión del `ts` en hora real (T8b, D8) y `ts` en hora del control (T24b) | 15 | 0 |
 | `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM, INICIAR sin offset en hora de Montevideo) | 14 | 0 |
-| `RelojControlTest` | reloj del control con aceleración (§5.2) y conversión del `ts` en hora real (T8b, D8) | 12 | 0 |
 | `ValidadorInventarioTest` | reglas de consistencia del §1 | 10 | 0 |
-| `PayloadTermostatoTest` | mensaje MQTT del termostato (§2) | 5 | 0 |
+| `ClienteSwitchRestTest` | respuesta del switch leída como texto (T24d), fuera de contrato (T31) y timeout escalado con el factor (T37) | 9 | 0 |
+| `PayloadTermostatoTest` | mensaje MQTT del termostato (§2), también fuera de contrato: `tC` o `ts` como texto, `ts` en milisegundos (T33) | 6 | 0 |
+| `RegistroEntornoTest` | broker informado por el registro (§6) y aviso si el entorno no puede alcanzar la `baseUrl` (T24a) | 6 | 0 |
 | `RepositorioInventarioTest` | persistencia del inventario | 4 | 0 |
-| `ControlServiceTest` | período del tick escalado por el factor y su mínimo (T12) | 2 | 0 |
-| `RegistroEntornoTest` | broker informado por el registro (§6) | 2 | 0 |
+| `ControlServiceTest` | períodos del tick (T12) y de la reconciliación (T36) escalados por el factor, con su mínimo | 3 | 0 |
+| `LecturaMqttListenerTest` | identificador del cliente MQTT de 23 caracteres como máximo (T35) | 1 | 0 |
 
 De integración (broker MQTT embebido + switches HTTP falsos):
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
 | `ArranqueParadaTest` | distintas situaciones iniciales; qué se hace con la calefacción al iniciar y al detener | 12 | 0 |
+| `TermostatoCaidoTest` | un termostato deja de publicar; re-INICIAR no revive lecturas vencidas (D7), también hacia atrás | 8 | 0 |
 | `ControlCargaTest` | la carga total limita / no limita; nunca se supera la potencia contratada; franja punta en hora de Montevideo | 7 | 0 |
 | `CambioConfiguracionTest` | cambios de configuración con el control en ejecución | 7 | 0 |
-| `TermostatoCaidoTest` | un termostato deja de publicar; re-INICIAR no revive lecturas vencidas (D7) | 7 | 0 |
-| `PerdidaMensajesTest` | pérdida de mensajes; `ts` fuera de orden o vencido se descarta y se cuenta | 6 | 0 |
+| `PerdidaMensajesTest` | pérdida de mensajes; `ts` fuera de orden, vencido o temperatura fuera de rango se descartan y se cuentan (D11) | 6 | 0 |
 | `FallaSwitchTest` | switch que no responde o falla; sin superar la contratada si falla un OFF | 5 | 0 |
-| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera | 4 | 0 |
-| `TiempoAceleradoTest` | a ×600 el corte y la restitución de la punta llegan en menos de 1 s real (T12) | 2 | 0 |
-| **Total engine** | | **185** | **0** |
+| `FallaBrokerMqttTest` | el broker MQTT cae y se recupera, también al INICIAR y con el `ts` en hora del control | 5 | 0 |
+| `EstresTest` | 3 switches colgados cruzando la punta a ×60, ×600 y ×3600, 50 habitaciones y fallas combinadas (T37) | 5 | 0 |
+| `EscenariosSimuladorTest` | escenarios como los corre el simulador (T25) y crecer de 5 a 20 habitaciones y achicar (T32) | 4 | 0 |
+| `TiempoAceleradoTest` | a ×600 el corte y la restitución de la punta llegan en menos de 1 s real (T12); re-INICIAR con otro factor (T17) | 4 | 0 |
+| `ReconciliacionEscaladaTest` | un switch prendido a mano a ×60 vuelve a OFF en segundos reales (T36) | 2 | 0 |
+| **Total engine** | | **225** | **0** |
 
 Los mensajes `ERROR` del log de la corrida son esperados: ver la última sección.
 

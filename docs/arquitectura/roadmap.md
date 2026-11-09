@@ -41,8 +41,9 @@ Cada limitación tiene un id (`L…`) que el roadmap usa para decir qué resuelv
 | L13 | **Persistencia en un archivo JSON** (`./data/inventario.json`). Sin historial de lecturas ni de decisiones. | No hay datos para analizar consumo ni para auditar por qué se prendió algo hace una semana. | El log en INFO deja sitio aplicado, decisiones, descartes y un resumen cada 30 s (4+1 §3.2). `/diagnostico` muestra el estado actual. |
 | L14 | **Sin métricas ni health check estándar** (Actuator, Prometheus). | El monitoreo es leyendo el log o consultando `/diagnostico`. | `/diagnostico` informa control, MQTT, registro, decisión y motivo por habitación y lecturas descartadas. |
 | L15 | **`CoreAdapter` concentra estado, decisión y red** (unas 700 líneas). | Es la clase más difícil de cambiar; un error ahí afecta a todo el control. | Tests unitarios por estímulo y de switches, más los de integración. Separarla es el paso R6. |
-| L16 | **La cobertura solo se exige en el core** (JaCoCo ≥ 85 %). En el engine no se mide. | Un cambio en el engine puede quedar sin tests sin que la CI lo note. | El engine tiene tests unitarios y 8 clases de integración con broker y switches reales en el proceso. |
+| L16 | **La cobertura solo se exige en el core** (JaCoCo ≥ 85 %). En el engine no se mide. | Un cambio en el engine puede quedar sin tests sin que la CI lo note. | El engine tiene tests unitarios y 11 clases de integración con broker y switches reales en el proceso. |
 | L17 | **Sin tests de mutación (PIT).** | La cobertura alta del core no garantiza que los tests detecten errores. | Diferido por decisión del equipo. |
+| L19 | **La validación con el simulador se hizo en la misma máquina.** No hay evidencia de una corrida en la red del laboratorio ni con los escenarios nuevos del docente. | En otra red pueden aparecer latencias o problemas de direcciones (`CONTROLADOR_BASE_URL`, broker) que en la misma máquina no se ven. | `ecowarm-run` con los 9 escenarios firmados pasa 9 de 9 sobre la versión final ([corrida](../tests/corrida-simulador/2026-11-08-implementacion6/README.md)); `EstresTest` cubre fallas más duras que el simulador. La guía de traspaso explica cómo correr en el laboratorio. |
 
 ---
 
@@ -111,5 +112,7 @@ flowchart LR
 - **La escala del `ts` (D3).** El estándar no la fija. El simulador de la cátedra la mandó en hora
   del control, y el controlador acepta las dos. Si aparece un termostato real, conviene confirmar qué
   escala usa (`RelojControlTest` tiene los dos casos).
+- **Correr en la red del laboratorio (L19).** Es lo primero para confirmar que la versión final
+  funciona fuera de una sola máquina: la [guía de traspaso](../traspaso.md) tiene los pasos.
 - **El estándar de interoperabilidad v2** es un contrato con terceros: cambios como TLS, roles o
   tarifas nuevas (R12, R14) se acuerdan primero ahí.
