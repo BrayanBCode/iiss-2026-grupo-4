@@ -43,3 +43,7 @@ data/
 
 ### Salida de ecowarm-run (se guarda a mano solo README, reporte.md, reporte.json y el log) ###
 ecowarm-reporte/
+
+### Herramientas de la cátedra (las entrega el docente, no se versionan) ###
+ecowarm-check.jar
+ecowarm-run.jar

@@ -4,7 +4,9 @@ Se documenta en forma incremental con la técnica 4+1 de Kruchten. En la **Itera
 presentaron la **vista lógica** y los **diagramas de secuencia** del manejo de eventos. En la
 **Iteración 5** se completa la **vista de procesos** con el manejo de fallas, se agregan los
 escenarios de falla (§2.5 y §2.6) y se actualiza la vista de desarrollo con los tests de
-integración. En la **Iteración 6** se agrega la **vista física** (§6).
+integración. En la **Iteración 6** se agrega la **vista física** (§6) y un diagrama a las vistas de
+procesos (hilos y candados) y de desarrollo (paquetes y dependencias): todas las vistas tienen al
+menos uno.
 
 Tras la revisión docente de la iteración 5 (tarjetas T4, T5, T7 y T7b) las vistas describen el diseño
 actual: el core contiene el modelo y la función pura `decidir`, y el estado del control (situación y
@@ -14,9 +16,9 @@ estado de ejecución) lo guarda `CoreAdapter` en el engine.
 |---|---|---|
 | Lógica | ✅ Iteración 4, actualizada en la 5 (diseño actual, T11a) | §1 |
 | Escenarios (+1): secuencias de eventos | ✅ Iteración 4 + fallas en la 5 (diseño actual, T11a) | §2 |
-| Procesos | ✅ Iteración 5 (diseño actual, T11a) | §3 |
+| Procesos: hilos, candados y pasadas (diagrama) | ✅ Iteración 5, diagrama en la 6 (T41) | §3 |
 | Tiempo del control: relojes, `ts`, vigencia, tick y re-sincronización | ✅ Iteración 5 (T14) | §4 |
-| Desarrollo | ✅ Iteración 5, completada en la 6 (tests actuales, T11) | §5 |
+| Desarrollo: paquetes y dependencias (diagrama), tests | ✅ Iteración 5, completada en la 6 (T11, diagrama T41) | §5 |
 | Física: despliegue en Docker, red del simulador y persistencia | ✅ Iteración 6 (T11) | §6 |
 
 Los diagramas están en Mermaid (GitHub los dibuja).
@@ -642,6 +644,46 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas; primero los sanos y después los que vienen fallando (T37) |
 | `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |
 
+El diagrama muestra qué hilo entra por dónde, en qué orden se toman los candados y dónde se corta la
+espera: el hilo que trae un estímulo deja pedida una pasada y vuelve; solo el hilo `switches` habla
+con los switches, y lo hace sin candado.
+
+```mermaid
+flowchart LR
+    subgraph hilos["Hilos"]
+        tomcat["Tomcat (HTTP)<br/>PUT /sitio, INICIAR, DETENER"]
+        paho["Paho callback<br/>lectura MQTT"]
+        temp["control-temporizador<br/>tick, reconciliación, resumen"]
+        main["main / registro-entorno<br/>arranque y registro §6"]
+        mqttc["mqtt-conexion<br/>conexión y suscripciones"]
+    end
+
+    subgraph candados["Candados: siempre en este orden, nunca al revés"]
+        inv["InventarioService<br/>(valida y persiste)"]
+        cs["ControlService<br/>(reloj del control)"]
+        ca["CoreAdapter<br/>(estado del control + core.decidir)"]
+        inv -- "evento InventarioAplicado (sincrónico)" --> cs
+        cs -- "procesar(estímulo)" --> ca
+    end
+
+    lmq["LecturaMqttListener<br/>(candado propio, solo conexión)"]
+    cola[["cola de pasadas<br/>(a lo sumo una esperando)"]]
+    sw["hilo switches<br/>pasada: sanos primero,<br/>OFF antes que ON"]
+    dev[("switches<br/>§3 / §4")]
+
+    tomcat -- "PUT /sitio" --> inv
+    tomcat -- "INICIAR / DETENER" --> cs
+    paho -- "alRecibirLectura" --> cs
+    temp -- "tick" --> cs
+    temp -- "reconciliar" --> ca
+    main -- "inventario guardado" --> inv
+    mqttc --> lmq
+    ca -- "pide una pasada y vuelve<br/>(no espera la red)" --> cola
+    cola --> sw
+    sw -- "lee y actualiza el estado<br/>(toma el candado un instante)" --> ca
+    sw -- "HTTP, sin candado" --> dev
+```
+
 **Candados.** Los estímulos convergen en `CoreAdapter`, el único que toca el core y el único dueño del
 estado del control, incluido el estado de ejecución. Sus métodos públicos son `synchronized`; el core
 no tiene estado y se llama dentro de ese bloqueo. `ControlService` tiene su propio candado (`iniciar`,
@@ -682,6 +724,13 @@ Así un switch sano espera, como mucho, una llamada en curso a uno que no respon
 espera puede ser de hasta 12 s por switch colgado (L9). La potencia contratada sigue cuidada entre
 grupos: un switch que no confirmó OFF cuenta como encendido para retener un ON (§2.5).
 
+**Switches lentos (T39).** Un switch que responde, pero tarda menos que el timeout, cuenta como
+sano: con 20 de 400 ms a ×60, apagar todo lleva 8 s reales (8 min de control). Por eso el adaptador
+mide lo que tarda cada llamada y amplía en cada decisión la anticipación de la punta: switches del
+sitio × lo que tarda cada uno × el factor × 1,5, sumado al minuto configurado (A21). Y si
+cambia una decisión mientras una reconciliación consulta, se dejan de consultar los sanos y se pasa
+a mandar los OFF.
+
 ### 3.1 Manejo de fallas
 
 | Falla | Qué hace el controlador | Hilo | Test |
@@ -699,6 +748,9 @@ grupos: un switch que no confirmó OFF cuenta como encendido para retener un ON 
 | `CONTROLADOR_BASE_URL` que el entorno no puede alcanzar (`localhost` con el entorno en otra máquina, IP mal escrita) | aviso `WARN` al arrancar, antes de registrarse: el registro igual responde 201 y el error solo se notaría porque nunca llega el `PUT /sitio` (corrida del 2026-10-28) | `main` | `RegistroEntornoTest` |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
 | Un switch que no prende (acepta el ON y sigue apagado, o el ON falla y la consulta lo muestra apagado) | la habitación queda `OFF` con `SWITCH_NO_RESPONDE` y su potencia pasa a las demás; se reintenta tras una espera que se duplica (30 s, hasta 10 min) (A17) | `switches` | `CoreAdapterTest` |
+| Switches lentos que no llegan al timeout, cruzando la punta | la anticipación de la punta crece con lo que tardan (A21): con 20 de 400 ms a ×60, la última se apaga antes de las 17:00 (antes, a las 17:10) | `switches` | `EstresTest`, `CoreAdapterTest`, `DecidirTest` |
+| Un switch que acepta el comando y la consulta lo muestra como estaba | tras 3 correcciones seguidas no obedece: con ON decidido cede su potencia (A17); con OFF decidido no se lo comanda durante una espera escalonada y cuenta como encendido para la contratada (A22) | `switches` | `CoreAdapterTest` |
+| Un `PUT /sitio` saca una habitación con el switch encendido | no se lo comanda (ya no es del sitio vigente); WARN y `switchesFueraDelSitio` en `/diagnostico` para apagarlo a mano (A20, L20) | API | `CoreAdapterTest`, `EscenariosSimuladorTest` |
 
 ### 3.2 Qué deja el log de una corrida
 
@@ -852,6 +904,51 @@ modules/
                                 EscenariosSimuladorTest, ReconciliacionEscaladaTest,
                                 EstresTest (switches colgados, ×600 y ×3600, 50 habitaciones y
                                 fallas combinadas, siempre cruzando las 17:00)
+```
+
+Dependencias entre paquetes (sacadas de los `import` del código de producción). Van en un solo
+sentido: de afuera (API, MQTT, registro) hacia adentro (control, adaptador, core). El core no
+depende de nada del engine, y el único paquete que llama a `core.decidir` es `adaptador`.
+
+```mermaid
+flowchart TB
+    subgraph engine["engine (Spring Boot)"]
+        rest["rest<br/>controllers, ApiKeyFilter, errores"]
+        registro["registro<br/>RegistroEntorno (§6)"]
+        mqtt["mqtt<br/>LecturaMqttListener, PayloadTermostato"]
+        control["control<br/>ControlService, RelojControl"]
+        inventario["inventario<br/>InventarioService, validación, persistencia"]
+        adaptador["adaptador<br/>CoreAdapter"]
+        switches["switches<br/>ClienteSwitchRest"]
+        config["config<br/>CoreConfig"]
+        util["util<br/>Instantes"]
+    end
+    subgraph core["core (Java puro, sin dependencias)"]
+        corepkg["Core, CriterioPrioridad,<br/>MayorDeficitPrimero"]
+        modelo["model<br/>Sitio, Estimulo, Decision, Motivo…"]
+    end
+
+    rest --> control
+    rest --> inventario
+    rest --> adaptador
+    rest --> mqtt
+    rest --> registro
+    rest --> util
+    registro --> inventario
+    registro --> mqtt
+    mqtt --> control
+    mqtt --> inventario
+    control --> inventario
+    control --> adaptador
+    control --> modelo
+    adaptador --> switches
+    adaptador --> corepkg
+    adaptador --> modelo
+    switches --> modelo
+    config --> adaptador
+    config --> switches
+    config --> corepkg
+    corepkg --> modelo
 ```
 
 Los tests de estímulos (lectura, tick, configuración, INICIAR) eran `CoreTest` hasta la iteración 5;

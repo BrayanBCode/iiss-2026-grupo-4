@@ -37,15 +37,19 @@ y su estado al día están en el Jira (épica Iter 6, `G1234-153`).
 | T35 · `G1234-172` | Cliente MQTT con versión 3.1.1 fija e identificador de 23 caracteres como máximo (visto en F01 de `ecowarm-run`) | Mergeada (#33) | `iter6/t35-mqtt-client-id` |
 | T36 · `G1234-173` | Reconciliación de switches escalada con el factor: un switch prendido a mano a ×60 vuelve a OFF en 1 s real (antes, hasta 15 min de control) | Mergeada (#34) | `iter6/t36-reconciliacion-escalada` |
 | T37 · `G1234-174` | Un switch colgado no traba a los demás (A19): timeout en tiempo de control, sanos primero y corte de la pasada; `EstresTest` (switches colgados, ×600, ×3600, 50 habitaciones, fallas combinadas) | Mergeada (#35) | `iter6/t37-switch-colgado` |
+| T38 | Un `PUT /sitio` que saca una habitación con el switch encendido: no se lo comanda (contrato del simulador), WARN y `switchesFueraDelSitio` en `/diagnostico` (A20, L20) | PR abierto | `iter6/t38-t40-casos-extremos` |
+| T39 | Switches lentos que no llegan al timeout: la punta se corta antes según lo que tardan, y una reconciliación en curso no demora los OFF (A21) | PR abierto | `iter6/t38-t40-casos-extremos` |
+| T40 | Un switch que acepta el comando y no lo aplica: tras 3 correcciones se lo deja de comandar un rato o cede su potencia (A22) | PR abierto | `iter6/t38-t40-casos-extremos` |
+| T41 | Revisión de la entrega: diagramas de las vistas de procesos y de desarrollo, versiones de las herramientas de la cátedra, encabezado del compose, estados de T2/T28/T30 y corrida de `ecowarm-run` contra la imagen Docker | PR abierto | `iter6/t41-revision-entrega` |
 | T25 · `G1234-157` | `EscenariosSimuladorTest` (3 tests como corre el simulador) y mapa escenario → test | Mergeada | `iter6/t25-tests-escenarios` |
 | T17 · `G1234-146` | Tests de re-INICIAR con otro factor y hacia atrás | Mergeada | `revision/t17-tests-reinicio` |
-| T2 · `G1234-129` | Guía "Java que usamos" | Cerrada en el Jira; la guía no está en el repo | — |
+| T2 · `G1234-129` | Guía "Java que usamos" | No realizada: la guía no está en el repo | — |
 | T26 · `G1234-158` | [`decisiones.md`](../arquitectura/decisiones.md) (A1–A18 de arquitectura, D1–D12 del equipo) | Mergeada (#24) | `iter6/t26-decisiones` |
 | T27 · `G1234-159` | README final, [guía de traspaso](../traspaso.md) y roadmap como traspaso | Mergeada (#27) | `iter6/t27-traspaso` |
 | T29 · `G1234-161` | D11: contar en `/diagnostico` y loguear las temperaturas fuera de rango; documentación al día (D11, L18, R4) | Mergeada (#26); D11 confirmada en T22 | `iter6/t29-fuera-de-rango` |
-| T13 · `G1234-149` | Corrida contra el simulador con evidencia | Hecha con el simulador oficial: 9 de 9, también [con todo integrado](../tests/corrida-simulador/2026-11-08-implementacion6/README.md) (2026-11-08). No hay corrida en el laboratorio (roadmap L19) | `iter6/t13-corrida-implementacion6` |
-| T28 · `G1234-160` | Ensayo de aceptación con los escenarios nuevos | Cerrada sin evidencia en el repo: no se corrieron escenarios nuevos del docente (roadmap L19) | `iter6/t28-aceptacion` |
-| T30 · `G1234-162` | Cierre: evidencia final, limpieza de `docs/`, tag `version6` y zip | Hecha: conteos, cobertura y spotless regenerados; `docs/` se entrega completo; tag `version6` sobre `master` | `iter6/t30-cierre` |
+| T13 · `G1234-149` | Corrida contra el simulador con evidencia | Hecha con el simulador oficial: 9 de 9, también [con todo integrado](../tests/corrida-simulador/2026-11-08-implementacion6/README.md) (2026-11-08) y [con la imagen Docker](../tests/corrida-simulador/2026-11-09-docker/README.md) (2026-11-09). No hay corrida en el laboratorio (roadmap L19) | `iter6/t13-corrida-implementacion6` |
+| T28 · `G1234-160` | Ensayo de aceptación con los escenarios nuevos | No realizada: no se corrieron escenarios nuevos del docente (roadmap L19). Queda para la aceptación | `iter6/t28-aceptacion` |
+| T30 · `G1234-162` | Cierre: evidencia final, limpieza de `docs/`, tag `version6` y zip | En curso: conteos, cobertura y spotless regenerados; `docs/` se entrega completo. Falta el tag `version6` y el zip, que salen del mismo commit | `iter6/t30-cierre` |
 
 ## El camino
 
@@ -121,4 +125,4 @@ siga.
 - [x] Pasar a "to test" en el Jira las tarjetas con PR abierto y a "Listo" las mergeadas
 - [x] Correr el simulador oficial `ecowarm-run` (9 de 9, 2026-11-06; con todo integrado, 9 de 9, 2026-11-08)
 - [ ] Coordinar con el docente la corrida T13 en el laboratorio y los escenarios nuevos (T28): no se hizo, queda en el roadmap (L19)
-- [x] Cierre T30: tag `version6` y zip
+- [ ] Cierre T30: tag `version6` sobre el commit final y el zip armado desde ese tag (no desde una copia local)

@@ -21,7 +21,7 @@ cátedra, con el verificador `ecowarm-check` o con dispositivos reales. Son dos 
 | 1 | Instalar Docker (con Compose v2) y, para trabajar en el código, JDK 25 y Maven 3.9 | `docker --version`, `java -version` (25), `mvn -version` |
 | 2 | Clonar el repo y, desde la raíz, `mvn clean verify` | `BUILD SUCCESS`: formato, todos los tests y cobertura del core ≥ 85 %. Tarda unos minutos por los tests de integración |
 | 3 | Instalar en IntelliJ el plugin de google-java-format (estilo AOSP) | [`calidad/estandares-codificacion.md`](calidad/estandares-codificacion.md) |
-| 4 | En una terminal: `java -jar ecowarm-check.jar --anunciar host.docker.internal --durante 240` | El checker espera que el controlador se registre |
+| 4 | Pedirle al docente el `ecowarm-check.jar` (no está en el repo; se validó con la versión `f3d46f4`), copiarlo a la raíz y, en una terminal: `java -jar ecowarm-check.jar --anunciar host.docker.internal --durante 240`. Sin el jar, el paso 2 ya corrió los mismos escenarios con los tests de integración | El checker espera que el controlador se registre |
 | 5 | En otra: `./scripts/up.sh` | El contenedor `ecowarm-grupo4` arranca, se registra y empieza a comandar switches |
 | 6 | A los 240 s, el veredicto del checker | `8/8 · el controlador se comunica como manda el estándar` |
 | 7 | Mientras corre: `docker logs -f ecowarm-grupo4` y `curl -H "X-API-Key: ecowarm-grupo4-2026" localhost:8080/diagnostico` | Decisiones con su motivo, comandos a switches y un resumen cada 30 s |
@@ -68,8 +68,11 @@ El método completo (tablero, límites de trabajo en curso, definición de hecho
 
 El simulador oficial por comando: trae el simulador, el broker y los switches, corre escenarios
 firmados contra el controlador y deja un reporte en `ecowarm-reporte/reporte.md` (necesita Java 21 o
-más nuevo). El `ecowarm-run.jar` lo entrega la cátedra: no está en el repo. Solo corre escenarios
-firmados; los propios se prueban con los tests de integración (`EscenariosSimuladorTest`).
+más nuevo). El `ecowarm-run.jar` lo entrega la cátedra: no está en el repo, se le pide al docente.
+La versión con que se validó la final es la `c95d037` (versiones y hashes de las dos herramientas en
+el [README](../README.md#a-con-el-verificador-ecowarm-check-recomendado-para-el-primer-intento)).
+Solo corre escenarios firmados; los propios se prueban con los tests de integración
+(`EscenariosSimuladorTest`).
 
 ```bash
 # 1. el controlador, apuntando al simulador local (clave del simulador: iiss-2026)
@@ -81,8 +84,9 @@ java -jar ecowarm-run.jar ver E11    # el YAML de un escenario: sitio, fallas y 
 ```
 
 Si el controlador corre en Docker, agregar `--host host.docker.internal`. Sale con 0 si pasan todos.
-La última corrida, con todo lo de la iteración 6 integrado (9 de 9), está en
-[`tests/corrida-simulador/2026-11-08-implementacion6/`](tests/corrida-simulador/2026-11-08-implementacion6/README.md).
+La última corrida, con la imagen Docker y el compose que se entregan (9 de 9, con el log del
+controlador), está en
+[`tests/corrida-simulador/2026-11-09-docker/`](tests/corrida-simulador/2026-11-09-docker/README.md).
 Cómo se corrigió lo que fallaba está en la del
 [2026-11-06](tests/corrida-simulador/2026-11-06-ecowarm-run/README.md).
 
@@ -114,6 +118,9 @@ Todos aparecieron en corridas reales del equipo.
 | Una habitación "no cambia" aunque su termostato publica | El sensor manda valores fuera de su rango (-40 a 85 °C) o `NaN`: se descartan y se conserva la última lectura buena hasta que vence | Mirar `FUERA_DE_RANGO` en `/diagnostico` y la línea `descartada (FUERA_DE_RANGO)` del log, con el valor recibido (D11). Es el sensor, no el controlador |
 | Errores de switch con `text/plain`, `respuesta sin 'estado' válido` o timeouts | El escenario de switch caído del simulador | Es esperado: se reintenta a los 5 s y la reconciliación corrige. Buscar `volvió a responder` en el log |
 | A ×60, un switch que sí responde aparece como caído (timeouts de 0,5 s en el log) | Tarda más de medio segundo real en contestar: el timeout se divide por el factor (A19) | Con factor 60, 0,5 s reales son 30 s de control: un switch así está lento de verdad. Si la red es lenta, subir `switch.timeout-*` no alcanza (el piso es 0,5 s): bajar el factor o mejorar la red. La línea `Timeouts de los switches con factor …` del log, en cada INICIAR, muestra los valores en uso |
+| Las habitaciones se apagan varios minutos antes de la punta | Los switches responden lento: la punta se corta antes según lo que tardan (A21) | Es a propósito, para que los OFF lleguen antes de que empiece. La línea `Anticipación de la punta: … s de control` del log dice cuánto y con qué demora promedio |
+| Un switch deja de recibir comandos y el log dice `no obedece` | Acepta el comando y la consulta lo muestra como estaba, 3 veces seguidas (A22) | Revisar el switch: no está aplicando lo que acepta. Se lo vuelve a intentar tras una espera que se duplica (hasta 10 min) |
+| `/diagnostico` muestra `switchesFueraDelSitio` no vacío | Un `PUT /sitio` sacó una habitación con su switch encendido; ya no es del sitio y no se lo comanda (A20) | Apagar ese switch a mano (§3 del estándar), o volver a poner la habitación en el sitio |
 | Todos los tests del engine dan 500 | Se corrió `mvn test -pl modules/engine` sin `-am` y se usó un `core` viejo de `~/.m2` | Correr desde la raíz o con `-am` |
 | El contenedor no toma un cambio del código o de `application.properties` | La imagen se reusa: `--force-recreate` no recompila | `docker compose -f docker/docker-compose.yml up -d --build` |
 | El log se llena de lecturas `[TEMPERATURA]` | El nivel DEBUG está activado (o la imagen es anterior a T16) | Comentar la línea de DEBUG en `application.properties` y reconstruir con `--build` |

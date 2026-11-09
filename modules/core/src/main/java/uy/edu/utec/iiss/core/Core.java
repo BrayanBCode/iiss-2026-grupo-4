@@ -52,6 +52,11 @@ public class Core {
         this.parametros = Objects.requireNonNull(parametros, "parametros");
     }
 
+    /** La anticipación de la punta configurada (el mínimo que usa {@code decidir}). */
+    public Duration anticipacionPunta() {
+        return parametros.anticipacionPunta();
+    }
+
     /**
      * Si una temperatura puede venir de un sensor sano: finita y dentro del rango físico del sensor
      * ({@link ParametrosControl#temperaturaMinimaValida()} a {@link
@@ -82,6 +87,27 @@ public class Core {
             List<ConfiguracionHabitacion> habitaciones,
             Map<String, EstadoHabitacion> estados,
             Instant ahora) {
+        return decidir(sitio, habitaciones, estados, ahora, parametros.anticipacionPunta());
+    }
+
+    /**
+     * Como {@link #decidir(Sitio, List, Map, Instant)}, con la anticipación de la punta ampliada
+     * para esta llamada: quien comanda los switches sabe cuánto tardan sus OFF (T39). Nunca es
+     * menor que la de los parámetros.
+     *
+     * @param anticipacionPunta cuánto tiempo de control antes de la punta ya se corta
+     */
+    public List<Decision> decidir(
+            Sitio sitio,
+            List<ConfiguracionHabitacion> habitaciones,
+            Map<String, EstadoHabitacion> estados,
+            Instant ahora,
+            Duration anticipacionPunta) {
+        Objects.requireNonNull(anticipacionPunta, "anticipacionPunta");
+        Duration anticipacion =
+                anticipacionPunta.compareTo(parametros.anticipacionPunta()) > 0
+                        ? anticipacionPunta
+                        : parametros.anticipacionPunta();
         Objects.requireNonNull(sitio, "sitio");
         Objects.requireNonNull(habitaciones, "habitaciones");
         Objects.requireNonNull(estados, "estados");
@@ -104,7 +130,7 @@ public class Core {
         // 2. Tarifa  /  3. Reparto de la potencia contratada
         // La punta se corta un poco antes de que empiece (anticipacionPunta): así los OFF ya
         // llegaron a los switches cuando empieza. La salida no se adelanta.
-        if (enPunta(sitio, ahora) || enPunta(sitio, sumar(ahora, parametros.anticipacionPunta()))) {
+        if (enPunta(sitio, ahora) || enPunta(sitio, sumar(ahora, anticipacion))) {
             conDeficit.forEach(h -> motivos.put(h.id(), Motivo.TARIFA_PUNTA));
 
         } else {

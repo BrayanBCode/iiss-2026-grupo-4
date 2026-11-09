@@ -135,6 +135,42 @@ class EstresTest extends IntegracionBase {
 
     @Test
     @DisplayName(
+            "×60 con 20 switches lentos (400 ms, sin llegar al timeout) (S1, T39): a las 17:00 ya"
+                    + " apagó todas, aunque los OFF salen de a uno")
+    void veinteSwitchesLentos_cruzandoLaPunta() throws Exception {
+        Inventario.Habitacion[] habs = new Inventario.Habitacion[20];
+        for (int i = 0; i < 20; i++) {
+            habs[i] = habitacion("room" + (i + 1), 21.0, 1.0);
+            SWITCHES.lento(idSwitch(habs[i].id()), 400); // a ×60 el timeout es de 500 ms
+        }
+        Inventario sitio = inventario(25.0, habs); // entran todas
+        cargarSitio(sitio);
+        iniciar(martes(16, 20), 60); // 40 s reales hasta la punta
+        for (Inventario.Habitacion h : habs) {
+            esperar(() -> BROKER.haySuscriptor(topic(h.id())), () -> "no se suscribió a " + h.id());
+        }
+        for (Inventario.Habitacion h : habs) {
+            BROKER.publicarTemperatura(topic(h.id()), 16.0);
+        }
+        esperar(
+                Duration.ofSeconds(30),
+                () -> potenciaEncendida(sitio) >= 20.0 - 1e-9,
+                () -> "no prendió las 20: " + estadosSwitches(sitio));
+
+        LocalTime ultimoApagado = LocalTime.MIN;
+        long limite = System.nanoTime() + Duration.ofSeconds(40).toNanos();
+        while (potenciaEncendida(sitio) > 0) {
+            assertTrue(System.nanoTime() < limite, "no apagó todo: " + estadosSwitches(sitio));
+            ultimoApagado = horaDelControl();
+            Thread.onSpinWait();
+        }
+        assertTrue(
+                !ultimoApagado.isAfter(PUNTA),
+                "la última habitación se apagó a las " + ultimoApagado + ", ya en punta");
+    }
+
+    @Test
+    @DisplayName(
             "×60, fallas combinadas: broker caído y un switch que da 503 a las 16:57; el sano se"
                     + " apaga antes de las 17:00 y al volver todo se retoma")
     void fallasCombinadas_cruzandoLaPunta() throws Exception {

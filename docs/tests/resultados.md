@@ -16,17 +16,17 @@ Los reportes detallados quedan en `modules/<módulo>/target/surefire-reports/` y
 del core en `modules/core/target/site/jacoco/index.html` (copia en
 [`docs/calidad/cobertura/`](../calidad/cobertura/README.md)).
 
-## Última ejecución — 2026-11-08 (`implementacion6` en `36843a5`, con todo el código de la iteración 6, Java 25)
+## Última ejecución — 2026-11-09 (rama `iter6/t38-t40-casos-extremos`, sobre `implementacion6`, Java 25)
 
-**Resultado: BUILD SUCCESS — 281 tests, 0 fallas, 0 errores, 0 omitidos** (`mvn clean verify`).
+**Resultado: BUILD SUCCESS — 289 tests, 0 fallas, 0 errores, 0 omitidos** (`mvn clean verify`).
 
 | Módulo | Tests | Fallas |
 |---|---|---|
-| `core` | 56 | 0 |
-| `engine` | 225 | 0 |
-| **Total** | **281** | **0** |
+| `core` | 57 | 0 |
+| `engine` | 232 | 0 |
+| **Total** | **289** | **0** |
 
-Respecto de la ejecución anterior (2026-11-03: 54 + 185 = 239) se sumaron 42 tests, todos de las
+Respecto del cierre (2026-11-08: 56 + 225 = 281) se sumaron 8 tests de los casos extremos T38–T40 (A20–A22). Respecto de la ejecución de la iteración 5 cerrada (2026-11-03: 54 + 185 = 239), los 42 anteriores son de las
 correcciones de la iteración 6: el corte de la punta anticipado (T24e), el `ts` en dos escalas
 (T24b), las respuestas de switch y de termostato fuera de contrato (T24d, T31, T33), el switch que no
 prende (T34), el cliente MQTT 3.1.1 (T35), la reconciliación escalada (T36), el switch colgado y
@@ -38,7 +38,7 @@ tick, configuración, INICIAR) pasaron al engine como `CoreAdapterEstimulosTest`
 manejo de estímulos que verifican: esos casos no se perdieron, cambiaron de módulo. `CoreClientTest`
 sí se borró, junto con la fachada `CoreClient` que probaba.
 
-### Módulo `core` (TDD de la función de decisión) — 56 tests
+### Módulo `core` (TDD de la función de decisión) — 57 tests
 
 | Clase de test | Grupo | Tests | Fallas |
 |---|---|---|---|
@@ -46,22 +46,22 @@ sí se borró, junto con la fachada `CoreClient` que probaba.
 | `DecidirTest` | Reparto de potencia | 8 | 0 |
 | `DecidirTest` | Criterio de prioridad | 5 | 0 |
 | `DecidirTest` | Histéresis | 4 | 0 |
-| `DecidirTest` | Tarifa punta (con el corte anticipado, T24e) | 9 | 0 |
+| `DecidirTest` | Tarifa punta (con el corte anticipado, T24e, y ampliado, T39) | 10 | 0 |
 | `DecidirTest` | Lecturas vencidas | 5 | 0 |
 | `DecidirTest` | Lectura válida y situación incompleta | 4 | 0 |
 | `DecidirTest` | Tope de potencia | 1 | 0 |
 | `MayorDeficitPrimeroTest` | criterio de prioridad | 9 | 0 |
 | `ModeloTest` | validaciones del modelo | 5 | 0 |
-| **Total** | | **56** | **0** |
+| **Total** | | **57** | **0** |
 
 Cobertura (JaCoCo) del módulo `core` — el build exige ≥ 85 % de líneas y de ramas:
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 157 | 157 | 100 % |
-| Ramas | 85 | 90 | 94,4 % |
+| Líneas | 163 | 163 | 100 % |
+| Ramas | 87 | 92 | 94,6 % |
 
-### Módulo `engine` — 225 tests
+### Módulo `engine` — 232 tests
 
 Estímulos (antes `CoreTest`, en el core):
 
@@ -82,7 +82,7 @@ Unitarios y de API:
 
 | Clase de test | Qué verifica | Tests | Fallas |
 |---|---|---|---|
-| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON, estado de ejecución, lecturas descartadas; el switch que no prende cede su potencia (T34); los sanos antes que los que fallan y los timeouts ajustados al factor (T37) | 31 | 0 |
+| `CoreAdapterTest` | decisiones → comandos a switches, consulta §4, reconciliación, switches caídos, OFF antes que ON, estado de ejecución, lecturas descartadas; el switch que no prende cede su potencia (T34); los sanos antes que los que fallan y los timeouts ajustados al factor (T37); habitación que sale del sitio encendida (T38), switches lentos (T39) y switch que no obedece (T40) | 37 | 0 |
 | `RelojControlTest` | reloj del control con aceleración (§5.2), conversión del `ts` en hora real (T8b, D8) y `ts` en hora del control (T24b) | 15 | 0 |
 | `ApiEstandarTest` | API §5 con contexto Spring completo (sitio, control, 400/401/404/409, ABM, INICIAR sin offset en hora de Montevideo) | 14 | 0 |
 | `ValidadorInventarioTest` | reglas de consistencia del §1 | 10 | 0 |
@@ -104,11 +104,11 @@ De integración (broker MQTT embebido + switches HTTP falsos):
 | `PerdidaMensajesTest` | pérdida de mensajes; `ts` fuera de orden, vencido o temperatura fuera de rango se descartan y se cuentan (D11) | 6 | 0 |
 | `FallaSwitchTest` | switch que no responde o falla; sin superar la contratada si falla un OFF | 5 | 0 |
 | `FallaBrokerMqttTest` | el broker MQTT cae y se recupera, también al INICIAR y con el `ts` en hora del control | 5 | 0 |
-| `EstresTest` | 3 switches colgados cruzando la punta a ×60, ×600 y ×3600, 50 habitaciones y fallas combinadas (T37) | 5 | 0 |
+| `EstresTest` | 3 switches colgados cruzando la punta a ×60, ×600 y ×3600, 50 habitaciones y fallas combinadas (T37); 20 switches lentos (T39) | 6 | 0 |
 | `EscenariosSimuladorTest` | escenarios como los corre el simulador (T25) y crecer de 5 a 20 habitaciones y achicar (T32) | 4 | 0 |
 | `TiempoAceleradoTest` | a ×600 el corte y la restitución de la punta llegan en menos de 1 s real (T12); re-INICIAR con otro factor (T17) | 4 | 0 |
 | `ReconciliacionEscaladaTest` | un switch prendido a mano a ×60 vuelve a OFF en segundos reales (T36) | 2 | 0 |
-| **Total engine** | | **225** | **0** |
+| **Total engine** | | **232** | **0** |
 
 Los mensajes `ERROR` del log de la corrida son esperados: ver la última sección.
 
