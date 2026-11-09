@@ -32,6 +32,9 @@ en [limitaciones y roadmap](roadmap.md).
 | A17 | Una habitación cuyo switch no prende cede su potencia mientras espera | Vigente (T34) |
 | A18 | De lo que está fuera de contrato, tolerar lo que se entiende sin riesgo | Vigente (T24d, T31, T33) |
 | A19 | Un switch colgado no traba a los demás: timeout en tiempo de control y sanos primero | Vigente (T37) |
+| A20 | El switch de una habitación que sale del sitio no se comanda; se avisa | Vigente (T38, L20) |
+| A21 | Con switches lentos, la punta se corta antes | Vigente (T39) |
+| A22 | Un switch que no obedece se deja de comandar un rato | Vigente (T40) |
 | D1 | El core queda sin estado: modelo y función pura `decidir` | Vigente |
 | D2 | `Estimulo` es modelo del core y lo procesa `CoreAdapter` | Vigente |
 | D3 | El `ts` es el instante de la lectura, llevado a la hora del control | Vigente (cambió en T24b) |
@@ -271,6 +274,66 @@ en [limitaciones y roadmap](roadmap.md).
   hasta 12 s (L9). Lo prueban `EstresTest` (switches colgados, ×600, ×3600, 50 habitaciones y
   fallas combinadas cruzando las 17:00), `CoreAdapterTest.switchQueFalla_seAtiendeDespuesDeLosSanos`
   y `ClienteSwitchRestTest.conFactorAlto_noEsperaElTimeoutConfigurado`.
+
+### A20 · El switch de una habitación que sale del sitio no se comanda; se avisa
+
+- **Contexto.** Prueba A1 de la lista de estrés (T38): si un `PUT /sitio` saca una habitación cuyo
+  switch está encendido, el controlador se olvidaba de ella y el calefactor quedaba prendido sin que
+  nada lo dijera, consumiendo potencia que ya no se cuenta.
+- **Decisión.** No se lo comanda: ya no es un switch del sitio vigente, y el simulador verifica
+  como contrato que todos los comandos vayan a switches del sitio (`soloSwitchesDelSitio`). Si se
+  lo conocía ON, o no se sabía y la última decisión era ON, se avisa con un WARN y queda en
+  `/diagnostico` (`switchesFueraDelSitio`) para apagarlo a mano, hasta que vuelva al sitio. Lo
+  mismo con el switch viejo de una habitación que cambia de switch (T38).
+- **Alternativas.** Mandarle OFF antes de olvidarlo: más seguro en la casa, pero rompe el contrato
+  del simulador. Contar su potencia como encendida al decidir los ON: el escenario E16 de la clase
+  (achicar de 20 a 5 habitaciones) espera que las 5 que quedan prendan, y no prenderían.
+- **Consecuencias.** Es la limitación L20: el estándar no dice qué hacer, igual que con DETENER
+  (D9). Lo prueban `CoreAdapterTest.quitarHabitacionEncendida_noSeComandaYSeAvisa` y
+  `EscenariosSimuladorTest.crecerYAchicarElSitio`.
+
+### A21 · Con switches lentos, la punta se corta antes
+
+- **Contexto.** Prueba S1 (T39): 20 switches que tardan 400 ms reales en responder. A ×60 no llegan
+  al timeout de 0,5 s (A19), así que cuentan como sanos, pero los OFF salen de a uno (A5): apagar
+  todo lleva 8 s reales, 8 min de control, y la última habitación se apagaba a las 17:10, en punta.
+  Además, si a las 17:00 había una reconciliación en curso, los OFF esperaban a que consultara los
+  20.
+- **Decisión.** El adaptador mide lo que tarda cada llamada que responde (un máximo que decae 10 %
+  por llamada, en ms reales) y amplía la anticipación de la punta (A16) en cada decisión: switches
+  del sitio × lo que tarda cada llamada × el factor × 1,5 de margen, sumado a la configurada y con
+  un tope de 30 min de control. Se cuentan todos los switches del sitio y no solo los encendidos:
+  la primera versión contaba los encendidos y, a medida que se confirmaban los OFF, la anticipación
+  se achicaba y las habitaciones volvían a prender antes de la punta (la última se apagaba a las
+  17:04). El core recibe la anticipación como parámetro de `decidir` y nunca usa menos
+  que la configurada. Además, si cambia una decisión mientras se consulta, se dejan de consultar
+  los sanos y se pasa a mandar.
+- **Alternativas.** Mandar los OFF en paralelo: es el R7 que se descartó en A19 por el riesgo en la
+  clase central. Subir la anticipación configurada para todos: con switches rápidos se
+  calefaccionaría menos sin necesidad.
+- **Consecuencias.** Con switches rápidos no cambia nada (la medición da milisegundos). Con
+  switches lentos se calefacciona unos minutos menos antes de la punta, y el log lo dice
+  (`Anticipación de la punta: … s de control`). La salida de la punta no se adelanta. Lo prueban
+  `EstresTest.veinteSwitchesLentos_cruzandoLaPunta`,
+  `CoreAdapterTest.switchesLentos_amplianLaAnticipacionDeLaPunta` y
+  `DecidirTest.anticipacionAmpliada_cortaAntesYNuncaMenos`.
+
+### A22 · Un switch que no obedece se deja de comandar un rato
+
+- **Contexto.** Prueba S3 (T40): un switch que acepta el comando y responde lo pedido, pero la
+  consulta (§4) lo sigue mostrando como estaba. La reconciliación lo corregía en cada pasada, cada
+  1 s real a ×60, sin fin.
+- **Decisión.** Si un switch aceptó lo decidido y la consulta muestra lo contrario 3 veces
+  seguidas, no obedece: con ON decidido cede su potencia como uno que no prende (A17); con OFF
+  decidido no se lo comanda durante una espera escalonada (la misma de A17: 6 esperas de reintento
+  que se duplican, hasta 10 min) y se avisa con un WARN. Mientras tanto su estado conocido es el de
+  la consulta, así que cuenta como encendido para la contratada (A6). Cuando una consulta lo
+  muestra como se decidió, se olvida.
+- **Alternativas.** Seguir reintentando siempre: llena el log y la red, y no cambia nada. Darlo por
+  caído: sí responde, y el grupo de los que fallan (A19) es para los que no responden.
+- **Consecuencias.** Un switch que se movió a mano una vez se sigue corrigiendo en la primera
+  reconciliación, como antes. Lo prueban `CoreAdapterTest.switchQueMienteConElOff_seDejaDeComandarUnaEspera`
+  y `CoreAdapterTest.switchQueMienteConElOn_cedeLaPotencia`.
 
 ---
 
