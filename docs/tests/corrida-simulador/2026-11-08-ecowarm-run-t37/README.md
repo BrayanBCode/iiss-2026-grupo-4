@@ -5,8 +5,9 @@ los timeouts de los switches pasan a medirse en tiempo de control (a ×60, 0,5 s
 pasada atiende primero los switches sanos. Hacía falta confirmar que un timeout de medio segundo no
 toma como caídos a los switches del simulador, y que los escenarios de fallas siguen pasando.
 
-**Resultado: 9 de 9 pasan** ([`reporte.md`](reporte.md); la serie y las interacciones de cada
-escenario están en `20261108-163931-1/`, y el log del controlador en [`engine.log`](engine.log)).
+**Resultado: 9 de 9 pasan** ([`reporte.md`](reporte.md); el log del controlador está en
+[`engine.log`](engine.log)). La serie y las interacciones de cada escenario (el detalle crudo de
+`ecowarm-run`) no se guardan en el repo: se regeneran corriendo la herramienta.
 
 ## Cómo se corrió
 

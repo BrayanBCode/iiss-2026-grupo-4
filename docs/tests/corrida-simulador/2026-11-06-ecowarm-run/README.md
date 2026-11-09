@@ -5,8 +5,9 @@ simulador, el broker MQTT y los switches, corre escenarios firmados contra el co
 reporte. Se corrieron sus 9 escenarios (`todos`) dos veces: antes y después del corte anticipado de
 la punta (T24e).
 
-**Resultado final: 9 de 9 pasan** ([`despues/reporte.md`](despues/reporte.md), con la serie y las
-interacciones de cada escenario en `despues/20261106-170040-1/`).
+**Resultado final: 9 de 9 pasan** ([`despues/reporte.md`](despues/reporte.md)). La serie y las
+interacciones de cada escenario (el detalle crudo de `ecowarm-run`) no se guardan en el repo: se
+regeneran corriendo la herramienta.
 
 ## Cómo se corrió
 
