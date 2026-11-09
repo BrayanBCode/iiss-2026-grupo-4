@@ -81,8 +81,10 @@ java -jar ecowarm-run.jar ver E11    # el YAML de un escenario: sitio, fallas y 
 ```
 
 Si el controlador corre en Docker, agregar `--host host.docker.internal`. Sale con 0 si pasan todos.
-La última corrida (9 de 9) y cómo se corrigió lo que fallaba están en
-[`tests/corrida-simulador/2026-11-06-ecowarm-run/`](tests/corrida-simulador/2026-11-06-ecowarm-run/README.md).
+La última corrida, con todo lo de la iteración 6 integrado (9 de 9), está en
+[`tests/corrida-simulador/2026-11-08-implementacion6/`](tests/corrida-simulador/2026-11-08-implementacion6/README.md).
+Cómo se corrigió lo que fallaba está en la del
+[2026-11-06](tests/corrida-simulador/2026-11-06-ecowarm-run/README.md).
 
 ### Con el simulador del laboratorio (otra máquina)
 
