@@ -20,6 +20,11 @@
      */
 <span class="fc" id="L21">    SIN_POTENCIA_DISPONIBLE,</span>
     /** OFF: su potencia sola ya supera la contratada; encenderla haría saltar la llave. */
-<span class="fc" id="L23">    EXCEDE_CONTRATADA</span>
+<span class="fc" id="L23">    EXCEDE_CONTRATADA,</span>
+    /**
+     * OFF: su switch no prende (el ON falló o sigue apagado). Lo decide el engine, no {@code
+     * decidir}: mientras espera para reintentar, su potencia queda para las demás.
+     */
+<span class="fc" id="L28">    SWITCH_NO_RESPONDE</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

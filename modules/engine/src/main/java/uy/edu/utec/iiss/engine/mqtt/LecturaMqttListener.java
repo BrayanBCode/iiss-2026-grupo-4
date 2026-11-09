@@ -110,12 +110,11 @@ public class LecturaMqttListener implements MqttCallbackExtended {
             }
             MqttClient nuevo = null;
             try {
-                nuevo =
-                        new MqttClient(
-                                brokerUrl,
-                                clientIdBase + "-" + UUID.randomUUID(),
-                                new MemoryPersistence());
+                nuevo = new MqttClient(brokerUrl, clientId(clientIdBase), new MemoryPersistence());
                 MqttConnectOptions opciones = new MqttConnectOptions();
+                // 3.1.1 fijo: si no, Paho reintenta con 3.1, que rechaza identificadores de más de
+                // 23 caracteres (pasó con el broker de ecowarm-run al volver de una caída).
+                opciones.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
                 opciones.setCleanSession(true);
                 opciones.setAutomaticReconnect(false); // se reconecta desde el hilo propio
                 opciones.setConnectionTimeout(5);
@@ -316,5 +315,19 @@ public class LecturaMqttListener implements MqttCallbackExtended {
                                         "Payload inválido en '{}', se descarta: {}",
                                         topic,
                                         new String(payload, StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * Identificador del cliente MQTT: la etiqueta recortada a 10 caracteres y 12 hexadecimales al
+     * azar, 23 como máximo (el límite de MQTT 3.1, que algunos brokers aplican). Uno distinto por
+     * conexión, para que un cliente viejo que el broker todavía no soltó no tumbe al nuevo.
+     */
+    static String clientId(String etiqueta) {
+        String prefijo = etiqueta;
+        if (prefijo.length() > 10) {
+            prefijo = prefijo.substring(0, 10);
+        }
+        String azar = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        return prefijo + "-" + azar;
     }
 }

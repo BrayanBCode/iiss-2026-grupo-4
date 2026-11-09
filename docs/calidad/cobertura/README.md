@@ -1,8 +1,9 @@
-# Cobertura del core — Iteración 5
+# Cobertura del core — Iteración 6
 
-Medida con JaCoCo 0.8.14 al correr `mvn clean verify` el 2026-10-27 sobre la rama
-`implementacion5`, después de dejar el core sin estado (tarjetas T4/T5). El objetivo de la
-iteración es **≥ 85 % en el core**, y el build lo exige para **líneas y ramas** (ver abajo).
+Medida con JaCoCo 0.8.14 al correr `mvn clean verify` el 2026-11-08 sobre `implementacion6` con
+todo lo de la iteración 6 integrado (cierre, tarjeta T30). Incluye el core sin estado (T4/T5), los
+cambios de tiempo de la iteración 5 (T8b, T8c, D7) y el corte de la punta anticipado (T24e). El objetivo es **≥ 85 % en el core**, y
+el build lo exige para **líneas y ramas** (ver abajo).
 
 Reporte navegable: [`core-jacoco/index.html`](core-jacoco/index.html) (también
 [`jacoco.csv`](core-jacoco/jacoco.csv) y [`jacoco.xml`](core-jacoco/jacoco.xml)).
@@ -11,24 +12,24 @@ Reporte navegable: [`core-jacoco/index.html`](core-jacoco/index.html) (también
 
 | Métrica | Cubierto | Total | % |
 |---|---|---|---|
-| Líneas | 150 | 150 | **100 %** |
-| Ramas | 79 | 84 | **94,0 %** |
-| Instrucciones | 755 | 755 | 100 % |
-| Métodos | 31 | 31 | 100 % |
+| Líneas | 157 | 157 | **100 %** |
+| Ramas | 85 | 90 | **94,4 %** |
+| Instrucciones | 790 | 790 | 100 % |
+| Métodos | 33 | 33 | 100 % |
 
 El core es más chico que en la versión anterior (238 líneas, 130 ramas) porque el manejo de
 estímulos y el estado (`procesar`, `CoreClient`, `validar`) pasaron al engine; ahora queda la
-función `decidir`, `lecturaValida`, el criterio y el modelo. Los tests de esa parte que se fue
+función `decidir`, `lecturaValida`, `lecturaVencida`, el criterio y el modelo. Los tests de esa parte que se fue
 siguen corriendo en el engine (`CoreAdapterEstimulosTest`).
 
 ## Por clase (las que tienen ramas)
 
 | Clase | Líneas | Ramas |
 |---|---|---|
-| `Core` | 61 / 61 | 40 / 40 |
+| `Core` | 62 / 62 | 44 / 44 |
 | `MayorDeficitPrimero` | 22 / 22 | 11 / 14 |
 | `FranjaHoraria` | 10 / 10 | 13 / 14 |
-| `ParametrosControl` | 11 / 11 | 9 / 10 |
+| `ParametrosControl` | 16 / 16 | 11 / 12 |
 | `Estimulo.Sincronizacion` | 5 / 5 | 4 / 4 |
 | `Sitio` | 7 / 7 | 2 / 2 |
 

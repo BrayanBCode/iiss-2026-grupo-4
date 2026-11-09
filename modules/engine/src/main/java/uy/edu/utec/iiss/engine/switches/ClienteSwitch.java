@@ -22,4 +22,11 @@ public interface ClienteSwitch {
      * @throws SwitchNoDisponibleException si no se pudo consultar
      */
     EstadoSwitch consultar(String urlSwitch, String idSwitch);
+
+    /**
+     * El control pasa a correr con este {@code factorTiempo} (INICIAR, §5.2): cuánto se espera a un
+     * switch se mide en tiempo de control, como el tick y la reconciliación (T37). Por defecto no
+     * hace nada (un switch falso no tiene timeouts).
+     */
+    default void ajustarAlFactor(double factorTiempo) {}
 }

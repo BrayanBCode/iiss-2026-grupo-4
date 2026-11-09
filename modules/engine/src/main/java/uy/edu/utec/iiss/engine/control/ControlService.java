@@ -41,8 +41,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *   <li>Un temporizador dispara un Tick cada {@code control.tick-ms} de tiempo de control, o sea
  *       cada {@code max(10 ms, tickMs / factor)} reales (T12), para cortar y restituir en los
  *       cambios de franja y vencer lecturas; reconcilia los switches cada {@code
- *       control.reconciliacion-segundos} reales, y deja un resumen en el log cada {@code
- *       control.resumen-segundos} reales (0 = sin resumen).
+ *       control.reconciliacion-segundos} de tiempo de control, o sea cada {@code max(1 s, segundos
+ *       / factor)} reales (T36), y deja un resumen en el log cada {@code control.resumen-segundos}
+ *       reales (0 = sin resumen).
  * </ul>
  *
  * <b>Zona horaria de la tarifa.</b> El estándar dice que la franja es "hora local, sin conversión
@@ -53,8 +54,9 @@ import uy.edu.utec.iiss.engine.inventario.InventarioService;
  *
  * <p><b>Tiempo.</b> La hora del control es {@code fechaHora + (real − iniciadoEn) × factor} y es la
  * única fuente de "qué hora es"; el reloj del sistema solo mide duraciones. Por eso el {@code ts}
- * de las lecturas (en hora real) se convierte con {@link RelojControl#aTiempoDeControl}, y la
- * vigencia de una lectura se mide en tiempo de control, sin escalar por el factor.
+ * de las lecturas se lleva a la hora del control ({@link RelojControl#tsEnHoraDelControl}: puede
+ * llegar en hora real o ya en hora del control), y la vigencia de una lectura se mide en tiempo de
+ * control, sin escalar por el factor.
  */
 @Service
 public class ControlService {
@@ -162,12 +164,12 @@ public class ControlService {
 
     /**
      * Lectura ya resuelta a su habitación por el listener MQTT. Detenido ⇒ se ignora. Se guarda con
-     * el instante que dice el termostato ({@code ts}, en hora real, puede ser null) convertido a la
-     * hora del control, con las salvedades de {@link RelojControl#instanteDeLectura}. Se descarta
-     * (y se cuenta en {@code /diagnostico}) si su {@code ts} es más viejo que la vigencia (D8); el
-     * adaptador descarta además la que es más vieja que la última. Un error se propaga: lo atrapa
-     * {@code LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la
-     * conexión si el callback lanza).
+     * el instante que dice el termostato ({@code ts}, puede ser null) en la hora del control, con
+     * las salvedades de {@link RelojControl#instanteDeLectura}. Se descarta (y se cuenta en {@code
+     * /diagnostico}) si su {@code ts} es más viejo que la vigencia (D8); el adaptador descarta
+     * además la que es más vieja que la última. Un error se propaga: lo atrapa {@code
+     * LecturaMqttListener.messageArrived}, el único try/catch del camino (Paho cierra la conexión
+     * si el callback lanza).
      *
      * <p>{@code synchronized} como {@link #iniciar}: así una lectura sellada con el reloj viejo no
      * se procesa después de que INICIAR re-sincronizó el reloj (lo dejaría en la línea de tiempo
@@ -183,15 +185,16 @@ public class ControlService {
             adaptador.descartarLectura(idHabitacion, MotivoDescarte.TS_VENCIDO); // D8
             // INFO porque es excepcional: con el ts original y su conversión se ve si el problema
             // es el termostato o el reloj del control.
+            Instant ahora = reloj.ahora(relojReal);
             log.info(
-                    "Lectura de '{}' descartada ({}): ts {} (hora real) = {} (hora del control),"
-                            + " más vieja que la vigencia de {} s; hora del control {}",
+                    "Lectura de '{}' descartada ({}): ts {} = {} (hora del control), más vieja que"
+                            + " la vigencia de {} s; hora del control {}",
                     idHabitacion,
                     MotivoDescarte.TS_VENCIDO,
                     ts,
-                    horaLocal(reloj.aTiempoDeControl(ts)),
+                    horaLocal(reloj.tsEnHoraDelControl(ts, ahora)),
                     vigenciaLectura.toSeconds(),
-                    horaLocal(reloj.ahora(relojReal)));
+                    horaLocal(ahora));
             return;
         }
         adaptador.procesar(new Estimulo.NuevaLectura(idHabitacion, temperaturaC, instante.get()));
@@ -322,6 +325,26 @@ public class ControlService {
     }
 
     /**
+     * Período mínimo de la reconciliación en tiempo real: cada una consulta todos los switches
+     * (§4), así que no puede ir al ritmo del tick.
+     */
+    static final long RECONCILIACION_MINIMA_MS = 1000;
+
+    /**
+     * Período REAL de la reconciliación (T36): {@code control.reconciliacion-segundos} son de
+     * tiempo de control, como el tick, así que se dividen por el factor, con un mínimo de 1 s real.
+     * Sin escalar, a ×60 un switch prendido a mano tardaba hasta 15 min de control en volver a OFF,
+     * y podía pasar la potencia contratada todo ese tiempo. Con 15 s y factor 60 la reconciliación
+     * corre cada 1 s real (1 min de control); con factor 1, cada 15 s, como antes. Las pasadas no
+     * se superponen: si la anterior sigue en curso, la nueva se junta con la que está esperando.
+     */
+    static long periodoReconciliacionMs(long reconciliacionSegundos, double factorTiempo) {
+        return Math.max(
+                RECONCILIACION_MINIMA_MS,
+                Math.round(reconciliacionSegundos * 1000.0 / factorTiempo));
+    }
+
+    /**
      * (Re)arma el temporizador con el período que corresponde al factor. Se llama en cada INICIAR,
      * así un INICIAR con otro factor reprograma el tick.
      */
@@ -340,11 +363,9 @@ public class ControlService {
         long periodo = periodoTickMs(tickMs, factorTiempo);
         temporizador.scheduleWithFixedDelay(this::tick, periodo, periodo, TimeUnit.MILLISECONDS);
         if (reconciliacionSegundos > 0) {
+            long reconciliacion = periodoReconciliacionMs(reconciliacionSegundos, factorTiempo);
             temporizador.scheduleWithFixedDelay(
-                    this::reconciliar,
-                    reconciliacionSegundos,
-                    reconciliacionSegundos,
-                    TimeUnit.SECONDS);
+                    this::reconciliar, reconciliacion, reconciliacion, TimeUnit.MILLISECONDS);
         }
         if (resumenSegundos > 0) {
             temporizador.scheduleWithFixedDelay(

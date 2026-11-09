@@ -40,20 +40,39 @@ public record RelojControl(
     }
 
     /**
+     * El {@code ts} de un termostato llevado a la hora del control. El estándar no fija su escala
+     * (§2) y en la práctica llegan las dos: en hora real, que hay que convertir con {@link
+     * #aTiempoDeControl}, o ya en hora del control ({@code fechaHora + transcurrido × factor}),
+     * como lo manda el simulador de la corrida del 2026-11-04. Se toma la interpretación que cae
+     * más cerca de {@code ahora}: con factor 60 las dos quedan a horas o meses de distancia, así
+     * que la equivocada nunca gana; con factor 1 y {@code fechaHora} igual a la hora real
+     * coinciden.
+     */
+    public Instant tsEnHoraDelControl(Instant ts, Instant ahora) {
+        Instant convertido = aTiempoDeControl(ts);
+        Duration distanciaTal = Duration.between(ts, ahora).abs();
+        Duration distanciaConvertido = Duration.between(convertido, ahora).abs();
+        if (distanciaTal.compareTo(distanciaConvertido) < 0) {
+            return ts;
+        }
+        return convertido;
+    }
+
+    /**
      * Con qué instante (hora del control) se guarda una lectura cuyo termostato dice {@code ts}, o
-     * vacío si la lectura se descarta. El simulador escribe el {@code ts} en hora real, así que
-     * siempre se convierte con {@link #aTiempoDeControl}.
+     * vacío si la lectura se descarta. El {@code ts} se lleva a la hora del control con {@link
+     * #tsEnHoraDelControl}.
      *
      * <ul>
      *   <li>Sin {@code ts}: la hora del control al recibirla.
-     *   <li>{@code ts} convertido en el futuro: reloj del termostato adelantado. Se usa la hora del
-     *       control; si se guardara el {@code ts}, la lectura no vencería a tiempo y las siguientes
+     *   <li>{@code ts} en el futuro: reloj del termostato adelantado. Se usa la hora del control;
+     *       si se guardara el {@code ts}, la lectura no vencería a tiempo y las siguientes
      *       parecerían anteriores.
-     *   <li>{@code ts} convertido más viejo que la vigencia: es un dato obsoleto (por ejemplo, una
-     *       lectura de las 19:00 que llega a las 21:00). <b>Se descarta</b> (D8): no puede sostener
-     *       la calefacción, ni sellarse con la hora actual, porque haría que la próxima lectura
-     *       buena pareciera fuera de orden.
-     *   <li>En cualquier otro caso: el {@code ts} convertido.
+     *   <li>{@code ts} más viejo que la vigencia: es un dato obsoleto (por ejemplo, una lectura de
+     *       las 19:00 que llega a las 21:00). <b>Se descarta</b> (D8): no puede sostener la
+     *       calefacción, ni sellarse con la hora actual, porque haría que la próxima lectura buena
+     *       pareciera fuera de orden.
+     *   <li>En cualquier otro caso: el {@code ts} en hora del control.
      * </ul>
      *
      * @param vigencia vigencia de una lectura en tiempo de control, sin escalar (igual que en el
@@ -65,7 +84,7 @@ public record RelojControl(
         if (ts == null) {
             return Optional.of(ahora);
         }
-        Instant medido = aTiempoDeControl(ts);
+        Instant medido = tsEnHoraDelControl(ts, ahora);
         if (medido.isAfter(ahora)) {
             return Optional.of(ahora);
         }

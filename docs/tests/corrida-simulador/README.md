@@ -1,6 +1,6 @@
 # Corrida contra el simulador (tarjeta T13)
 
-Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas).
+Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas) [2026-11-06](2026-11-06-ecowarm-run/README.md) (simulador oficial `ecowarm-run`: 9 de 9 escenarios) [2026-11-08](2026-11-08-ecowarm-run-t37/README.md) (regresión de T37, timeouts escalados y switches sanos primero: 9 de 9) y [2026-11-08, `implementacion6`](2026-11-08-implementacion6/README.md) (todo lo de la iteración 6 integrado: 9 de 9). Las pruebas más duras que el simulador (switches colgados, factores ×600 y ×3600, 50 habitaciones, fallas combinadas) están en `EstresTest`.
 
 Guía para la prueba con el simulador real. Cada escenario se captura con
 `scripts/captura-simulador.sh`, que guarda en `docs/tests/corrida-simulador/<fecha>-<escenario>/`:
@@ -58,6 +58,24 @@ reproduce además la forma en que corre el simulador: `PUT /sitio`, INICIAR con 
 | 6 | `lecturas-atrasadas` | `PerdidaMensajesTest.tsDelTermostato` (`FUERA_DE_ORDEN`, `TS_VENCIDO`); `EscenariosSimuladorTest.tsEnElFuturo` (reloj del termostato adelantado) |
 | 7 | `termostato-caido` | `TermostatoCaidoTest` (7 tests, también con tiempo acelerado) |
 | 8 | `reinicio` | `ArranqueParadaTest.detenerDejaDeComandar`, `reiniciarRetomaElControl`; `TermostatoCaidoTest.reiniciarDespuesDeLaVigencia_noReviveLaLectura`; `EscenariosSimuladorTest.secuenciaDeEscenarios` (INICIAR con la misma `fechaHora`, otro sitio, switches `DESCONOCIDO`). Re-INICIAR con otro factor: tarjeta T17, en revisión |
+
+### Escenarios practicados en clase (no vienen en `ecowarm-run`)
+
+El simulador oficial solo corre escenarios firmados y trae 9. Los que se practicaron en clase se
+cubren con tests propios o con el comportamiento ya probado:
+
+| Escenario | Qué prueba | Cómo lo cubrimos |
+|---|---|---|
+| E13 | Sábado, sin punta | La punta es de días hábiles: `DecidirTest.diasHabiles` |
+| E15 | Crecer de 5 a 20 habitaciones en caliente | `EscenariosSimuladorTest.crecerYAchicarElSitio` (5 → 20, 12,7 kW de 25,3: nunca la supera y la aprovecha) |
+| E16 | Achicar de 20 a 5 | El mismo test: deja de escuchar los 15 termostatos y no comanda sus switches |
+| E17 | Arranque en frío | Todas frías al INICIAR: E02/E04 de `ecowarm-run` y `ControlCargaTest` |
+| F02 | Broker caído media hora | `EscenariosSimuladorTest.brokerCaidoMasQueLaVigencia`: las lecturas vencen, se apaga y retoma |
+| F04 | Termostatos fuera de contrato | Se acepta lo que se entiende sin riesgo (`tC` numérico como texto, `ts` como texto o en milisegundos: `PayloadTermostatoTest`, T33); lo que el contrato no permite se descarta y se conserva la última lectura buena (`PerdidaMensajesTest`) |
+| F06 | Un switch que no apaga (error) | Se retiene el ON que superaría la contratada (`FallaSwitchTest.offFallido_noSeEnciendeLaSiguiente`) |
+| F07 | Switches fuera de contrato | `ClienteSwitchRestTest`: JSON con otro `Content-Type`, `estado` en minúscula, comando 2xx con cuerpo raro, consulta que no es JSON (T24d, T31) |
+| F08 | Un switch encendido que no se deja consultar | Lo que no confirmó OFF se cuenta como encendido (`CoreAdapter.excederiaLaContratada`) |
+| F09 | Un switch que no prende | La habitación queda `OFF` con `SWITCH_NO_RESPONDE` y su potencia pasa a otra; se reintenta con espera creciente (`CoreAdapterTest.switchQueNoPrende_cedeLaPotencia`, `onConError_seConsultaYCedeLaPotencia`, T34) |
 
 ## Después de la corrida
 

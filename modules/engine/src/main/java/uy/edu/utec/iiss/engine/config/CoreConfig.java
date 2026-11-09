@@ -28,13 +28,15 @@ public class CoreConfig {
     public Core core(
             @Value("${control.histeresis-c:0.3}") double histeresisC,
             @Value("${control.margen-intercambio-c:0.5}") double margenIntercambioC,
-            @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos) {
+            @Value("${control.vigencia-lectura-segundos:600}") long vigenciaSegundos,
+            @Value("${control.anticipacion-punta-segundos:60}") long anticipacionPuntaSegundos) {
         ParametrosControl parametros =
                 new ParametrosControl(
                         histeresisC,
                         Duration.ofSeconds(vigenciaSegundos),
                         ParametrosControl.PREDETERMINADOS.temperaturaMinimaValida(),
-                        ParametrosControl.PREDETERMINADOS.temperaturaMaximaValida());
+                        ParametrosControl.PREDETERMINADOS.temperaturaMaximaValida(),
+                        Duration.ofSeconds(anticipacionPuntaSegundos));
         return new Core(new MayorDeficitPrimero(margenIntercambioC), parametros);
     }
 

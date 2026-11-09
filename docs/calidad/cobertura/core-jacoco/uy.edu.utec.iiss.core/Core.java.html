@@ -74,37 +74,37 @@ public class Core {
      *     está encendida ahora. Una habitación sin entrada (o con temperatura null) se toma como
      *     sin lectura y apagada
      * @param ahora hora del control (null = todavía no se conoce: no hay punta ni vencimientos)
-     * @param factorTiempo aceleración vigente (escala la vigencia de las lecturas)
-     * @return una decisión por habitación, en el orden de {@code habitaciones}
+     * @return una decisión por habitación, en el orden de {@code habitaciones} según el {@link
+     *     CriterioPrioridad}
      */
     public List&lt;Decision&gt; decidir(
             Sitio sitio,
             List&lt;ConfiguracionHabitacion&gt; habitaciones,
             Map&lt;String, EstadoHabitacion&gt; estados,
-            Instant ahora,
-            double factorTiempo) {
-<span class="fc" id="L86">        Objects.requireNonNull(sitio, &quot;sitio&quot;);</span>
-<span class="fc" id="L87">        Objects.requireNonNull(habitaciones, &quot;habitaciones&quot;);</span>
-<span class="fc" id="L88">        Objects.requireNonNull(estados, &quot;estados&quot;);</span>
+            Instant ahora) {
+<span class="fc" id="L85">        Objects.requireNonNull(sitio, &quot;sitio&quot;);</span>
+<span class="fc" id="L86">        Objects.requireNonNull(habitaciones, &quot;habitaciones&quot;);</span>
+<span class="fc" id="L87">        Objects.requireNonNull(estados, &quot;estados&quot;);</span>
 
         // 1. Necesidad de cada habitación
-<span class="fc" id="L91">        Map&lt;String, Motivo&gt; motivos = new HashMap&lt;&gt;();</span>
-<span class="fc" id="L92">        Map&lt;String, Double&gt; potencias = new HashMap&lt;&gt;();</span>
-<span class="fc" id="L93">        List&lt;ConfiguracionHabitacion&gt; conDeficit = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L90">        Map&lt;String, Motivo&gt; motivos = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L91">        Map&lt;String, Double&gt; potencias = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L92">        List&lt;ConfiguracionHabitacion&gt; conDeficit = new ArrayList&lt;&gt;();</span>
 
-<span class="fc bfc" id="L95" title="All 2 branches covered.">        for (ConfiguracionHabitacion h : habitaciones) {</span>
-<span class="fc" id="L96">            potencias.put(h.id(), h.potenciaKW());</span>
-<span class="fc" id="L97">            Motivo sinDeficit =</span>
-<span class="fc" id="L98">                    motivoSinDeficit(h, estados.get(h.id()), sitio, ahora, factorTiempo);</span>
-<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (sinDeficit != null) {</span>
-<span class="fc" id="L100">                motivos.put(h.id(), sinDeficit);</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        for (ConfiguracionHabitacion h : habitaciones) {</span>
+<span class="fc" id="L95">            potencias.put(h.id(), h.potenciaKW());</span>
+<span class="fc" id="L96">            Motivo sinDeficit = motivoSinDeficit(h, estados.get(h.id()), sitio, ahora);</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            if (sinDeficit != null) {</span>
+<span class="fc" id="L98">                motivos.put(h.id(), sinDeficit);</span>
             } else {
-<span class="fc" id="L102">                conDeficit.add(h);</span>
+<span class="fc" id="L100">                conDeficit.add(h);</span>
             }
-<span class="fc" id="L104">        }</span>
+<span class="fc" id="L102">        }</span>
 
         // 2. Tarifa  /  3. Reparto de la potencia contratada
-<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (enPunta(sitio, ahora)) {</span>
+        // La punta se corta un poco antes de que empiece (anticipacionPunta): así los OFF ya
+        // llegaron a los switches cuando empieza. La salida no se adelanta.
+<span class="fc bfc" id="L107" title="All 4 branches covered.">        if (enPunta(sitio, ahora) || enPunta(sitio, sumar(ahora, parametros.anticipacionPunta()))) {</span>
 <span class="fc" id="L108">            conDeficit.forEach(h -&gt; motivos.put(h.id(), Motivo.TARIFA_PUNTA));</span>
 
         } else {
@@ -134,45 +134,52 @@ public class Core {
 
     /** Por qué la habitación NO necesita energía, o null si tiene déficit y podría recibirla. */
     private Motivo motivoSinDeficit(
-            ConfiguracionHabitacion h,
-            EstadoHabitacion e,
-            Sitio sitio,
-            Instant ahora,
-            double factorTiempo) {
-<span class="fc bfc" id="L142" title="All 4 branches covered.">        if (e == null || e.temperaturaActual() == null) {</span>
-<span class="fc" id="L143">            return Motivo.SIN_LECTURA;</span>
+            ConfiguracionHabitacion h, EstadoHabitacion e, Sitio sitio, Instant ahora) {
+<span class="fc bfc" id="L138" title="All 4 branches covered.">        if (e == null || e.temperaturaActual() == null) {</span>
+<span class="fc" id="L139">            return Motivo.SIN_LECTURA;</span>
         }
-<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (vencida(e.ultimaLectura(), ahora, factorTiempo)) {</span>
-<span class="fc" id="L146">            return Motivo.LECTURA_VENCIDA;</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">        if (lecturaVencida(e.ultimaLectura(), ahora)) {</span>
+<span class="fc" id="L142">            return Motivo.LECTURA_VENCIDA;</span>
         }
         // Histéresis: encendida sigue hasta la esperada; apagada arranca recién debajo de la banda.
         double umbral =
-<span class="fc bfc" id="L150" title="All 2 branches covered.">                e.encendida()</span>
-<span class="fc" id="L151">                        ? h.temperaturaEsperada()</span>
-<span class="fc" id="L152">                        : h.temperaturaEsperada() - parametros.histeresisC();</span>
-<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (e.temperaturaActual() &gt;= umbral) {</span>
-<span class="fc" id="L154">            return Motivo.SATISFECHA;</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                e.encendida()</span>
+<span class="fc" id="L147">                        ? h.temperaturaEsperada()</span>
+<span class="fc" id="L148">                        : h.temperaturaEsperada() - parametros.histeresisC();</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        if (e.temperaturaActual() &gt;= umbral) {</span>
+<span class="fc" id="L150">            return Motivo.SATISFECHA;</span>
         }
-<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (h.potenciaKW() &gt; sitio.potenciaContratadaKW() + EPS) {</span>
-<span class="fc" id="L157">            return Motivo.EXCEDE_CONTRATADA;</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        if (h.potenciaKW() &gt; sitio.potenciaContratadaKW() + EPS) {</span>
+<span class="fc" id="L153">            return Motivo.EXCEDE_CONTRATADA;</span>
         }
-<span class="fc" id="L159">        return null;</span>
+<span class="fc" id="L155">        return null;</span>
     }
 
-    private boolean vencida(Instant instante, Instant ahora, double factorTiempo) {
-<span class="fc bfc" id="L163" title="All 4 branches covered.">        if (ahora == null || instante == null) {</span>
-<span class="fc" id="L164">            return false;</span>
+    /**
+     * Si una lectura tomada en {@code instante} ya venció a la hora {@code ahora}. La vigencia se
+     * mide en tiempo del control (simulado), sin multiplicar por el factor. Sin alguno de los dos
+     * instantes no vence. Pública para que el engine use la misma regla al re-sincronizar (D7).
+     */
+    public boolean lecturaVencida(Instant instante, Instant ahora) {
+<span class="fc bfc" id="L164" title="All 4 branches covered.">        if (ahora == null || instante == null) {</span>
+<span class="fc" id="L165">            return false;</span>
         }
-<span class="fc" id="L166">        long vigenciaMs = Math.round(parametros.vigenciaLectura().toMillis() * factorTiempo);</span>
-<span class="fc bfc" id="L167" title="All 2 branches covered.">        return Duration.between(instante, ahora).toMillis() &gt; vigenciaMs;</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        return Duration.between(instante, ahora).compareTo(parametros.vigenciaLectura()) &gt; 0;</span>
+    }
+
+    private static Instant sumar(Instant instante, Duration duracion) {
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (instante == null) {</span>
+<span class="fc" id="L172">            return null;</span>
+        }
+<span class="fc" id="L174">        return instante.plus(duracion);</span>
     }
 
     private static boolean enPunta(Sitio sitio, Instant ahora) {
-<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (ahora == null) {</span>
-<span class="fc" id="L172">            return false;</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        if (ahora == null) {</span>
+<span class="fc" id="L179">            return false;</span>
         }
-<span class="fc" id="L174">        var local = ahora.atZone(sitio.zona());</span>
-<span class="fc" id="L175">        return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());</span>
+<span class="fc" id="L181">        var local = ahora.atZone(sitio.zona());</span>
+<span class="fc" id="L182">        return sitio.puntaTarifa().incluye(local.getDayOfWeek(), local.toLocalTime());</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

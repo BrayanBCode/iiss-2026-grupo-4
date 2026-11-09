@@ -1,4 +1,4 @@
-# mvn spotless:check — rama implementacion5, 2026-10-27 00:44
+# mvn spotless:check — rama iter6/t30-cierre (sobre implementacion6, commit 748ce87), 2026-11-09 01:57
 # Java: java version "25.0.4" 2026-07-21 LTS
 
 [INFO] Scanning for projects...
@@ -15,7 +15,6 @@
 [INFO] --------------------------------[ pom ]---------------------------------
 [INFO] 
 [INFO] --- spotless:2.46.1:check (default-cli) @ ecowarm-parent ---
-[INFO] Index file does not exist. Fallback to an empty index
 [INFO] 
 [INFO] -----------------------< uy.edu.utec.iiss:core >------------------------
 [INFO] Building core 1.0.0                                                [2/3]
@@ -23,8 +22,7 @@
 [INFO] --------------------------------[ jar ]---------------------------------
 [INFO] 
 [INFO] --- spotless:2.46.1:check (default-cli) @ core ---
-[INFO] Index file does not exist. Fallback to an empty index
-[INFO] Spotless.Java is keeping 21 files clean - 0 needs changes to be clean, 21 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] Spotless.Java is keeping 17 files clean - 0 needs changes to be clean, 0 were already clean, 17 were skipped because caching determined they were already clean
 [INFO] 
 [INFO] ----------------------< uy.edu.utec.iiss:engine >-----------------------
 [INFO] Building engine 1.0.0                                              [3/3]
@@ -32,18 +30,16 @@
 [INFO] --------------------------------[ jar ]---------------------------------
 [INFO] 
 [INFO] --- spotless:2.46.1:check (default-cli) @ engine ---
-[INFO] Index file does not exist. Fallback to an empty index
-[INFO] Spotless.Java is keeping 48 files clean - 0 needs changes to be clean, 48 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] Spotless.Java is keeping 58 files clean - 0 needs changes to be clean, 0 were already clean, 58 were skipped because caching determined they were already clean
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary for ecowarm-parent 1.0.0:
 [INFO] 
-[INFO] ecowarm-parent ..................................... SUCCESS [  0.649 s]
-[INFO] core ............................................... SUCCESS [  1.459 s]
-[INFO] engine ............................................. SUCCESS [  0.934 s]
+[INFO] ecowarm-parent ..................................... SUCCESS [  0.404 s]
+[INFO] core ............................................... SUCCESS [  0.198 s]
+[INFO] engine ............................................. SUCCESS [  0.078 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  3.473 s
-[INFO] Finished at: 2026-10-27T00:44:47-03:00
+[INFO] Total time:  0.993 s
+[INFO] Finished at: 2026-11-08T22:57:41-03:00
 [INFO] ------------------------------------------------------------------------
-# exit code: 0
