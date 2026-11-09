@@ -205,7 +205,10 @@ conocido de su switch; además si MQTT está conectado y si se registró ante el
 | `CONTROL_RESUMEN_SEGUNDOS` | `30` | Cada cuántos segundos reales se escribe el resumen del control en el log (0 = nunca). |
 
 Los timeouts de los switches (2 s de conexión, 10 s de respuesta, 5 s entre reintentos) se cambian en
-`application.properties` (`switch.timeout-*`, `switch.espera-reintento-segundos`).
+`application.properties` (`switch.timeout-*`, `switch.espera-reintento-segundos`). Los dos timeouts
+valen con factor 1: con tiempo acelerado se dividen por `factorTiempo`, con un piso de 0,5 s (a ×60,
+medio segundo), para que un switch colgado no atrase a los demás (decisión A19). Cada pasada atiende
+primero los switches sanos y después los que vienen fallando.
 
 **Zona horaria de la tarifa.** La franja punta se lee en hora de Uruguay (D4): una `fechaHora` de
 `INICIAR` con `Z` se convierte (21:00Z son las 18:00, en punta) y una sin offset se toma como hora de

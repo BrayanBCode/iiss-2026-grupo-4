@@ -474,8 +474,8 @@ sequenceDiagram
             alt responde 200
                 Sw-->>Ad: {estado: ON}
                 Ad->>Ad: estadoConocido[room1] = ON
-            else falla / timeout
-                Ad->>Ad: estado desconocido, no reintentar por 5 s<br/>(no bloquea a los demás switches)
+            else falla / timeout (escalado con el factor, T37)
+                Ad->>Ad: estado desconocido, no reintentar por 5 s<br/>y en las próximas pasadas va después de los sanos (T37)
             end
         end
     end
@@ -639,7 +639,7 @@ el hilo propio deja la espera fija y garantiza que al apagar no quede ningún cl
 | `mqtt-conexion` | propio (`LecturaMqttListener`) | conexión y reconexión tras una caída (reintento cada 5 s, cliente nuevo) y (re)suscripciones (nunca desde el hilo de Paho: deadlock) |
 | `control-temporizador` | propio (`ControlService`) | tick cada `control.tick-ms` de tiempo de control, o sea cada `max(10 ms, tickMs / factor)` reales (T12; se rearma en cada INICIAR), reconciliación cada `control.reconciliacion-segundos` (15 s) de tiempo de control, o sea cada `max(1 s, 15 s / factor)` reales (T36), y un resumen en el log cada `control.resumen-segundos` (30 s) reales; existe solo mientras el control está en ejecución |
 | `registro-entorno` | propio (`RegistroEntorno`) | registro §6 con reintentos exponenciales |
-| `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas |
+| `switches` | propio (`CoreAdapter`) | todo el I/O con los switches: consultas §4 y comandos §3, en pasadas; primero los sanos y después los que vienen fallando (T37) |
 | `main` | Spring | al quedar lista la aplicación, `RegistroEntorno.arrancar` recupera el inventario guardado y lanza `registro-entorno` |
 
 **Candados.** Los estímulos convergen en `CoreAdapter`, el único que toca el core y el único dueño del
@@ -659,10 +659,28 @@ que llega durante una pasada corta los comandos que faltan. Así `INICIAR` y `PU
 esperar a los switches —importante porque en el registro §6 el entorno nos da `INICIAR` antes de
 responder, y es él mismo quien sirve los switches: esperar ahí era un bloqueo circular— y un switch
 lento no demora al core, a MQTT ni al API. Los pedidos que llegan durante una pasada se juntan en una
-sola pasada siguiente, que usa la decisión vigente en ese momento. Las pasadas son secuenciales: un
-switch lento todavía demora a los demás switches hasta su timeout (la espera entre reintentos lo
-acota): 2 s de conexión más 10 s de lectura, o sea hasta 12 s por switch. Decidimos no paralelizar
-las pasadas.
+sola pasada siguiente, que usa la decisión vigente en ese momento.
+
+**Un switch colgado no traba a los demás (T37).** Dentro de una pasada las llamadas son de a una:
+mientras se espera a un switch que no responde, no se atiende a ningún otro. Una prueba de estrés
+(`EstresTest`) lo mostró: a ×60, con 3 switches colgados a las 16:54, el switch sano seguía
+encendido a las 17:54 de control. Cada colgado trababa el hilo 10 s (10 min de control), la espera
+de 5 s entre reintentos vencía antes de terminar la pasada, y la siguiente volvía a empezar por los
+colgados. Decidimos no paralelizar (A5, A19) y acotar la espera con tres reglas:
+
+1. **Timeout en tiempo de control.** Los configurados (2 s de conexión, 10 s de respuesta) valen con
+   factor 1; con el control acelerado se dividen por el factor, con un piso de 0,5 s reales y nunca
+   más que lo configurado (`ClienteSwitchRest.ajustarAlFactor`, en cada INICIAR). A ×60, 0,5 s.
+2. **Primero los sanos.** Cada pasada consulta y comanda (OFF y después ON) los switches que no vienen
+   fallando, y recién después los que fallaron y todavía no volvieron a responder.
+3. **Corte por cambio de decisión.** Antes de llamar a un switch que viene fallando, si cambió la
+   acción decidida de alguna habitación (por ejemplo, empezó la punta), la pasada se corta: la que
+   pidió ese cambio ya está encolada y empieza de nuevo por los sanos.
+
+Así un switch sano espera, como mucho, una llamada en curso a uno que no responde: 0,5 s reales a
+×60 (30 s de control), dentro del minuto de corte anticipado de la punta (T24e). Con factor 1 la
+espera puede ser de hasta 12 s por switch colgado (L9). La potencia contratada sigue cuidada entre
+grupos: un switch que no confirmó OFF cuenta como encendido para retener un ON (§2.5).
 
 ### 3.1 Manejo de fallas
 
@@ -672,7 +690,8 @@ las pasadas.
 | Broker cae durante la ejecución | se descarta el cliente caído y se reintenta cada 5 s con uno nuevo; al volver se re-suscribe. El control sigue y no toca los switches por la caída | `mqtt-conexion` | `FallaBrokerMqttTest` |
 | Se pierden mensajes o llegan corruptos | un payload inválido se descarta; una temperatura fuera de rango, una lectura fuera de orden o con `ts` más viejo que la vigencia también, y estas tres se cuentan en `/diagnostico` (`FUERA_DE_RANGO`, `FUERA_DE_ORDEN`, `TS_VENCIDO`); la decisión usa la última lectura válida mientras esté vigente | Paho callback | `PerdidaMensajesTest`, `PayloadTermostatoTest`, `CoreAdapterEstimulosTest` |
 | Termostato deja de publicar | la lectura vence (10 min de tiempo de control, sin escalar por el factor: T8c) y el core apaga por `LECTURA_VENCIDA` | `control-temporizador` | `TermostatoCaidoTest` |
-| Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta); no se le reintenta por 5 s; los demás switches se siguen comandando; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest` |
+| Switch no responde o da error | timeout (2 s de conexión, 10 s de respuesta, divididos por el factor con piso de 0,5 s: T37); no se le reintenta por 5 s; mientras no vuelva a responder, cada pasada lo atiende después de los sanos; la reconciliación lo corrige al volver | `switches` | `FallaSwitchTest`, `CoreAdapterTest`, `ClienteSwitchRestTest` |
+| Varios switches colgados a la vez cruzando el inicio de la punta | los sanos se apagan a tiempo: esperan como mucho una llamada en curso (0,5 s reales a ×60) porque la pasada se corta al cambiar la decisión y vuelve a empezar por ellos (T37) | `switches` | `EstresTest` |
 | Falla el OFF que liberaba potencia | se retiene el ON que superaría la contratada hasta que el OFF se confirme (§2.5) | `switches` | `FallaSwitchTest` |
 | Switch reiniciado o movido a mano | la consulta §4 lo ve distinto de la última decisión y lo vuelve a comandar; a ×60, en segundos reales (T36) | `switches` | `CoreAdapterTest`, `ReconciliacionEscaladaTest` |
 | Switch que responde fuera de contrato (no JSON, `estado` en minúscula, otro `Content-Type`) | una consulta que no es JSON cuenta como falla y el log muestra lo que mandó; un comando que responde 2xx se toma como aplicado aunque el cuerpo no sea JSON (la reconciliación lo verifica); el `estado` se lee sin importar mayúsculas y un JSON con otro `Content-Type` se acepta | `switches` | `ClienteSwitchRestTest` |
@@ -815,7 +834,10 @@ modules/
                └── src/test/…/
                    ├── adaptador/   CoreAdapterTest (switches, pasadas, estado de ejecución),
                    │                CoreAdapterEstimulosTest (por estímulos), EstimulosFixtures
-                   ├── control/     RelojControlTest, ControlServiceTest (período del tick)
+                   ├── control/     RelojControlTest, ControlServiceTest (períodos del tick y
+                   │                de la reconciliación)
+                   ├── switches/    ClienteSwitchRestTest (respuestas fuera de contrato, timeout
+                   │                escalado con el factor)
                    ├── inventario/  ValidadorInventarioTest, RepositorioInventarioTest,
                    │                InventarioEjemplo
                    ├── mqtt/        PayloadTermostatoTest
@@ -825,7 +847,10 @@ modules/
                                 IntegracionBase (contexto Spring + BrokerMqttEmbebido (Moquette)
                                 + SwitchesHttpFalsos), ControlCargaTest, ArranqueParadaTest,
                                 CambioConfiguracionTest, FallaBrokerMqttTest, PerdidaMensajesTest,
-                                FallaSwitchTest, TermostatoCaidoTest, TiempoAceleradoTest
+                                FallaSwitchTest, TermostatoCaidoTest, TiempoAceleradoTest,
+                                EscenariosSimuladorTest, ReconciliacionEscaladaTest,
+                                EstresTest (switches colgados, ×600 y ×3600, 50 habitaciones y
+                                fallas combinadas, siempre cruzando las 17:00)
 ```
 
 Los tests de estímulos (lectura, tick, configuración, INICIAR) eran `CoreTest` hasta la iteración 5;

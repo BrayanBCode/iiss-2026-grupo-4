@@ -20,6 +20,7 @@ class ClienteSwitchRestTest {
     private HttpServer switchFalso;
     private String contentType;
     private String cuerpo;
+    private volatile long demoraMs;
     private final ClienteSwitchRest cliente = new ClienteSwitchRest("", 1000, 1000);
 
     @BeforeEach
@@ -28,6 +29,13 @@ class ClienteSwitchRestTest {
         switchFalso.createContext(
                 "/switches",
                 ex -> {
+                    if (demoraMs > 0) {
+                        try {
+                            Thread.sleep(demoraMs);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                     byte[] bytes = cuerpo.getBytes(StandardCharsets.UTF_8);
                     ex.getResponseHeaders().set("Content-Type", contentType);
                     ex.sendResponseHeaders(200, bytes.length == 0 ? -1 : bytes.length);
@@ -46,6 +54,36 @@ class ClienteSwitchRestTest {
 
     private String url() {
         return "http://127.0.0.1:" + switchFalso.getAddress().getPort();
+    }
+
+    @Test
+    @DisplayName(
+            "Timeout en tiempo de control (T37): configurado / factor, con piso de 0,5 s y nunca"
+                    + " más que lo configurado")
+    void timeoutEscalado() {
+        assertEquals(10_000, ClienteSwitchRest.timeoutEscalado(10_000, 1));
+        assertEquals(10_000, ClienteSwitchRest.timeoutEscalado(10_000, 0.5));
+        assertEquals(5_000, ClienteSwitchRest.timeoutEscalado(10_000, 2));
+        assertEquals(500, ClienteSwitchRest.timeoutEscalado(10_000, 60));
+        assertEquals(500, ClienteSwitchRest.timeoutEscalado(2_000, 600));
+        assertEquals(300, ClienteSwitchRest.timeoutEscalado(300, 60)); // ya menor que el piso
+    }
+
+    @Test
+    @DisplayName(
+            "Con factor 60 un switch que tarda 3 s se da por caído en medio segundo, no en los 10 s"
+                    + " configurados")
+    void conFactorAlto_noEsperaElTimeoutConfigurado() {
+        ClienteSwitchRest paciente = new ClienteSwitchRest("", 2000, 10_000);
+        paciente.ajustarAlFactor(60);
+        contentType = "application/json";
+        cuerpo = "{\"estado\":\"ON\"}";
+        demoraMs = 3000;
+
+        long inicio = System.nanoTime();
+        assertThrows(SwitchNoDisponibleException.class, () -> paciente.consultar(url(), "sw-1"));
+        long ms = (System.nanoTime() - inicio) / 1_000_000;
+        assertTrue(ms < 2000, "esperó " + ms + " ms");
     }
 
     @Test

@@ -24,32 +24,72 @@ import uy.edu.utec.iiss.core.model.Accion;
  * Cliente REST de los switches según el estándar v2 (§3 comandar, §4 consultar), con el header
  * {@code X-API-Key} que exige el switch.
  *
- * <p>Timeouts cortos a propósito: un switch caído no puede trabar el lazo de control (el {@link
- * uy.edu.utec.iiss.engine.adaptador.CoreAdapter} además espacia los reintentos a un switch que
- * viene fallando).
+ * <p><b>Timeouts en tiempo de control (T37).</b> Los configurados ({@code switch.timeout-*}) valen
+ * con factor 1; con el control acelerado se dividen por el factor, con un piso de {@value
+ * #TIMEOUT_MINIMO_MS} ms reales y nunca más que lo configurado. A ×60, esperar 10 s reales a un
+ * switch son 10 min de control en los que el {@link uy.edu.utec.iiss.engine.adaptador.CoreAdapter},
+ * que llama a los switches de a uno, no atiende a ningún otro (prueba de estrés {@code
+ * EstresTest}). El adaptador además espacia los reintentos a un switch que viene fallando y lo
+ * atiende después de los sanos.
  */
 @Component
 public class ClienteSwitchRest implements ClienteSwitch {
 
     static final String HEADER_API_KEY = "X-API-Key";
+
+    /** Piso de los timeouts escalados: menos que esto ya no distingue lento de caído en una LAN. */
+    static final int TIMEOUT_MINIMO_MS = 500;
+
     private static final Logger log = LoggerFactory.getLogger(ClienteSwitchRest.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAXIMO_EN_EL_LOG = 120;
 
-    private final RestTemplate http;
+    private final int timeoutConexionMs;
+    private final int timeoutLecturaMs;
+    // Se reemplaza entero en cada INICIAR (ajustarAlFactor): un pedido en curso termina con los
+    // timeouts con que empezó y el siguiente usa los nuevos.
+    private volatile RestTemplate http;
     private final String apiKey;
 
     public ClienteSwitchRest(
             @Value("${switch.api-key:}") String apiKey,
             @Value("${switch.timeout-conexion-ms:2000}") int timeoutConexionMs,
             @Value("${switch.timeout-lectura-ms:10000}") int timeoutLecturaMs) {
+        this.timeoutConexionMs = timeoutConexionMs;
+        this.timeoutLecturaMs = timeoutLecturaMs;
+        this.http = cliente(timeoutConexionMs, timeoutLecturaMs);
+        this.apiKey = apiKey;
+    }
+
+    private static RestTemplate cliente(int conexionMs, int lecturaMs) {
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
-        fabrica.setConnectTimeout(timeoutConexionMs);
-        fabrica.setReadTimeout(timeoutLecturaMs);
+        fabrica.setConnectTimeout(conexionMs);
+        fabrica.setReadTimeout(lecturaMs);
         // Buffering: manda Content-Length en lugar de un cuerpo "chunked", que algunos servidores
         // no leen.
-        this.http = new RestTemplate(new BufferingClientHttpRequestFactory(fabrica));
-        this.apiKey = apiKey;
+        return new RestTemplate(new BufferingClientHttpRequestFactory(fabrica));
+    }
+
+    @Override
+    public void ajustarAlFactor(double factorTiempo) {
+        int conexion = timeoutEscalado(timeoutConexionMs, factorTiempo);
+        int lectura = timeoutEscalado(timeoutLecturaMs, factorTiempo);
+        http = cliente(conexion, lectura);
+        log.info(
+                "Timeouts de los switches con factor {}: {} ms de conexión, {} ms de respuesta.",
+                factorTiempo,
+                conexion,
+                lectura);
+    }
+
+    /**
+     * {@code configurado / factor}, sin bajar de {@value #TIMEOUT_MINIMO_MS} ms ni pasar de lo
+     * configurado: con factor 60 y 10 s, medio segundo real (30 s de control); con factor 1 o
+     * menos, lo configurado. Si lo configurado ya es menor que el piso, se respeta.
+     */
+    static int timeoutEscalado(int configuradoMs, double factorTiempo) {
+        long escalado = Math.round(configuradoMs / Math.max(1.0, factorTiempo));
+        return (int) Math.min(configuradoMs, Math.max(TIMEOUT_MINIMO_MS, escalado));
     }
 
     @Override

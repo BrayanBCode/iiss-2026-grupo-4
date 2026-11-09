@@ -78,8 +78,17 @@ class CoreAdapterTest {
         final Set<String> noPrenden = new HashSet<>(); // aceptan el ON pero siguen apagados
         final Set<String> rechazanOn = new HashSet<>(); // el ON da error; consultarlos anda
 
+        final List<String> intentos = new ArrayList<>(); // todo pedido, responda o no
+        double factor = 1;
+
+        @Override
+        public void ajustarAlFactor(double factorTiempo) {
+            factor = factorTiempo;
+        }
+
         @Override
         public EstadoSwitch comandar(String url, String idSwitch, Accion accion) {
+            intentos.add(idSwitch + ":" + accion);
             if (caidos.contains(idSwitch)) {
                 throw new SwitchNoDisponibleException(idSwitch, "caído", null);
             }
@@ -98,6 +107,7 @@ class CoreAdapterTest {
 
         @Override
         public EstadoSwitch consultar(String url, String idSwitch) {
+            intentos.add(idSwitch + ":?");
             if (caidos.contains(idSwitch)) {
                 throw new SwitchNoDisponibleException(idSwitch, "caído", null);
             }
@@ -696,5 +706,53 @@ class CoreAdapterTest {
         assertEquals("CALEFACCIONANDO", living.motivo());
         assertEquals(EstadoSwitch.ON, living.estadoSwitch());
         assertEquals(15.0, living.temperaturaActual(), 1e-9);
+    }
+
+    @Test
+    @DisplayName(
+            "Un switch que viene fallando se atiende después de los sanos (T37): al empezar la"
+                    + " punta el OFF del sano sale primero aunque el que falla esté antes")
+    void switchQueFalla_seAtiendeDespuesDeLosSanos() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(16, 0));
+        leer("dormitorio", 15.0, lunes(16, 0));
+        assertEquals(List.of("sw-dorm:ON", "sw-living:ON"), ordenados());
+
+        switches.caidos.add("sw-living"); // living está primero en el inventario
+        adaptador.reconciliar(); // la consulta falla: living pasa a "viene fallando"
+        switches.intentos.clear();
+
+        tick(lunes(17, 0));
+
+        assertEquals("sw-dorm:OFF", switches.intentos.get(0), "intentos: " + switches.intentos);
+        assertTrue(switches.intentos.contains("sw-living:OFF"), "intentos: " + switches.intentos);
+    }
+
+    @Test
+    @DisplayName(
+            "Cuando el switch que fallaba responde una consulta, vuelve a los sanos y se lo"
+                    + " comanda en el orden del inventario")
+    void switchQueVuelveAResponder_vuelveALosSanos() {
+        configurarEIniciar();
+        leer("living", 15.0, lunes(16, 0));
+        leer("dormitorio", 15.0, lunes(16, 0));
+        switches.caidos.add("sw-living");
+        adaptador.reconciliar();
+        switches.caidos.remove("sw-living");
+        adaptador.reconciliar(); // responde: vuelve a los sanos
+        switches.intentos.clear();
+
+        tick(lunes(17, 0));
+
+        assertEquals(List.of("sw-living:OFF", "sw-dorm:OFF"), switches.intentos);
+    }
+
+    @Test
+    @DisplayName(
+            "INICIAR le pasa el factor a los switches, para medir sus timeouts en tiempo de"
+                    + " control")
+    void sincronizar_ajustaLosTimeoutsAlFactor() {
+        sincronizar(lunes(10, 0), 60);
+        assertEquals(60, switches.factor, 1e-9);
     }
 }
