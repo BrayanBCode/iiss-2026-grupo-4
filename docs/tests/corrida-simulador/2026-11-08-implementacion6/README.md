@@ -4,8 +4,9 @@ Primera corrida sobre `implementacion6` con todo lo de la iteración 6 mergeado 
 T26, T27, T29, T31–T37). Las corridas anteriores eran sobre una rama cada una; esta confirma que
 juntas no rompen nada.
 
-**Resultado: 9 de 9 pasan** ([`reporte.md`](reporte.md); la serie y las interacciones de cada
-escenario están en `20261108-212349-1/`). El log del controlador de esta corrida no se guardó.
+**Resultado: 9 de 9 pasan** ([`reporte.md`](reporte.md)). La serie y las interacciones de cada
+escenario (el detalle crudo de `ecowarm-run`) no se guardan en el repo: se regeneran corriendo la
+herramienta. El log del controlador de esta corrida no se guardó.
 
 ## Cómo se corrió
 

@@ -40,3 +40,6 @@ logs/*
 
 ### Inventario persistido al correr el engine fuera de Docker ###
 data/
+
+### Salida de ecowarm-run (se guarda a mano solo README, reporte.md, reporte.json y el log) ###
+ecowarm-reporte/
