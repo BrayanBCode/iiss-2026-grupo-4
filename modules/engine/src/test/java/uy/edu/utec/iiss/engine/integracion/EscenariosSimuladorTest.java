@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,6 +143,84 @@ class EscenariosSimuladorTest extends IntegracionBase {
         BROKER.publicar(topic("living"), payload(25.0, Instant.now()));
         esperarSwitch("living", "OFF");
         assertTrue(estado("living").lecturasDescartadas().isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+            "Crecer de 5 a 20 habitaciones y achicar a 5 en caliente (E15/E16): se suscribe y deja"
+                    + " de escuchar lo que corresponde, nunca supera la contratada y no comanda lo"
+                    + " que salió del sitio")
+    void crecerYAchicarElSitio() throws Exception {
+        // Los números del escenario de la clase: 5 habitaciones holgadas (4,8 kW con 6 kW
+        // contratados) que crecen a 20 (25,3 kW con 12,7 kW contratados) y vuelven a 5.
+        Inventario.Habitacion[] veinte = new Inventario.Habitacion[20];
+        for (int i = 0; i < 5; i++) {
+            veinte[i] = habitacion("room" + (i + 1), 21.0, 0.96);
+        }
+        for (int i = 5; i < 20; i++) {
+            veinte[i] = habitacion("room" + (i + 1), 21.0, i < 15 ? 1.4 : 1.3);
+        }
+        Inventario cinco = inventario(6.0, Arrays.copyOfRange(veinte, 0, 5));
+        Inventario grande = inventario(12.7, veinte);
+
+        cargarSitio(cinco);
+        iniciar(); // factor 1: las lecturas no vencen mientras se publican las 20
+        for (int i = 0; i < 5; i++) {
+            temperatura("room" + (i + 1), 18.0);
+        }
+        for (int i = 0; i < 5; i++) {
+            esperarSwitch("room" + (i + 1), "ON"); // holgado: entran todas
+        }
+
+        // E15: crecer a 20, limitante.
+        cargarSitio(grande);
+        for (int i = 5; i < 20; i++) {
+            temperatura("room" + (i + 1), 17.0);
+        }
+        esperar(
+                () -> potenciaEncendida(grande) >= 12.7 - 1.4,
+                () -> "no aprovechó la contratada: " + potenciaEncendida(grande) + " kW");
+        seMantiene(
+                Duration.ofMillis(1500),
+                () -> potenciaEncendida(grande) <= 12.7 + 1e-9,
+                () -> "superó la contratada: " + potenciaEncendida(grande) + " kW");
+        assertTrue(
+                picoDePotencia(grande) <= 12.7 + 1e-9,
+                "pico de " + picoDePotencia(grande) + " kW con 12,7 contratados");
+
+        // E16: achicar a 5. Las 15 que salen dejan de escucharse y de comandarse.
+        Map<String, Integer> comandosAntes = new HashMap<>();
+        for (int i = 5; i < 20; i++) {
+            comandosAntes.put(
+                    idSwitch("room" + (i + 1)),
+                    SWITCHES.comandosA(idSwitch("room" + (i + 1))).size());
+        }
+        cargarSitio(cinco);
+        esperar(
+                () -> {
+                    for (int i = 5; i < 20; i++) {
+                        if (BROKER.haySuscriptor(topic("room" + (i + 1)))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                () -> "sigue suscrito a termostatos que salieron del sitio");
+        for (int i = 0; i < 5; i++) {
+            temperatura("room" + (i + 1), 18.0);
+            esperarSwitch("room" + (i + 1), "ON");
+        }
+        seMantiene(
+                Duration.ofMillis(1500),
+                () -> {
+                    for (Map.Entry<String, Integer> e : comandosAntes.entrySet()) {
+                        if (SWITCHES.comandosA(e.getKey()).size() != e.getValue()) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                () -> "comandó switches que ya no están en el sitio: " + SWITCHES.comandos());
     }
 
     /** Payload del termostato (§2) con el ts en hora real: epoch en segundos con 3 decimales. */
