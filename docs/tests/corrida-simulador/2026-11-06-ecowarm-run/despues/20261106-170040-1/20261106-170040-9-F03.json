@@ -1,0 +1,548 @@
+{
+  "zonaHoraria" : "America/Montevideo",
+  "plan" : {
+    "id" : "F03",
+    "nombre" : "Un termostato deja de publicar",
+    "descripcion" : "4 habitaciones que entran juntas. A la media hora el termostato de room2 se calla para siempre (se rompió, se quedó sin batería). El controlador no tiene que seguir calentándola a ciegas, y las otras tres siguen normales.",
+    "habitaciones" : 4,
+    "potenciaContratadaKW" : 5.0,
+    "potenciaInstaladaKW" : 4.0,
+    "temperaturaInicial" : {
+      "delta" : -0.5
+    },
+    "habitacionesIniciales" : null,
+    "inicio" : {
+      "fechaHora" : "2026-11-03T10:00-03:00",
+      "zonaHoraria" : "America/Montevideo",
+      "factorTiempo" : 60.0
+    },
+    "duracion" : "2h",
+    "duracionSegundos" : 7200,
+    "estimacionRealSegundos" : 125,
+    "pasos" : [
+    ],
+    "fallas" : [
+      {
+        "en" : "30m",
+        "tipo" : "termostato",
+        "modo" : "silencio",
+        "habitaciones" : [
+          "room2"
+        ],
+        "descripcion" : "el termostato deja de publicar en room2 hasta el fin"
+      }
+    ],
+    "esperado" : [
+      {
+        "tipo" : "enRango",
+        "nivel" : "mejora",
+        "obligatoria" : false,
+        "parametros" : {
+          "desde" : "0s",
+          "habitaciones" : [
+            "room1",
+            "room3",
+            "room4"
+          ],
+          "tolerancia" : 0.5,
+          "fraccion" : 0.7
+        },
+        "nota" : null
+      },
+      {
+        "tipo" : "potenciaMaxima",
+        "nivel" : "riesgo",
+        "obligatoria" : true,
+        "parametros" : {
+          "tolerancia" : 0.1,
+          "gracia" : "2m"
+        },
+        "nota" : null
+      },
+      {
+        "tipo" : "soloSwitchesDelSitio",
+        "nivel" : "contrato",
+        "obligatoria" : true,
+        "parametros" : {
+          "gracia" : "2m"
+        },
+        "nota" : null
+      },
+      {
+        "tipo" : "noComandaDetenido",
+        "nivel" : "contrato",
+        "obligatoria" : true,
+        "parametros" : {
+          
+        },
+        "nota" : null
+      },
+      {
+        "tipo" : "actua",
+        "nivel" : "riesgo",
+        "obligatoria" : true,
+        "parametros" : {
+          "tolerancia" : 0.5,
+          "max" : "10m"
+        },
+        "nota" : null
+      },
+      {
+        "tipo" : "apagaSinLecturas",
+        "nivel" : "mejora",
+        "obligatoria" : false,
+        "parametros" : {
+          "dentro" : "15m"
+        },
+        "nota" : null
+      }
+    ],
+    "hash" : "8922387da4d52292469514d7ee6e72d000c671da182dc8fc3887c075800fa171"
+  },
+  "eventos" : [
+    {
+      "real" : "2026-11-06T17:14:11.493-03:00",
+      "virtual" : null,
+      "t" : null,
+      "fase" : "setup",
+      "que" : "DETENER",
+      "ok" : true,
+      "detalle" : "200 {\"estado\":\"DETENIDO\",\"fechaHora\":null,\"factorTiempo\":null,\"iniciadoEn\":null}"
+    },
+    {
+      "real" : "2026-11-06T17:14:11.494-03:00",
+      "virtual" : null,
+      "t" : null,
+      "fase" : "setup",
+      "que" : "sitio 'gen-4-holgado-s1' en el simulador (4 habitaciones, v11)",
+      "ok" : true,
+      "detalle" : null
+    },
+    {
+      "real" : "2026-11-06T17:14:11.499-03:00",
+      "virtual" : null,
+      "t" : null,
+      "fase" : "setup",
+      "que" : "PUT /sitio",
+      "ok" : true,
+      "detalle" : "200 {\"habitaciones\":4,\"sitio\":\"gen-4-holgado-s1\"}"
+    },
+    {
+      "real" : "2026-11-06T17:14:11.501-03:00",
+      "virtual" : null,
+      "t" : null,
+      "fase" : "setup",
+      "que" : "GET /sitio",
+      "ok" : true,
+      "detalle" : "200 {\"schemaVersion\":\"2.0\",\"sitio\":{\"id\":\"gen-4-holgado-s1\",\"nombre\":\"Sitio generado: 4 habitaciones, holgado\",\"potenciaContratadaKW\":5.0,\"tarifa\":{\"punta\":{\"desde\":\"17:00\",\"hasta\":\"23:00\",\"dias\":\"HABILES"
+    },
+    {
+      "real" : "2026-11-06T17:14:11.504-03:00",
+      "virtual" : "2026-11-03T10:00-03:00",
+      "t" : "0s",
+      "fase" : "inicio",
+      "que" : "INICIAR 2026-11-03T13:00:00.000Z ×60.0",
+      "ok" : true,
+      "detalle" : "200 {\"estado\":\"EN_EJECUCION\",\"fechaHora\":\"2026-11-03T13:00:00.000Z\",\"factorTiempo\":60.0,\"iniciadoEn\":\"2026-11-06T20:14:11.502Z\"}"
+    },
+    {
+      "real" : "2026-11-06T17:14:11.507-03:00",
+      "virtual" : "2026-11-03T10:00:00.180-03:00",
+      "t" : "0s",
+      "fase" : "inicio",
+      "que" : "GET /control",
+      "ok" : true,
+      "detalle" : "200 {\"estado\":\"EN_EJECUCION\",\"fechaHora\":\"2026-11-03T13:00:00.185Z\",\"factorTiempo\":60.0,\"iniciadoEn\":\"2026-11-06T20:14:11.502Z\"}"
+    },
+    {
+      "real" : "2026-11-06T17:14:41.552-03:00",
+      "virtual" : "2026-11-03T10:30:02.880-03:00",
+      "t" : "30m2s",
+      "fase" : "falla",
+      "que" : "empieza: el termostato deja de publicar en room2 hasta el fin",
+      "ok" : true,
+      "detalle" : null
+    },
+    {
+      "real" : "2026-11-06T17:16:11.517-03:00",
+      "virtual" : "2026-11-03T12:00:00.780-03:00",
+      "t" : "2h",
+      "fase" : "fin",
+      "que" : "fin del escenario (2h virtuales)",
+      "ok" : true,
+      "detalle" : null
+    },
+    {
+      "real" : "2026-11-06T17:16:11.522-03:00",
+      "virtual" : "2026-11-03T12:00:01.080-03:00",
+      "t" : "2h1s",
+      "fase" : "salida",
+      "que" : "pasa: 6 ✓, 0 ✗",
+      "ok" : true,
+      "detalle" : null
+    },
+    {
+      "real" : "2026-11-06T17:16:11.522-03:00",
+      "virtual" : "2026-11-03T12:00:01.080-03:00",
+      "t" : "2h1s",
+      "fase" : "falla",
+      "que" : "termina: el termostato deja de publicar en room2 hasta el fin",
+      "ok" : true,
+      "detalle" : null
+    },
+    {
+      "real" : "2026-11-06T17:16:11.529-03:00",
+      "virtual" : "2026-11-03T12:00:01.500-03:00",
+      "t" : "2h1s",
+      "fase" : "fin",
+      "que" : "DETENER",
+      "ok" : true,
+      "detalle" : "200 {\"estado\":\"DETENIDO\",\"fechaHora\":null,\"factorTiempo\":null,\"iniciadoEn\":null}"
+    }
+  ],
+  "final" : {
+    "instante" : "2026-11-03T12:00:00.780-03:00",
+    "sitio" : "gen-4-holgado-s1",
+    "consumoTotalKwh" : 5.517,
+    "habitaciones" : [
+      {
+        "id" : "room1",
+        "temperaturaEsperada" : 20.3,
+        "temperatura" : 20.458,
+        "switch" : "OFF",
+        "consumoKwh" : 1.68
+      },
+      {
+        "id" : "room2",
+        "temperaturaEsperada" : 21.8,
+        "temperatura" : 21.451,
+        "switch" : "OFF",
+        "consumoKwh" : 0.585
+      },
+      {
+        "id" : "room3",
+        "temperaturaEsperada" : 22.1,
+        "temperatura" : 22.112,
+        "switch" : "OFF",
+        "consumoKwh" : 1.635
+      },
+      {
+        "id" : "room4",
+        "temperaturaEsperada" : 20.4,
+        "temperatura" : 20.48,
+        "switch" : "OFF",
+        "consumoKwh" : 1.617
+      }
+    ]
+  },
+  "metricas" : {
+    "global" : {
+      "desde" : "0s",
+      "hasta" : "2h",
+      "potenciaPicoKW" : 4.0,
+      "potenciaMediaKW" : 2.76,
+      "excesoMaxKW" : 0.0,
+      "segundosSobreContratada" : 0.0,
+      "kwh" : 5.517,
+      "kwhEnPunta" : 0.0,
+      "kwhFueraDePunta" : 5.517,
+      "aprovechamiento" : null,
+      "fraccionEnRango" : 1.0,
+      "brechaMedia" : 0.31,
+      "deficitMedio" : 0.3,
+      "comandos" : 8,
+      "conmutaciones" : 8,
+      "comandosASwitchesAjenos" : 0
+    },
+    "tramos" : [
+      {
+        "desde" : "0s",
+        "hasta" : "2h",
+        "potenciaPicoKW" : 4.0,
+        "potenciaMediaKW" : 2.76,
+        "excesoMaxKW" : 0.0,
+        "segundosSobreContratada" : 0.0,
+        "kwh" : 5.517,
+        "kwhEnPunta" : 0.0,
+        "kwhFueraDePunta" : 5.517,
+        "aprovechamiento" : null,
+        "fraccionEnRango" : 1.0,
+        "brechaMedia" : 0.31,
+        "deficitMedio" : 0.3,
+        "comandos" : 8,
+        "conmutaciones" : 8,
+        "comandosASwitchesAjenos" : 0
+      }
+    ],
+    "habitaciones" : [
+      {
+        "id" : "room1",
+        "temperaturaMin" : 19.8,
+        "temperaturaMax" : 20.46,
+        "temperaturaFinal" : 20.46,
+        "esperadaFinal" : 20.3,
+        "brechaMedia" : 0.26,
+        "fraccionEnRango" : 1.0,
+        "alcanzoEn" : "1h6m12s",
+        "kwh" : 1.68,
+        "comandos" : 2,
+        "conmutaciones" : 2,
+        "conmutacionesPorHora" : 1.0
+      },
+      {
+        "id" : "room2",
+        "temperaturaMin" : 21.3,
+        "temperaturaMax" : 21.47,
+        "temperaturaFinal" : 21.45,
+        "esperadaFinal" : 21.8,
+        "brechaMedia" : 0.39,
+        "fraccionEnRango" : 1.0,
+        "alcanzoEn" : null,
+        "kwh" : 0.585,
+        "comandos" : 2,
+        "conmutaciones" : 2,
+        "conmutacionesPorHora" : 1.0
+      },
+      {
+        "id" : "room3",
+        "temperaturaMin" : 21.6,
+        "temperaturaMax" : 22.11,
+        "temperaturaFinal" : 22.11,
+        "esperadaFinal" : 22.1,
+        "brechaMedia" : 0.3,
+        "fraccionEnRango" : 1.0,
+        "alcanzoEn" : "1h24m12s",
+        "kwh" : 1.635,
+        "comandos" : 2,
+        "conmutaciones" : 2,
+        "conmutacionesPorHora" : 1.0
+      },
+      {
+        "id" : "room4",
+        "temperaturaMin" : 19.9,
+        "temperaturaMax" : 20.48,
+        "temperaturaFinal" : 20.48,
+        "esperadaFinal" : 20.4,
+        "brechaMedia" : 0.28,
+        "fraccionEnRango" : 1.0,
+        "alcanzoEn" : "1h15m12s",
+        "kwh" : 1.617,
+        "comandos" : 2,
+        "conmutaciones" : 2,
+        "conmutacionesPorHora" : 1.0
+      }
+    ],
+    "toleranciaConfort" : 0.5
+  },
+  "expectativasDetalle" : [
+    {
+      "cumple" : true,
+      "detalle" : "3 de 3 habitaciones a ±0,5 °C al menos el 70% del tiempo; la peor, room1, el 100,0%",
+      "medido" : {
+        "peor" : {
+          "id" : "room1",
+          "fraccion" : 1.0
+        },
+        "porHabitacion" : {
+          "room1" : 1.0,
+          "room3" : 1.0,
+          "room4" : 1.0
+        }
+      },
+      "tipo" : "enRango",
+      "nivel" : "mejora",
+      "obligatoria" : false,
+      "parametros" : {
+        "desde" : "0s",
+        "habitaciones" : [
+          "room1",
+          "room3",
+          "room4"
+        ],
+        "tolerancia" : 0.5,
+        "fraccion" : 0.7
+      },
+      "nota" : null
+    },
+    {
+      "cumple" : true,
+      "detalle" : "la potencia encendida nunca pasó la contratada + 0,10 kW",
+      "medido" : {
+        "veces" : 0,
+        "segundos" : 0.0,
+        "excesoMaxKW" : 0.0,
+        "primera" : null
+      },
+      "tipo" : "potenciaMaxima",
+      "nivel" : "riesgo",
+      "obligatoria" : true,
+      "parametros" : {
+        "tolerancia" : 0.1,
+        "gracia" : "2m"
+      },
+      "nota" : null
+    },
+    {
+      "cumple" : true,
+      "detalle" : "todos los comandos fueron a switches del sitio vigente",
+      "medido" : {
+        "comandos" : 0,
+        "switches" : [
+        ],
+        "primero" : null
+      },
+      "tipo" : "soloSwitchesDelSitio",
+      "nivel" : "contrato",
+      "obligatoria" : true,
+      "parametros" : {
+        "gracia" : "2m"
+      },
+      "nota" : null
+    },
+    {
+      "cumple" : true,
+      "detalle" : "ningún comando de encender a switches entre el DETENER del setup y el INICIAR",
+      "medido" : {
+        "comandos" : 0,
+        "switches" : [
+        ]
+      },
+      "tipo" : "noComandaDetenido",
+      "nivel" : "contrato",
+      "obligatoria" : true,
+      "parametros" : {
+        
+      },
+      "nota" : null
+    },
+    {
+      "cumple" : true,
+      "detalle" : "nunca hubo una habitación fría y apagada que entrara en lo libre de la contratada",
+      "medido" : {
+        "rachas" : 0,
+        "masLarga" : null
+      },
+      "tipo" : "actua",
+      "nivel" : "riesgo",
+      "obligatoria" : true,
+      "parametros" : {
+        "tolerancia" : 0.5,
+        "max" : "10m"
+      },
+      "nota" : null
+    },
+    {
+      "cumple" : true,
+      "detalle" : "1 habitación sin lecturas: apagada pasados 15m",
+      "medido" : {
+        "habitaciones" : 1,
+        "aCiegas" : {
+          
+        }
+      },
+      "tipo" : "apagaSinLecturas",
+      "nivel" : "mejora",
+      "obligatoria" : false,
+      "parametros" : {
+        "dentro" : "15m"
+      },
+      "nota" : null
+    }
+  ],
+  "observaciones" : [
+  ],
+  "escenarioFuente" : {
+    "id" : "F03",
+    "nombre" : "Un termostato deja de publicar",
+    "descripcion" : "4 habitaciones que entran juntas. A la media hora el termostato de room2 se calla para siempre (se rompió, se quedó sin batería). El controlador no tiene que seguir calentándola a ciegas, y las otras tres siguen normales.",
+    "setup" : {
+      "sitio" : {
+        "generado" : {
+          "habitaciones" : 4,
+          "presupuesto" : "holgado"
+        }
+      }
+    },
+    "inicio" : {
+      "fechaHora" : "2026-11-03T10:00",
+      "factorTiempo" : 60
+    },
+    "duracion" : "2h",
+    "fallas" : [
+      {
+        "en" : "30m",
+        "termostato" : "silencio",
+        "habitaciones" : [
+          "room2"
+        ]
+      }
+    ],
+    "esperado" : [
+      {
+        "enRango" : {
+          "habitaciones" : [
+            "room1",
+            "room3",
+            "room4"
+          ],
+          "tolerancia" : 0.5,
+          "fraccion" : 0.7
+        }
+      }
+    ]
+  },
+  "id" : "20261106-170040-9-F03",
+  "simulador" : "ecowarm-run",
+  "tanda" : "20261106-170040-1",
+  "escenario" : {
+    "id" : "F03",
+    "nombre" : "Un termostato deja de publicar",
+    "hash" : "8922387da4d52292469514d7ee6e72d000c671da182dc8fc3887c075800fa171"
+  },
+  "controlador" : "ecowarm-grupo4",
+  "estado" : "terminada",
+  "motivo" : null,
+  "creadaEn" : "2026-11-06T17:00:40.721-03:00",
+  "empezo" : "2026-11-06T17:14:11.489-03:00",
+  "termino" : "2026-11-06T17:16:11.529-03:00",
+  "estimacionRealSegundos" : 125,
+  "progreso" : {
+    "virtualTranscurrido" : "2h",
+    "virtualTotal" : "2h",
+    "fraccion" : 1.0,
+    "pasos" : "0/0",
+    "realRestanteSegundos" : 0
+  },
+  "resultado" : "pasa",
+  "expectativas" : {
+    "contrato" : {
+      "cumplen" : 2,
+      "fallan" : 0,
+      "noAplican" : 0
+    },
+    "riesgo" : {
+      "cumplen" : 2,
+      "fallan" : 0,
+      "noAplican" : 0
+    },
+    "mejora" : {
+      "cumplen" : 2,
+      "fallan" : 0,
+      "noAplican" : 0
+    },
+    "obligatorias" : {
+      "cumplen" : 4,
+      "fallan" : 0,
+      "noAplican" : 0
+    },
+    "informativas" : {
+      "cumplen" : 2,
+      "fallan" : 0,
+      "noAplican" : 0
+    },
+    "observaciones" : {
+      "graves" : 0,
+      "menores" : 0
+    }
+  }
+}

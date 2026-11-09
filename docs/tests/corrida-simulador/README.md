@@ -1,6 +1,6 @@
 # Corrida contra el simulador (tarjeta T13)
 
-Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas).
+Corridas registradas: [2026-10-28](2026-10-28/README.md) (final de la iteración 5: escenarios del simulador, problemas encontrados y respuestas a las preguntas abiertas) y [2026-11-06](2026-11-06-ecowarm-run/README.md) (simulador oficial `ecowarm-run`: 9 de 9 escenarios).
 
 Guía para la prueba con el simulador real. Cada escenario se captura con
 `scripts/captura-simulador.sh`, que guarda en `docs/tests/corrida-simulador/<fecha>-<escenario>/`:

@@ -535,6 +535,8 @@ sequenceDiagram
 
 Con el tick fijo de antes (1 s real) el atraso era de un tick real: 30 s de control a ×30 y 10 min a ×600. `TiempoAceleradoTest` arranca a ×600 cinco minutos antes de la punta y verifica el corte en menos de 1 s real (y con menos de 1 min de control de atraso); y lo mismo con la restitución al salir. Con el tick sin escalar los dos tests fallan (el corte llega a los ~1025 ms reales).
 
+**Corte anticipado (T24e).** Aun con el tick escalado, el corte llegaba tarde: en el escenario E11 del simulador oficial (`ecowarm-run`, ×60) la pasada consultó y apagó los 5 switches entre las 17:00:00 y las 17:00:02 de control, porque a ×60 cada milisegundo real son 60 ms simulados, y la expectativa "en punta no se enciende nada" falló. Por eso el core trata la punta como si empezara `control.anticipacion-punta-segundos` antes (60 s de tiempo de control por defecto, 1 s real a ×60): a las 16:59 ya decide `TARIFA_PUNTA` y los OFF llegan antes de las 17:00. La salida **no** se adelanta: a las 23:00 se restituye como antes (`DecidirTest.anticipacion_cortaAntesYRestituyeALaHora`). El costo es calefaccionar un minuto menos antes de cada punta.
+
 ### 2.4 Cambio de configuración en caliente (`PUT /sitio` con el control en ejecución)
 
 ```mermaid
