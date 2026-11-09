@@ -88,6 +88,25 @@ class ClienteSwitchRestTest {
     }
 
     @Test
+    @DisplayName("Estado en minúscula o con espacios (fuera de contrato, F07) -> se entiende igual")
+    void estadoSinImportarMayusculas() {
+        contentType = "application/json";
+        cuerpo = "{\"idSwitch\":\"sw-1\",\"estado\":\" on \"}";
+        assertEquals(EstadoSwitch.ON, cliente.consultar(url(), "sw-1"));
+    }
+
+    @Test
+    @DisplayName(
+            "Comando que responde 2xx con algo que no es JSON (F07) -> se toma como aplicado; una"
+                    + " consulta con lo mismo sigue siendo falla")
+    void comandoConCuerpoQueNoEsJson_seTomaComoAplicado() {
+        contentType = "text/plain";
+        cuerpo = "OK";
+        assertEquals(EstadoSwitch.ON, cliente.comandar(url(), "sw-1", Accion.ON));
+        assertThrows(SwitchNoDisponibleException.class, () -> cliente.consultar(url(), "sw-1"));
+    }
+
+    @Test
     @DisplayName("Respuesta muy larga -> el mensaje la recorta")
     void respuestaLarga_seRecorta() {
         String larga = "x".repeat(500);
