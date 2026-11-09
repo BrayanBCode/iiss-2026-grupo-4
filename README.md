@@ -125,6 +125,9 @@ reintenta solo (2, 4, 8 … 30 s).
 
 ### A. Con el verificador `ecowarm-check` (recomendado para el primer intento)
 
+El `ecowarm-check.jar` lo entrega la cátedra y no está en el repo: copiarlo a la raíz del proyecto
+(está en el `.gitignore`).
+
 ```bash
 # terminal 1: el entorno (broker MQTT, switches e inventario en :9090)
 java -jar ecowarm-check.jar --anunciar host.docker.internal   # --broker 1884 si el 1883 está ocupado
@@ -244,10 +247,10 @@ Recorrido completo con curl: `./scripts/api-demo.sh [api-key] [url]`.
 
 | Módulo | Tests | Qué cubren |
 |---|---|---|
-| core | 56 | `DecidirTest` (42): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"), en 8 grupos. `MayorDeficitPrimeroTest` (9) y `ModeloTest` (5). Cobertura JaCoCo: 100 % líneas, 94,4 % ramas (el build exige ≥ 85 %). |
-| engine | 225 | `CoreAdapterEstimulosTest` (61), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Unitarios (99): `CoreAdapter` (switches falsos con memoria, reconciliación, fallas, switch que no prende, sanos primero), API completa con contexto Spring (`ApiEstandarTest`), reloj del control y las dos escalas del `ts`, tick y reconciliación escalados, cliente de switches (respuestas fuera de contrato, timeout escalado), validación y persistencia del inventario, payload MQTT, cliente MQTT, registro. De integración (65), con broker MQTT embebido y switches HTTP falsos: carga total, arranque y parada, cambios de configuración en ejecución, caída del broker, pérdida de mensajes, switches que fallan, termostatos caídos, tiempo acelerado, escenarios del simulador, reconciliación escalada y estrés (switches colgados, ×600 y ×3600, 50 habitaciones). |
+| core | 57 | `DecidirTest` (43): la función `decidir` llamada directamente con situaciones completas ("5 habitaciones con déficit, cuáles prenden"), en 8 grupos. `MayorDeficitPrimeroTest` (9) y `ModeloTest` (5). Cobertura JaCoCo: 100 % líneas, 94,6 % ramas (el build exige ≥ 85 %). |
+| engine | 232 | `CoreAdapterEstimulosTest` (61), por estímulos en 10 grupos: decisión básica, tarifa punta, tope de potencia, criterio, configuración, histéresis, lecturas defectuosas, lecturas vencidas, reloj del control, invariantes (3000 estímulos seudoaleatorios). Unitarios (105): `CoreAdapter` (switches falsos con memoria, reconciliación, fallas, switch que no prende, sanos primero, habitación que sale del sitio, switches lentos y switch que no obedece), API completa con contexto Spring (`ApiEstandarTest`), reloj del control y las dos escalas del `ts`, tick y reconciliación escalados, cliente de switches (respuestas fuera de contrato, timeout escalado), validación y persistencia del inventario, payload MQTT, cliente MQTT, registro. De integración (66), con broker MQTT embebido y switches HTTP falsos: carga total, arranque y parada, cambios de configuración en ejecución, caída del broker, pérdida de mensajes, switches que fallan, termostatos caídos, tiempo acelerado, escenarios del simulador, reconciliación escalada y estrés (switches colgados y lentos, ×600 y ×3600, 50 habitaciones). |
 
-Última ejecución (2026-11-08, cierre de la iteración 6): 281 tests, 0 fallas. Detalle en
+Última ejecución (2026-11-09): 289 tests, 0 fallas. Detalle en
 [`docs/tests/resultados.md`](docs/tests/resultados.md). El criterio por el que el conjunto se
 considera adecuado está en [`docs/tests/criterio-tests.md`](docs/tests/criterio-tests.md), y la
 cobertura y el estándar de codificación, en [`docs/calidad/`](docs/calidad/README.md).

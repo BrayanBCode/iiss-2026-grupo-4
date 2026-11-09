@@ -682,6 +682,13 @@ Así un switch sano espera, como mucho, una llamada en curso a uno que no respon
 espera puede ser de hasta 12 s por switch colgado (L9). La potencia contratada sigue cuidada entre
 grupos: un switch que no confirmó OFF cuenta como encendido para retener un ON (§2.5).
 
+**Switches lentos (T39).** Un switch que responde, pero tarda menos que el timeout, cuenta como
+sano: con 20 de 400 ms a ×60, apagar todo lleva 8 s reales (8 min de control). Por eso el adaptador
+mide lo que tarda cada llamada y amplía en cada decisión la anticipación de la punta: switches del
+sitio × lo que tarda cada uno × el factor × 1,5, sumado al minuto configurado (A21). Y si
+cambia una decisión mientras una reconciliación consulta, se dejan de consultar los sanos y se pasa
+a mandar los OFF.
+
 ### 3.1 Manejo de fallas
 
 | Falla | Qué hace el controlador | Hilo | Test |
@@ -699,6 +706,9 @@ grupos: un switch que no confirmó OFF cuenta como encendido para retener un ON 
 | `CONTROLADOR_BASE_URL` que el entorno no puede alcanzar (`localhost` con el entorno en otra máquina, IP mal escrita) | aviso `WARN` al arrancar, antes de registrarse: el registro igual responde 201 y el error solo se notaría porque nunca llega el `PUT /sitio` (corrida del 2026-10-28) | `main` | `RegistroEntornoTest` |
 | Reinicio del controlador | el inventario se recupera del archivo JSON; uno corrupto no impide arrancar | `main` | `RepositorioInventarioTest` |
 | Un switch que no prende (acepta el ON y sigue apagado, o el ON falla y la consulta lo muestra apagado) | la habitación queda `OFF` con `SWITCH_NO_RESPONDE` y su potencia pasa a las demás; se reintenta tras una espera que se duplica (30 s, hasta 10 min) (A17) | `switches` | `CoreAdapterTest` |
+| Switches lentos que no llegan al timeout, cruzando la punta | la anticipación de la punta crece con lo que tardan (A21): con 20 de 400 ms a ×60, la última se apaga antes de las 17:00 (antes, a las 17:10) | `switches` | `EstresTest`, `CoreAdapterTest`, `DecidirTest` |
+| Un switch que acepta el comando y la consulta lo muestra como estaba | tras 3 correcciones seguidas no obedece: con ON decidido cede su potencia (A17); con OFF decidido no se lo comanda durante una espera escalonada y cuenta como encendido para la contratada (A22) | `switches` | `CoreAdapterTest` |
+| Un `PUT /sitio` saca una habitación con el switch encendido | no se lo comanda (ya no es del sitio vigente); WARN y `switchesFueraDelSitio` en `/diagnostico` para apagarlo a mano (A20, L20) | API | `CoreAdapterTest`, `EscenariosSimuladorTest` |
 
 ### 3.2 Qué deja el log de una corrida
 

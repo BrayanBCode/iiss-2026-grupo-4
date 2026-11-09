@@ -71,8 +71,15 @@ import uy.edu.utec.iiss.engine.switches.EstadoSwitch;
 public class CoreAdapter implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(CoreAdapter.class);
-    // Tope de la espera antes de reintentar un switch que no prende (F09).
+    // Tope de la espera antes de reintentar un switch que no prende (F09) o que no obedece (T40).
     private static final Duration ESPERA_MAXIMA_NO_PRENDE = Duration.ofMinutes(10);
+    // Correcciones seguidas (aceptó el comando y la consulta muestra lo contrario) antes de dar a
+    // un switch por desobediente (T40).
+    private static final int CORRECCIONES_MAXIMAS = 3;
+    // Margen sobre lo que se estima que tardan los OFF de la punta, y tope de la anticipación
+    // (T39).
+    private static final double MARGEN_ANTICIPACION = 1.5;
+    private static final Duration ANTICIPACION_MAXIMA = Duration.ofMinutes(30);
 
     /** Una habitación tal como la necesita el core, más el switch que la calefacciona. */
     public record HabitacionControlada(
@@ -137,6 +144,19 @@ public class CoreAdapter implements AutoCloseable {
     // Cuántas veces cambió la acción decidida de alguna habitación: la pasada lo compara para
     // cortarse antes de llamar a un switch que viene fallando (T37).
     private long cambiosDeAccion;
+    // Switches de habitaciones que salieron del sitio (o cambiaron de switch) con el switch
+    // encendido, por id de switch: no se los comanda porque ya no son del sitio vigente (T38).
+    private final Map<String, HabitacionControlada> fueraDelSitio = new LinkedHashMap<>();
+    // Switches que aceptan el comando y la consulta muestra lo contrario (T40): correcciones
+    // seguidas, hasta cuándo no se los comanda y cuántas veces pasó, para duplicar la espera.
+    private final Map<String, Integer> correccionesSeguidas = new HashMap<>();
+    private final Map<String, Instant> noObedeceHasta = new HashMap<>();
+    private final Map<String, Integer> vecesQueNoObedecio = new HashMap<>();
+    // Lo que tarda un switch en responder (máximo que decae, en ms reales) y el factor del último
+    // INICIAR: con eso se estima cuánto tiempo de control llevan los OFF de la punta (T39).
+    private double msPorLlamada;
+    private double factorTiempo = 1;
+    private Duration anticipacionAvisada;
 
     /** Con su propio hilo de switches. */
     public CoreAdapter(
@@ -199,19 +219,59 @@ public class CoreAdapter implements AutoCloseable {
                             h.id(), h.id(), h.temperaturaEsperada(), h.potenciaKW()));
         }
         // Lo que se sabía del switch de una habitación que ya no existe, o que cambió de switch,
-        // deja de valer.
+        // deja de valer. Si quedó encendido, se avisa: no se lo puede comandar (T38).
         for (Map.Entry<String, HabitacionControlada> vieja : habitaciones.entrySet()) {
             HabitacionControlada nueva = porId.get(vieja.getKey());
             if (nueva == null
                     || !nueva.idSwitch().equals(vieja.getValue().idSwitch())
                     || !nueva.urlSwitch().equals(vieja.getValue().urlSwitch())) {
-                estadoConocido.remove(vieja.getKey());
+                EstadoSwitch conocido = estadoConocido.remove(vieja.getKey());
                 noReintentarAntesDe.remove(vieja.getKey());
+                olvidarDesobediencia(vieja.getKey());
+                avisarSiQuedaEncendido(vieja.getValue(), conocido);
             }
         }
         habitaciones.clear();
         habitaciones.putAll(porId);
+        // Un switch que vuelve al sitio se controla de nuevo.
+        fueraDelSitio.values().removeIf(fuera -> usaElMismoSwitch(porId.values(), fuera));
         procesar(new Estimulo.ConfiguracionActualizada(sitio, configuracionNueva));
+    }
+
+    /**
+     * El switch de una habitación que salió del sitio (o que la habitación dejó de usar) puede
+     * haber quedado encendido: se conocía ON, o no se sabía y la última decisión era ON. No se lo
+     * comanda, porque ya no es del sitio vigente (el estándar solo comanda switches del sitio y el
+     * simulador lo verifica); se avisa en el log y en {@code /diagnostico} para apagarlo a mano. Se
+     * llama con el bloqueo tomado, antes de olvidar la última decisión.
+     */
+    private void avisarSiQuedaEncendido(HabitacionControlada vieja, EstadoSwitch conocido) {
+        Decision ultima = ultimaDecision.get(vieja.id());
+        boolean puedeEstarEncendido =
+                conocido == EstadoSwitch.ON
+                        || (conocido != EstadoSwitch.OFF
+                                && ultima != null
+                                && ultima.accion() == Accion.ON);
+        if (!puedeEstarEncendido) {
+            return;
+        }
+        fueraDelSitio.put(vieja.idSwitch(), vieja);
+        log.warn(
+                "La habitación '{}' dejó de usar el switch '{}' y quedó encendido: no se lo"
+                        + " comanda porque ya no es del sitio vigente ({} kW fuera de control).",
+                vieja.id(),
+                vieja.idSwitch(),
+                vieja.potenciaKW());
+    }
+
+    private static boolean usaElMismoSwitch(
+            Iterable<HabitacionControlada> habitaciones, HabitacionControlada otra) {
+        for (HabitacionControlada h : habitaciones) {
+            if (h.idSwitch().equals(otra.idSwitch()) && h.urlSwitch().equals(otra.urlSwitch())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -356,6 +416,7 @@ public class CoreAdapter implements AutoCloseable {
      * del reloj viejo justo antes, para que cuente también el tiempo que estuvo detenido.
      */
     private void sincronizarReloj(Estimulo.Sincronizacion s) {
+        factorTiempo = s.factorTiempo();
         Iterator<Map.Entry<String, Instant>> lecturas = instanteLectura.entrySet().iterator();
         while (lecturas.hasNext()) {
             Map.Entry<String, Instant> lectura = lecturas.next();
@@ -392,9 +453,59 @@ public class CoreAdapter implements AutoCloseable {
             }
         }
         List<Decision> decisiones =
-                new ArrayList<>(core.decidir(sitio, disponibles, estados, ahora));
+                new ArrayList<>(
+                        core.decidir(sitio, disponibles, estados, ahora, anticipacionPunta()));
         decisiones.addAll(enEsperaDeReintento);
         return decisiones;
+    }
+
+    /**
+     * Cuánto antes de la punta cortar (T39). Los OFF salen de a uno, así que con switches lentos
+     * (que responden, pero tardan) apagar todo lleva tiempo: los switches del sitio por lo que
+     * tarda cada llamada, llevado a tiempo de control con el factor y con un margen, se suma a la
+     * anticipación configurada. Con switches rápidos queda la configurada.
+     *
+     * <p>Se cuentan todos los switches del sitio, no solo los encendidos: si no, a medida que los
+     * OFF se confirman la anticipación se achica y las que ya se apagaron vuelven a prender antes
+     * de la punta. Se llama con el bloqueo tomado.
+     */
+    private Duration anticipacionPunta() {
+        double msDeControl =
+                habitaciones.size() * msPorLlamada * factorTiempo * MARGEN_ANTICIPACION;
+        Duration anticipacion = core.anticipacionPunta().plusMillis(Math.round(msDeControl));
+        if (anticipacion.compareTo(ANTICIPACION_MAXIMA) > 0) {
+            anticipacion = ANTICIPACION_MAXIMA;
+        }
+        avisarAnticipacion(anticipacion);
+        return anticipacion;
+    }
+
+    /** Deja en el log cuando la anticipación cambia en un minuto o más, para no llenarlo. */
+    private void avisarAnticipacion(Duration anticipacion) {
+        if (anticipacionAvisada != null
+                && anticipacion.minus(anticipacionAvisada).abs().compareTo(Duration.ofMinutes(1))
+                        < 0) {
+            return;
+        }
+        if (anticipacionAvisada != null || anticipacion.compareTo(core.anticipacionPunta()) > 0) {
+            log.info(
+                    "Anticipación de la punta: {} s de control (switches de hasta {} ms, factor"
+                            + " {}).",
+                    anticipacion.toSeconds(),
+                    Math.round(msPorLlamada),
+                    factorTiempo);
+        }
+        anticipacionAvisada = anticipacion;
+    }
+
+    /**
+     * Lo que tardó una llamada que respondió, para estimar la anticipación (T39). Es un máximo que
+     * decae: sube enseguida con una llamada lenta y baja de a poco (10 % por llamada) cuando los
+     * switches se recuperan. Mejor cortar un poco antes que tarde.
+     */
+    private synchronized void registrarDemora(long nanos) {
+        double ms = nanos / 1_000_000.0;
+        msPorLlamada = Math.max(ms, 0.9 * msPorLlamada);
     }
 
     private boolean noPrende(String idHabitacion) {
@@ -410,14 +521,7 @@ public class CoreAdapter implements AutoCloseable {
      * bloqueo tomado.
      */
     private void marcarQueNoPrende(HabitacionControlada h) {
-        int veces = vecesQueNoPrendio.merge(h.id(), 1, Integer::sum);
-        Duration espera = esperaReintento.multipliedBy(6L << Math.min(veces - 1, 10));
-        if (espera.compareTo(ESPERA_MAXIMA_NO_PRENDE) > 0) {
-            espera = ESPERA_MAXIMA_NO_PRENDE;
-        }
-        if (espera.compareTo(Duration.ofSeconds(1)) < 0) {
-            espera = Duration.ofSeconds(1); // nunca un reintento inmediato en bucle
-        }
+        Duration espera = esperaEscalonada(vecesQueNoPrendio.merge(h.id(), 1, Integer::sum));
         noPrendeHasta.put(h.id(), relojEsperas.instant().plus(espera));
         log.warn(
                 "El switch '{}' (habitación '{}') no prende: su potencia queda para las demás y se"
@@ -426,6 +530,64 @@ public class CoreAdapter implements AutoCloseable {
                 h.id(),
                 espera.toSeconds());
         aplicar(decidir());
+    }
+
+    /**
+     * La espera antes de volver a intentar con un switch que no prende o no obedece: 6 esperas de
+     * reintento que se duplican en cada falla seguida, hasta 10 min, y nunca menos de 1 s.
+     */
+    private Duration esperaEscalonada(int veces) {
+        Duration espera = esperaReintento.multipliedBy(6L << Math.min(veces - 1, 10));
+        if (espera.compareTo(ESPERA_MAXIMA_NO_PRENDE) > 0) {
+            espera = ESPERA_MAXIMA_NO_PRENDE;
+        }
+        if (espera.compareTo(Duration.ofSeconds(1)) < 0) {
+            espera = Duration.ofSeconds(1); // nunca un reintento inmediato en bucle
+        }
+        return espera;
+    }
+
+    /**
+     * La consulta de un switch muestra lo contrario de lo que aceptó (T40). Si es la corrección
+     * número {@value #CORRECCIONES_MAXIMAS} seguida, el switch no obedece: con ON decidido cede su
+     * potencia como uno que no prende (A17); con OFF decidido no se lo vuelve a comandar durante
+     * una espera escalonada. Mientras tanto cuenta como encendido para la contratada, porque su
+     * estado conocido es el de la consulta. Así no se le repite el comando en cada reconciliación.
+     * Se llama con el bloqueo tomado.
+     */
+    private void corregido(HabitacionControlada h, Decision decidida, EstadoSwitch real) {
+        int seguidas = correccionesSeguidas.merge(h.id(), 1, Integer::sum);
+        if (seguidas < CORRECCIONES_MAXIMAS) {
+            return;
+        }
+        correccionesSeguidas.remove(h.id());
+        if (decidida.accion() == Accion.ON) {
+            marcarQueNoPrende(h);
+            return;
+        }
+        Duration espera = esperaEscalonada(vecesQueNoObedecio.merge(h.id(), 1, Integer::sum));
+        noObedeceHasta.put(h.id(), relojEsperas.instant().plus(espera));
+        log.warn(
+                "El switch '{}' (habitación '{}') no obedece: aceptó {} {} veces seguidas y la"
+                        + " consulta lo muestra {}. Se lo deja de comandar {} s; cuenta como"
+                        + " encendido para la contratada.",
+                h.idSwitch(),
+                h.id(),
+                decidida.accion(),
+                seguidas,
+                real,
+                espera.toSeconds());
+    }
+
+    private boolean noObedece(String idHabitacion) {
+        Instant hasta = noObedeceHasta.get(idHabitacion);
+        return hasta != null && relojEsperas.instant().isBefore(hasta);
+    }
+
+    private void olvidarDesobediencia(String idHabitacion) {
+        correccionesSeguidas.remove(idHabitacion);
+        noObedeceHasta.remove(idHabitacion);
+        vecesQueNoObedecio.remove(idHabitacion);
     }
 
     private boolean estaConfigurada(String idHabitacion) {
@@ -469,6 +631,9 @@ public class CoreAdapter implements AutoCloseable {
         noPrendeHasta.clear();
         vecesQueNoPrendio.clear();
         onFallido.clear();
+        correccionesSeguidas.clear();
+        noObedeceHasta.clear();
+        vecesQueNoObedecio.clear();
         // Antes de aplicar: así la pasada que pide aplicar ya consulta antes de comandar, aun con
         // un executor sincrónico.
         consultaPendiente = true;
@@ -593,6 +758,11 @@ public class CoreAdapter implements AutoCloseable {
      * se sabe pronto si el que no prendió está apagado y su potencia se puede usar (F09). Después,
      * primero los OFF y después los ON.
      *
+     * <p>Si cambia una decisión mientras se consulta (por ejemplo, empieza la punta), se dejan de
+     * consultar los sanos y se pasa a mandar: con switches lentos, consultar los 20 lleva segundos
+     * reales y los OFF no pueden esperar a que termine una reconciliación (T39). Lo que faltó
+     * consultar queda para la próxima pasada.
+     *
      * @param cortable si es el grupo de los que fallaron: se corta si cambió una decisión
      * @return {@code false} si se cortó
      */
@@ -603,8 +773,12 @@ public class CoreAdapter implements AutoCloseable {
                 if (enEspera(h.id()) || !(consultar || !estadoConocido.containsKey(h.id()))) {
                     continue;
                 }
-                if (cortable && cambiosDeAccion != cambios) {
-                    return false;
+                if (cambiosDeAccion != cambios) {
+                    if (cortable) {
+                        return false;
+                    }
+                    consultaPendiente |= consultar;
+                    break;
                 }
             }
             consultar(h);
@@ -615,6 +789,7 @@ public class CoreAdapter implements AutoCloseable {
 
     private void consultar(HabitacionControlada h) {
         EstadoSwitch real;
+        long desde = System.nanoTime();
         try {
             real = switches.consultar(h.urlSwitch(), h.idSwitch());
         } catch (RuntimeException e) {
@@ -625,20 +800,28 @@ public class CoreAdapter implements AutoCloseable {
             }
             return;
         }
+        registrarDemora(System.nanoTime() - desde);
         synchronized (this) {
             if (!vigente(h)) {
                 return;
             }
-            if (estadoConocido.get(h.id()) != real && estadoConocido.containsKey(h.id())) {
+            EstadoSwitch antes = estadoConocido.get(h.id());
+            Decision decidida = ultimaDecision.get(h.id());
+            if (antes != real && antes != null) {
                 log.warn(
                         "Switch '{}' (habitación '{}') está {} y se creía {}: se corrige.",
                         h.idSwitch(),
                         h.id(),
                         real,
-                        estadoConocido.get(h.id()));
+                        antes);
             }
             estadoConocido.put(h.id(), real);
             volvioAResponder(h);
+            if (decidida != null && coincide(real, decidida.accion())) {
+                olvidarDesobediencia(h.id()); // obedece
+            } else if (decidida != null && antes != real && coincide(antes, decidida.accion())) {
+                corregido(h, decidida, real); // aceptó lo decidido y no quedó así (T40)
+            }
             if (onFallido.remove(h.id()) && real == EstadoSwitch.OFF) {
                 marcarQueNoPrende(h); // el ON falló y el switch sigue apagado
             }
@@ -672,6 +855,7 @@ public class CoreAdapter implements AutoCloseable {
                         || d.accion() != soloEsta
                         || coincide(estadoConocido.get(h.id()), d.accion())
                         || enEspera(h.id())
+                        || noObedece(h.id())
                         || (soloEsta == Accion.ON && excederiaLaContratada(h))) {
                     continue;
                 }
@@ -681,7 +865,9 @@ public class CoreAdapter implements AutoCloseable {
                 accion = d.accion();
             }
             try {
+                long desde = System.nanoTime();
                 EstadoSwitch resultado = switches.comandar(h.urlSwitch(), h.idSwitch(), accion);
+                registrarDemora(System.nanoTime() - desde);
                 synchronized (this) {
                     if (!vigente(h)) {
                         continue;
@@ -814,6 +1000,14 @@ public class CoreAdapter implements AutoCloseable {
         }
         double contratada = sitio == null ? 0 : sitio.potenciaContratadaKW();
         return new Resumen(encendidas, habitaciones.size(), comprometida, contratada, porMotivo);
+    }
+
+    /**
+     * Switches que quedaron encendidos al salir su habitación del sitio (T38): el controlador no
+     * los comanda y hay que apagarlos a mano. Para {@code /diagnostico}.
+     */
+    public synchronized List<String> switchesFueraDelSitio() {
+        return List.copyOf(fueraDelSitio.keySet());
     }
 
     public synchronized List<EstadoControlado> estados() {

@@ -55,6 +55,8 @@ public class DiagnosticoController {
             habitaciones.add(h);
         }
         m.put("habitaciones", habitaciones);
+        // Switches que quedaron encendidos al salir su habitación del sitio: apagarlos a mano.
+        m.put("switchesFueraDelSitio", adaptador.switchesFueraDelSitio());
         return m;
     }
 }
