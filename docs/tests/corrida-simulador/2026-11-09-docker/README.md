@@ -46,8 +46,9 @@ java --sun-misc-unsafe-memory-access=allow -jar ecowarm-run.jar todos --host hos
 - En cada INICIAR: `Timeouts de los switches con factor 60.0: 500 ms de conexión, 500 ms de
   respuesta` (A19).
 - No hay ninguna línea `Anticipación de la punta`: los switches del simulador responden en
-  milisegundos, así que la anticipación queda en el minuto configurado (A21 no cambia nada en una
-  red normal).
+  milisegundos, así que la anticipación queda en el minuto configurado (A21 no cambia nada con el
+  simulador en la misma máquina). En la red del laboratorio sí cambió: ver la
+  [prueba de aceptación](../2026-11-09-laboratorio/README.md) (agregado después del tag).
 
 ## Qué no cubre
 

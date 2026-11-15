@@ -92,6 +92,14 @@ Cómo se corrigió lo que fallaba está en la del
 
 ### Con el simulador del laboratorio (otra máquina)
 
+La prueba de aceptación se corrió así el 2026-11-09 y dio 10 de 10. El detalle, con las 35 corridas
+del log y lo que el puntaje no mide, está en
+[`tests/corrida-simulador/2026-11-09-laboratorio/`](tests/corrida-simulador/2026-11-09-laboratorio/README.md).
+**Antes de empezar, confirmar que la imagen es la de esta versión** (`up -d --build`). En esa
+prueba, las primeras 8 corridas usaron una imagen vieja y descartaron todas las lecturas como
+`TS_VENCIDO`. Hoy el log no dice qué versión corre (L22). Las direcciones y la clave van como
+variables (paso 2), no escritas en el compose.
+
 1. Averiguar la IP del simulador, su clave y la IP de **esta** máquina en esa red (`ipconfig`).
 2. Levantar el controlador con esas tres:
    ```bash

@@ -317,6 +317,12 @@ en [limitaciones y roadmap](roadmap.md).
   `EstresTest.veinteSwitchesLentos_cruzandoLaPunta`,
   `CoreAdapterTest.switchesLentos_amplianLaAnticipacionDeLaPunta` y
   `DecidirTest.anticipacionAmpliada_cortaAntesYNuncaMenos`.
+- **Lo que mostró la aceptación (agregado después del tag).** En la red del laboratorio los
+  switches tardaron 200 a 430 ms. Con 50 habitaciones, la anticipación llegó a 1000–1800 s de
+  control, con el tope de 30 min dos veces. Ese escenario no cruzaba la punta. El que sí la cruzó,
+  con 5 habitaciones, cortó 67 s antes. Además, la anticipación sube y baja en segundos: el máximo
+  decae por llamada, y hay muchas llamadas por segundo. "Con switches rápidos no cambia nada" vale
+  para la misma máquina, no para una red real. Queda como limitación L21, y ajustarla es R17.
 
 ### A22 · Un switch que no obedece se deja de comandar un rato
 
@@ -434,6 +440,11 @@ en [limitaciones y roadmap](roadmap.md).
   correcciones de problemas encontrados, no funcionalidades nuevas (T22).
 - **Consecuencias.** Lo que entró después de la corrida del 2026-11-06 (T31–T37) son correcciones
   de comportamientos vistos en el simulador oficial o en las pruebas de estrés.
+- **Excepción, agregada después del tag.** T38–T40 (A20–A22) entraron después de T13 y no son solo
+  correcciones: agregan comportamiento para casos extremos que el simulador oficial no probaba, como
+  un switch que sale del sitio, switches lentos o un switch que no obedece. Se mergearon (#42)
+  porque salieron de las pruebas de estrés y tienen tests, pero la regla no se actualizó en ese
+  momento.
 
 ## Cómo agregar una decisión
 
